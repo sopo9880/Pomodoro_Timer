@@ -46,6 +46,7 @@ const state = {
   focusMinutesToday: 0,
   autoAdvance: true,
   soundEnabled: true,
+  vibrationEnabled: true,
   selectedPreset: "classic",
   focusIntent: "",
   log: [],
@@ -69,6 +70,7 @@ const elements = {
   skipButton: document.getElementById("skipButton"),
   autoAdvance: document.getElementById("autoAdvance"),
   soundEnabled: document.getElementById("soundEnabled"),
+  vibrationEnabled: document.getElementById("vibrationEnabled"),
   completedToday: document.getElementById("completedToday"),
   focusMinutesToday: document.getElementById("focusMinutesToday"),
   nextModeLabel: document.getElementById("nextModeLabel"),
@@ -120,6 +122,11 @@ function bindEvents() {
     if (state.soundEnabled) {
       unlockAudio();
     }
+    saveState();
+  });
+
+  elements.vibrationEnabled.addEventListener("change", () => {
+    state.vibrationEnabled = elements.vibrationEnabled.checked;
     saveState();
   });
 
@@ -351,6 +358,10 @@ function handleCompletion() {
     playCompletionSound();
   }
 
+  if (state.vibrationEnabled) {
+    vibrateOnCompletion();
+  }
+
   showNotification();
   advanceMode(true);
 }
@@ -446,6 +457,7 @@ function renderControls() {
   elements.startPauseButton.textContent = state.isRunning ? "일시정지" : "시작";
   elements.autoAdvance.checked = state.autoAdvance;
   elements.soundEnabled.checked = state.soundEnabled;
+  elements.vibrationEnabled.checked = state.vibrationEnabled;
 }
 
 function renderSettings() {
@@ -651,6 +663,14 @@ function showNotification() {
   }
 }
 
+function vibrateOnCompletion() {
+  if (!("vibrate" in navigator) || !isAndroidDevice()) {
+    return;
+  }
+
+  navigator.vibrate([180, 80, 220]);
+}
+
 function saveState() {
   const payload = {
     settings: state.settings,
@@ -661,6 +681,7 @@ function saveState() {
     focusMinutesToday: state.focusMinutesToday,
     autoAdvance: state.autoAdvance,
     soundEnabled: state.soundEnabled,
+    vibrationEnabled: state.vibrationEnabled,
     selectedPreset: state.selectedPreset,
     focusIntent: state.focusIntent,
     log: state.log,
@@ -688,6 +709,7 @@ function loadState() {
     state.focusMinutesToday = parsed.focusMinutesToday || 0;
     state.autoAdvance = parsed.autoAdvance ?? true;
     state.soundEnabled = parsed.soundEnabled ?? true;
+    state.vibrationEnabled = parsed.vibrationEnabled ?? true;
     state.selectedPreset = parsed.selectedPreset || getPresetMatch() || "classic";
     state.focusIntent = parsed.focusIntent || "";
     state.log = Array.isArray(parsed.log) ? parsed.log : [];
@@ -720,6 +742,10 @@ function isStandaloneMode() {
 
 function isIosDevice() {
   return /iphone|ipad|ipod/i.test(window.navigator.userAgent);
+}
+
+function isAndroidDevice() {
+  return /android/i.test(window.navigator.userAgent);
 }
 
 function isSafariBrowser() {
