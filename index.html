@@ -178,67 +178,85 @@
             </div>
 
             <div class="settings-grid">
-              <label class="setting-field">
-                <span>집중</span>
-                <div class="duration-inputs">
-                  <input id="focusDurationMinutes" type="number" min="0" max="90" value="25" />
-                  <small>분</small>
-                  <input id="focusDurationSeconds" type="number" min="0" max="59" value="0" />
-                  <small>초</small>
+              <section class="settings-group">
+                <div class="settings-group-head">
+                  <span>시간 설정</span>
+                  <small>분과 초 단위로 세밀하게 조정</small>
                 </div>
-              </label>
 
-              <label class="setting-field">
-                <span>짧은 휴식</span>
-                <div class="duration-inputs">
-                  <input id="shortBreakDurationMinutes" type="number" min="0" max="30" value="5" />
-                  <small>분</small>
-                  <input id="shortBreakDurationSeconds" type="number" min="0" max="59" value="0" />
-                  <small>초</small>
+                <div class="settings-subgrid">
+                  <label class="setting-field">
+                    <span>집중</span>
+                    <div class="duration-inputs">
+                      <input id="focusDurationMinutes" type="number" min="0" max="90" value="25" />
+                      <small>분</small>
+                      <input id="focusDurationSeconds" type="number" min="0" max="59" value="0" />
+                      <small>초</small>
+                    </div>
+                  </label>
+
+                  <label class="setting-field">
+                    <span>짧은 휴식</span>
+                    <div class="duration-inputs">
+                      <input id="shortBreakDurationMinutes" type="number" min="0" max="30" value="5" />
+                      <small>분</small>
+                      <input id="shortBreakDurationSeconds" type="number" min="0" max="59" value="0" />
+                      <small>초</small>
+                    </div>
+                  </label>
+
+                  <label class="setting-field">
+                    <span>긴 휴식</span>
+                    <div class="duration-inputs">
+                      <input id="longBreakDurationMinutes" type="number" min="0" max="60" value="15" />
+                      <small>분</small>
+                      <input id="longBreakDurationSeconds" type="number" min="0" max="59" value="0" />
+                      <small>초</small>
+                    </div>
+                  </label>
+
+                  <label class="setting-field">
+                    <span>긴 휴식 주기</span>
+                    <input id="cycleLength" type="number" min="2" max="8" value="4" />
+                    <small>회</small>
+                  </label>
                 </div>
-              </label>
+              </section>
 
-              <label class="setting-field">
-                <span>긴 휴식</span>
-                <div class="duration-inputs">
-                  <input id="longBreakDurationMinutes" type="number" min="0" max="60" value="15" />
-                  <small>분</small>
-                  <input id="longBreakDurationSeconds" type="number" min="0" max="59" value="0" />
-                  <small>초</small>
+              <section class="settings-group">
+                <div class="settings-group-head">
+                  <span>피드백 설정</span>
+                  <small>끝났을 때 느낌을 원하는 쪽으로 조절</small>
                 </div>
-              </label>
 
-              <label class="setting-field">
-                <span>긴 휴식 주기</span>
-                <input id="cycleLength" type="number" min="2" max="8" value="4" />
-                <small>회</small>
-              </label>
+                <div class="settings-subgrid">
+                  <label class="setting-field">
+                    <span>알림음 톤</span>
+                    <select id="soundTone">
+                      <option value="bright">맑고 선명하게</option>
+                      <option value="soft">부드럽고 잔잔하게</option>
+                      <option value="bell">벨처럼 또렷하게</option>
+                    </select>
+                    <small>완료 시 재생</small>
+                  </label>
 
-              <label class="setting-field">
-                <span>알림음 톤</span>
-                <select id="soundTone">
-                  <option value="bright">Bright</option>
-                  <option value="soft">Soft</option>
-                  <option value="bell">Bell</option>
-                </select>
-                <small>완료 시 재생</small>
-              </label>
+                  <label class="setting-field">
+                    <span>알림음 크기</span>
+                    <input id="soundVolume" type="range" min="10" max="100" step="5" value="60" />
+                    <small id="soundVolumeValue">60%</small>
+                  </label>
 
-              <label class="setting-field">
-                <span>알림음 크기</span>
-                <input id="soundVolume" type="range" min="10" max="100" step="5" value="60" />
-                <small id="soundVolumeValue">60%</small>
-              </label>
-
-              <label class="setting-field">
-                <span>진동 패턴</span>
-                <select id="vibrationPattern">
-                  <option value="gentle">Gentle</option>
-                  <option value="standard">Standard</option>
-                  <option value="urgent">Urgent</option>
-                </select>
-                <small>안드로이드 지원 브라우저</small>
-              </label>
+                  <label class="setting-field full-span">
+                    <span>진동 패턴</span>
+                    <select id="vibrationPattern">
+                      <option value="gentle">가볍게 한 번</option>
+                      <option value="standard">기본 리듬</option>
+                      <option value="urgent">조금 더 강하게</option>
+                    </select>
+                    <small>안드로이드 지원 브라우저에서만 동작</small>
+                  </label>
+                </div>
+              </section>
             </div>
           </section>
 

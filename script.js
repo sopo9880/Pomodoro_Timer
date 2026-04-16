@@ -262,16 +262,20 @@ function applyPreset(presetKey) {
   if (!state.isRunning) {
     state.remainingSeconds = getDurationSeconds(state.mode);
   } else {
-    state.remainingSeconds = Math.min(state.remainingSeconds, getDurationSeconds(state.mode));
+    state.remainingSeconds = getDurationSeconds(state.mode);
     endTime = Date.now() + state.remainingSeconds * 1000;
   }
+
+  addLog({
+    title: "프리셋 적용",
+    detail: `${presetKey === "classic" ? "Classic" : presetKey === "flow" ? "Flow" : "Deep"} 리듬으로 전환했어요.`,
+  });
 
   render();
   saveState();
 }
 
 function updateSetting() {
-  const previousDuration = getDurationSeconds(state.mode);
   state.settings = {
     focus: combineDurationInputs(
       elements.focusDurationMinutes.value,
@@ -298,10 +302,15 @@ function updateSetting() {
   const nextDuration = getDurationSeconds(state.mode);
   if (!state.isRunning) {
     state.remainingSeconds = nextDuration;
-  } else if (nextDuration < previousDuration && state.remainingSeconds > nextDuration) {
+  } else {
     state.remainingSeconds = nextDuration;
     endTime = Date.now() + state.remainingSeconds * 1000;
   }
+
+  addLog({
+    title: "설정 변경",
+    detail: `${MODE_META[state.mode].label}을 ${formatDurationLabel(nextDuration)}으로 맞췄어요.`,
+  });
 
   render();
   saveState();
@@ -322,11 +331,18 @@ function startTimer() {
     state.remainingSeconds = getDurationSeconds(state.mode);
   }
 
+  if (!state.isRunning) {
+    addLog({
+      title: `${MODE_META[state.mode].label} 시작`,
+      detail: `${formatDurationLabel(state.remainingSeconds)} 타이머를 시작했어요.`,
+    });
+  }
+
   state.isRunning = true;
   endTime = Date.now() + state.remainingSeconds * 1000;
   clearInterval(timerId);
   timerId = window.setInterval(syncTimer, 250);
-  renderTimer();
+  render();
   saveState();
 }
 
@@ -334,11 +350,19 @@ function pauseTimer() {
   if (state.isRunning && endTime) {
     state.remainingSeconds = Math.max(0, Math.ceil((endTime - Date.now()) / 1000));
   }
+
+  if (state.isRunning) {
+    addLog({
+      title: `${MODE_META[state.mode].label} 일시정지`,
+      detail: `${formatDurationLabel(state.remainingSeconds)} 남은 상태로 멈췄어요.`,
+    });
+  }
+
   state.isRunning = false;
   clearInterval(timerId);
   timerId = null;
   endTime = null;
-  renderTimer();
+  render();
   saveState();
 }
 
@@ -348,6 +372,10 @@ function resetTimer() {
   endTime = null;
   state.isRunning = false;
   state.remainingSeconds = getDurationSeconds(state.mode);
+  addLog({
+    title: `${MODE_META[state.mode].label} 리셋`,
+    detail: `${formatDurationLabel(state.remainingSeconds)}으로 다시 맞췄어요.`,
+  });
   render();
   saveState();
 }
@@ -455,7 +483,7 @@ function getNextMode(mode, markComplete) {
 }
 
 function getDurationSeconds(mode) {
-  return state.settings[mode] * 60;
+  return state.settings[mode];
 }
 
 function render() {
