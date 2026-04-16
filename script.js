@@ -17,21 +17,21 @@ const MODE_META = {
 
 const PRESETS = {
   classic: {
-    focus: 25,
-    shortBreak: 5,
-    longBreak: 15,
+    focus: 25 * 60,
+    shortBreak: 5 * 60,
+    longBreak: 15 * 60,
     cycleLength: 4,
   },
   flow: {
-    focus: 30,
-    shortBreak: 7,
-    longBreak: 20,
+    focus: 30 * 60,
+    shortBreak: 7 * 60,
+    longBreak: 20 * 60,
     cycleLength: 4,
   },
   deep: {
-    focus: 50,
-    shortBreak: 10,
-    longBreak: 25,
+    focus: 50 * 60,
+    shortBreak: 10 * 60,
+    longBreak: 25 * 60,
     cycleLength: 4,
   },
 };
@@ -39,14 +39,17 @@ const PRESETS = {
 const state = {
   settings: { ...PRESETS.classic },
   mode: "focus",
-  remainingSeconds: PRESETS.classic.focus * 60,
+  remainingSeconds: PRESETS.classic.focus,
   isRunning: false,
   completedFocusSessions: 0,
   completedToday: 0,
-  focusMinutesToday: 0,
+  focusSecondsToday: 0,
   autoAdvance: true,
   soundEnabled: true,
   vibrationEnabled: true,
+  soundTone: "bright",
+  soundVolume: 60,
+  vibrationPattern: "standard",
   selectedPreset: "classic",
   focusIntent: "",
   log: [],
@@ -83,10 +86,17 @@ const elements = {
   installStatus: document.getElementById("installStatus"),
   installHint: document.getElementById("installHint"),
   eventLog: document.getElementById("eventLog"),
-  focusDuration: document.getElementById("focusDuration"),
-  shortBreakDuration: document.getElementById("shortBreakDuration"),
-  longBreakDuration: document.getElementById("longBreakDuration"),
+  focusDurationMinutes: document.getElementById("focusDurationMinutes"),
+  focusDurationSeconds: document.getElementById("focusDurationSeconds"),
+  shortBreakDurationMinutes: document.getElementById("shortBreakDurationMinutes"),
+  shortBreakDurationSeconds: document.getElementById("shortBreakDurationSeconds"),
+  longBreakDurationMinutes: document.getElementById("longBreakDurationMinutes"),
+  longBreakDurationSeconds: document.getElementById("longBreakDurationSeconds"),
   cycleLength: document.getElementById("cycleLength"),
+  soundTone: document.getElementById("soundTone"),
+  soundVolume: document.getElementById("soundVolume"),
+  soundVolumeValue: document.getElementById("soundVolumeValue"),
+  vibrationPattern: document.getElementById("vibrationPattern"),
   modeButtons: Array.from(document.querySelectorAll(".mode-pill")),
   presetButtons: Array.from(document.querySelectorAll(".preset-chip")),
 };
@@ -136,10 +146,26 @@ function bindEvents() {
     saveState();
   });
 
-  elements.focusDuration.addEventListener("change", () => updateSetting());
-  elements.shortBreakDuration.addEventListener("change", () => updateSetting());
-  elements.longBreakDuration.addEventListener("change", () => updateSetting());
+  elements.focusDurationMinutes.addEventListener("change", () => updateSetting());
+  elements.focusDurationSeconds.addEventListener("change", () => updateSetting());
+  elements.shortBreakDurationMinutes.addEventListener("change", () => updateSetting());
+  elements.shortBreakDurationSeconds.addEventListener("change", () => updateSetting());
+  elements.longBreakDurationMinutes.addEventListener("change", () => updateSetting());
+  elements.longBreakDurationSeconds.addEventListener("change", () => updateSetting());
   elements.cycleLength.addEventListener("change", () => updateSetting());
+  elements.soundTone.addEventListener("change", () => {
+    state.soundTone = elements.soundTone.value;
+    saveState();
+  });
+  elements.soundVolume.addEventListener("input", () => {
+    state.soundVolume = sanitizeNumber(elements.soundVolume.value, 10, 100);
+    renderControls();
+    saveState();
+  });
+  elements.vibrationPattern.addEventListener("change", () => {
+    state.vibrationPattern = elements.vibrationPattern.value;
+    saveState();
+  });
 
   document.addEventListener("keydown", (event) => {
     const isTyping =
@@ -247,9 +273,24 @@ function applyPreset(presetKey) {
 function updateSetting() {
   const previousDuration = getDurationSeconds(state.mode);
   state.settings = {
-    focus: sanitizeNumber(elements.focusDuration.value, 1, 90),
-    shortBreak: sanitizeNumber(elements.shortBreakDuration.value, 1, 30),
-    longBreak: sanitizeNumber(elements.longBreakDuration.value, 5, 60),
+    focus: combineDurationInputs(
+      elements.focusDurationMinutes.value,
+      elements.focusDurationSeconds.value,
+      1,
+      90 * 60,
+    ),
+    shortBreak: combineDurationInputs(
+      elements.shortBreakDurationMinutes.value,
+      elements.shortBreakDurationSeconds.value,
+      1,
+      30 * 60,
+    ),
+    longBreak: combineDurationInputs(
+      elements.longBreakDurationMinutes.value,
+      elements.longBreakDurationSeconds.value,
+      5,
+      60 * 60,
+    ),
     cycleLength: sanitizeNumber(elements.cycleLength.value, 2, 8),
   };
   state.selectedPreset = getPresetMatch() || "custom";
@@ -372,10 +413,10 @@ function advanceMode(markComplete) {
   if (markComplete && previousMode === "focus") {
     state.completedFocusSessions += 1;
     state.completedToday += 1;
-    state.focusMinutesToday += state.settings.focus;
+    state.focusSecondsToday += state.settings.focus;
     addLog({
       title: `${state.completedToday}번째 집중 완료`,
-      detail: `${state.settings.focus}분 몰입을 끝냈어요.`,
+      detail: `${formatDurationLabel(state.settings.focus)} 몰입을 끝냈어요.`,
     });
   } else if (markComplete) {
     addLog({
@@ -458,12 +499,24 @@ function renderControls() {
   elements.autoAdvance.checked = state.autoAdvance;
   elements.soundEnabled.checked = state.soundEnabled;
   elements.vibrationEnabled.checked = state.vibrationEnabled;
+  elements.soundTone.value = state.soundTone;
+  elements.soundVolume.value = String(state.soundVolume);
+  elements.soundVolumeValue.textContent = `${state.soundVolume}%`;
+  elements.vibrationPattern.value = state.vibrationPattern;
 }
 
 function renderSettings() {
-  elements.focusDuration.value = String(state.settings.focus);
-  elements.shortBreakDuration.value = String(state.settings.shortBreak);
-  elements.longBreakDuration.value = String(state.settings.longBreak);
+  applyDurationInputs(elements.focusDurationMinutes, elements.focusDurationSeconds, state.settings.focus);
+  applyDurationInputs(
+    elements.shortBreakDurationMinutes,
+    elements.shortBreakDurationSeconds,
+    state.settings.shortBreak,
+  );
+  applyDurationInputs(
+    elements.longBreakDurationMinutes,
+    elements.longBreakDurationSeconds,
+    state.settings.longBreak,
+  );
   elements.cycleLength.value = String(state.settings.cycleLength);
 
   elements.presetButtons.forEach((button) => {
@@ -473,7 +526,7 @@ function renderSettings() {
 
 function renderStats() {
   elements.completedToday.textContent = `${state.completedToday}회`;
-  elements.focusMinutesToday.textContent = `${state.focusMinutesToday}분`;
+  elements.focusMinutesToday.textContent = formatDurationLabel(state.focusSecondsToday);
   elements.nextModeLabel.textContent = MODE_META[getNextMode(state.mode, true)].label;
   elements.longBreakCountdown.textContent = `${getLongBreakCountdown()}회`;
   elements.cycleCaption.textContent = `${state.settings.cycleLength}회 집중 후 긴 휴식`;
@@ -603,6 +656,33 @@ function getPresetMatch() {
   })?.[0];
 }
 
+function combineDurationInputs(minutesValue, secondsValue, minSeconds, maxSeconds) {
+  const minutes = sanitizeNumber(minutesValue, 0, Math.floor(maxSeconds / 60));
+  const seconds = sanitizeNumber(secondsValue, 0, 59);
+  const total = minutes * 60 + seconds;
+  return Math.min(maxSeconds, Math.max(minSeconds, total));
+}
+
+function applyDurationInputs(minutesElement, secondsElement, totalSeconds) {
+  minutesElement.value = String(Math.floor(totalSeconds / 60));
+  secondsElement.value = String(totalSeconds % 60);
+}
+
+function formatDurationLabel(totalSeconds) {
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+
+  if (minutes > 0 && seconds > 0) {
+    return `${minutes}분 ${seconds}초`;
+  }
+
+  if (minutes > 0) {
+    return `${minutes}분`;
+  }
+
+  return `${seconds}초`;
+}
+
 function sanitizeNumber(rawValue, min, max) {
   const parsed = Number.parseInt(rawValue, 10);
   if (Number.isNaN(parsed)) {
@@ -635,18 +715,35 @@ function playCompletionSound() {
   }
 
   const now = audioContext.currentTime;
-  [0, 0.16].forEach((offset, index) => {
+  const volume = state.soundVolume / 100;
+  const tones = {
+    bright: [
+      { offset: 0, frequency: 880, type: "sine", duration: 0.24 },
+      { offset: 0.16, frequency: 1174, type: "sine", duration: 0.24 },
+    ],
+    soft: [
+      { offset: 0, frequency: 660, type: "sine", duration: 0.28 },
+      { offset: 0.18, frequency: 880, type: "triangle", duration: 0.28 },
+    ],
+    bell: [
+      { offset: 0, frequency: 784, type: "triangle", duration: 0.34 },
+      { offset: 0.12, frequency: 1174, type: "triangle", duration: 0.38 },
+      { offset: 0.28, frequency: 1568, type: "sine", duration: 0.3 },
+    ],
+  };
+
+  (tones[state.soundTone] || tones.bright).forEach((note) => {
     const oscillator = audioContext.createOscillator();
     const gain = audioContext.createGain();
-    oscillator.type = "sine";
-    oscillator.frequency.value = index === 0 ? 880 : 1174;
-    gain.gain.setValueAtTime(0.0001, now + offset);
-    gain.gain.exponentialRampToValueAtTime(0.08, now + offset + 0.02);
-    gain.gain.exponentialRampToValueAtTime(0.0001, now + offset + 0.22);
+    oscillator.type = note.type;
+    oscillator.frequency.value = note.frequency;
+    gain.gain.setValueAtTime(0.0001, now + note.offset);
+    gain.gain.exponentialRampToValueAtTime(0.12 * volume, now + note.offset + 0.02);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + note.offset + note.duration);
     oscillator.connect(gain);
     gain.connect(audioContext.destination);
-    oscillator.start(now + offset);
-    oscillator.stop(now + offset + 0.24);
+    oscillator.start(now + note.offset);
+    oscillator.stop(now + note.offset + note.duration + 0.02);
   });
 }
 
@@ -668,7 +765,13 @@ function vibrateOnCompletion() {
     return;
   }
 
-  navigator.vibrate([180, 80, 220]);
+  const patterns = {
+    gentle: [120],
+    standard: [180, 80, 220],
+    urgent: [120, 60, 120, 60, 220],
+  };
+
+  navigator.vibrate(patterns[state.vibrationPattern] || patterns.standard);
 }
 
 function saveState() {
@@ -678,10 +781,13 @@ function saveState() {
     remainingSeconds: state.remainingSeconds,
     completedFocusSessions: state.completedFocusSessions,
     completedToday: state.completedToday,
-    focusMinutesToday: state.focusMinutesToday,
+    focusSecondsToday: state.focusSecondsToday,
     autoAdvance: state.autoAdvance,
     soundEnabled: state.soundEnabled,
     vibrationEnabled: state.vibrationEnabled,
+    soundTone: state.soundTone,
+    soundVolume: state.soundVolume,
+    vibrationPattern: state.vibrationPattern,
     selectedPreset: state.selectedPreset,
     focusIntent: state.focusIntent,
     log: state.log,
@@ -699,17 +805,21 @@ function loadState() {
 
   try {
     const parsed = JSON.parse(stored);
-    state.settings = { ...state.settings, ...parsed.settings };
+    state.settings = normalizeSettings(parsed.settings);
     state.mode = MODE_META[parsed.mode] ? parsed.mode : "focus";
     state.remainingSeconds = Number.isFinite(parsed.remainingSeconds)
       ? parsed.remainingSeconds
       : getDurationSeconds(state.mode);
     state.completedFocusSessions = parsed.completedFocusSessions || 0;
     state.completedToday = parsed.completedToday || 0;
-    state.focusMinutesToday = parsed.focusMinutesToday || 0;
+    state.focusSecondsToday =
+      parsed.focusSecondsToday ?? ((parsed.focusMinutesToday || 0) * 60);
     state.autoAdvance = parsed.autoAdvance ?? true;
     state.soundEnabled = parsed.soundEnabled ?? true;
     state.vibrationEnabled = parsed.vibrationEnabled ?? true;
+    state.soundTone = parsed.soundTone || "bright";
+    state.soundVolume = sanitizeNumber(parsed.soundVolume ?? 60, 10, 100);
+    state.vibrationPattern = parsed.vibrationPattern || "standard";
     state.selectedPreset = parsed.selectedPreset || getPresetMatch() || "classic";
     state.focusIntent = parsed.focusIntent || "";
     state.log = Array.isArray(parsed.log) ? parsed.log : [];
@@ -721,12 +831,37 @@ function loadState() {
   if (state.todayKey !== getTodayKey()) {
     state.todayKey = getTodayKey();
     state.completedToday = 0;
-    state.focusMinutesToday = 0;
+    state.focusSecondsToday = 0;
     state.log = [];
   }
 
   state.isRunning = false;
   state.remainingSeconds = Math.min(state.remainingSeconds, getDurationSeconds(state.mode));
+}
+
+function normalizeSettings(rawSettings) {
+  const defaults = { ...PRESETS.classic };
+  if (!rawSettings || typeof rawSettings !== "object") {
+    return defaults;
+  }
+
+  const focus =
+    rawSettings.focus > 90 ? rawSettings.focus : sanitizeNumber(rawSettings.focus ?? 25, 1, 90) * 60;
+  const shortBreak =
+    rawSettings.shortBreak > 90
+      ? rawSettings.shortBreak
+      : sanitizeNumber(rawSettings.shortBreak ?? 5, 1, 30) * 60;
+  const longBreak =
+    rawSettings.longBreak > 90
+      ? rawSettings.longBreak
+      : sanitizeNumber(rawSettings.longBreak ?? 15, 1, 60) * 60;
+
+  return {
+    focus: sanitizeNumber(focus, 1, 90 * 60),
+    shortBreak: sanitizeNumber(shortBreak, 1, 30 * 60),
+    longBreak: sanitizeNumber(longBreak, 5, 60 * 60),
+    cycleLength: sanitizeNumber(rawSettings.cycleLength ?? 4, 2, 8),
+  };
 }
 
 function getTodayKey() {
