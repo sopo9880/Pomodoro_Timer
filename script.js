@@ -92,6 +92,7 @@ const DEFAULT_STATE = {
 let timerId = null;
 let timerWorker = null;
 let endTime = null;
+let displayLoopId = null;
 let audioContext = null;
 let backgroundAudio = null;
 let deferredInstallPrompt = null;
@@ -729,8 +730,47 @@ function commitCurrentFocusProgress(forceFullSession = false) {
   return elapsed;
 }
 
+function refreshRunningDisplay(now = Date.now()) {
+  if (!state.isRunning || !endTime) {
+    return;
+  }
+
+  state.remainingSeconds = getRemainingSeconds(endTime, now);
+  renderTimer();
+  renderStats();
+  renderMiniTimerWindow();
+}
+
+function runDisplayLoop() {
+  if (!state.isRunning || !endTime) {
+    displayLoopId = null;
+    return;
+  }
+
+  refreshRunningDisplay();
+  displayLoopId = window.requestAnimationFrame(runDisplayLoop);
+}
+
+function startDisplayLoop() {
+  stopDisplayLoop();
+
+  if (!state.isRunning || !endTime) {
+    return;
+  }
+
+  runDisplayLoop();
+}
+
+function stopDisplayLoop() {
+  if (displayLoopId) {
+    window.cancelAnimationFrame(displayLoopId);
+    displayLoopId = null;
+  }
+}
+
 function startTicking() {
   stopTicking();
+  startDisplayLoop();
 
   if (timerWorker) {
     timerWorker.postMessage({ type: "start", endTime });
@@ -741,6 +781,8 @@ function startTicking() {
 }
 
 function stopTicking() {
+  stopDisplayLoop();
+
   if (timerId) {
     clearInterval(timerId);
     timerId = null;
@@ -1089,11 +1131,11 @@ function ensureBackgroundAudioElement() {
     return backgroundAudio;
   }
 
-  backgroundAudio = new Audio(createSilentWavDataUri());
+  backgroundAudio = new Audio(createKeepAliveAudioDataUri());
   backgroundAudio.loop = true;
   backgroundAudio.preload = "auto";
   backgroundAudio.playsInline = true;
-  backgroundAudio.volume = 0.01;
+  backgroundAudio.volume = 1;
   backgroundAudio.setAttribute("webkit-playsinline", "true");
   bindMediaSessionHandlers();
   return backgroundAudio;
@@ -1198,15 +1240,17 @@ function getValidatedBackgroundAudioInterval(rawValue) {
   return BACKGROUND_AUDIO_UPDATE_INTERVAL_OPTIONS.includes(parsed) ? parsed : 10;
 }
 
-function createSilentWavDataUri() {
-  const sampleRate = 8000;
-  const durationSeconds = 1;
+function createKeepAliveAudioDataUri() {
+  const sampleRate = 16000;
+  const durationSeconds = 2;
   const numChannels = 1;
   const bitsPerSample = 16;
   const totalSamples = sampleRate * durationSeconds;
   const dataSize = totalSamples * numChannels * (bitsPerSample / 8);
   const buffer = new ArrayBuffer(44 + dataSize);
   const view = new DataView(buffer);
+  const amplitude = 8;
+  const frequency = 220;
 
   writeAscii(view, 0, "RIFF");
   view.setUint32(4, 36 + dataSize, true);
@@ -1221,6 +1265,13 @@ function createSilentWavDataUri() {
   view.setUint16(34, bitsPerSample, true);
   writeAscii(view, 36, "data");
   view.setUint32(40, dataSize, true);
+
+  let offset = 44;
+  for (let index = 0; index < totalSamples; index += 1) {
+    const sample = Math.round(amplitude * Math.sin((2 * Math.PI * frequency * index) / sampleRate));
+    view.setInt16(offset, sample, true);
+    offset += 2;
+  }
 
   const bytes = new Uint8Array(buffer);
   let binary = "";

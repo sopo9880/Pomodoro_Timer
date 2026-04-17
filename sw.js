@@ -1,4 +1,4 @@
-const CACHE_NAME = "bloomodoro-cache-v5";
+const CACHE_NAME = "bloomodoro-cache-v6";
 const PRECACHE_URLS = [
   "./",
   "./index.html",
