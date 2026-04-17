@@ -284,6 +284,37 @@
                       알림 권한 요청
                     </button>
                   </div>
+
+                  <div class="setting-field full-span audio-keepalive-field">
+                    <span>백그라운드 오디오 유지</span>
+                    <label class="toggle compact-toggle">
+                      <input id="backgroundAudioEnabled" type="checkbox" />
+                      <span class="toggle-track"></span>
+                      <em>정확한 백그라운드 알림을 위해 저음량 오디오 유지</em>
+                    </label>
+                    <div class="inline-select-grid">
+                      <label class="setting-field inset-field">
+                        <span>잠금화면 문구</span>
+                        <select id="backgroundAudioLabelMode">
+                          <option value="countdown">남은 시간 중심</option>
+                          <option value="mode">모드와 시간 함께</option>
+                          <option value="minimal">간단한 모드 표시</option>
+                        </select>
+                      </label>
+                      <label class="setting-field inset-field">
+                        <span>문구 갱신 주기</span>
+                        <select id="backgroundAudioUpdateInterval">
+                          <option value="10">10초</option>
+                          <option value="30">30초</option>
+                          <option value="60">1분</option>
+                        </select>
+                      </label>
+                    </div>
+                    <p class="caution-copy">
+                      주의: 이 기능은 백그라운드에서 조용한 오디오를 재생해 타이머를 유지합니다. 배터리 사용량이 조금 늘 수 있고,
+                      잠금 화면이나 상단바에 재생 중 컨트롤러가 표시될 수 있어요. iPhone 저전력 모드나 메모리 부족 상황에서는 여전히 중단될 수 있습니다.
+                    </p>
+                  </div>
                 </div>
               </section>
             </div>

@@ -36,6 +36,9 @@ const PRESETS = {
   },
 };
 
+const SILENT_AUDIO_DATA_URI =
+  "data:audio/mp3;base64,SUQzAwAAAAAAFlRFTkMAAAAMAAADTGF2ZjU4LjI5LjEwMQAAAAAAAAAAAAAA//uQxAADBzQAUQBIAAAhAAAACAAADSAAAAEtQVVNTU1NTU1NTU1NTU1NTU1NTU1NTU1NTU1NTU1NTU1NTU1NTU1NTU1NTU1NTU1NTU1NTU1NTU1NTU1P/uQxAADBzQAUQBIAAAhAAAACAAADSAAAAFNJSUxFRU5DRVNJTEVOQ0VTSUxFTkNFU0lMRU5DRVNJTEVOQ0VTSUxFTkNFU0lMRU5DRf/7kMQAAwc0AFEASAAAIQAAAAgAAA0gAAAAT1VVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVQ==";
+
 const state = {
   settings: { ...PRESETS.classic },
   mode: "focus",
@@ -48,6 +51,9 @@ const state = {
   autoAdvance: true,
   soundEnabled: true,
   vibrationEnabled: true,
+  backgroundAudioEnabled: false,
+  backgroundAudioLabelMode: "countdown",
+  backgroundAudioUpdateInterval: 10,
   notificationsEnabled: false,
   transitionAlertsEnabled: true,
   soundTone: "bright",
@@ -59,14 +65,41 @@ const state = {
   todayKey: getTodayKey(),
 };
 
+const DEFAULT_STATE = {
+  settings: { ...PRESETS.classic },
+  mode: "focus",
+  remainingSeconds: PRESETS.classic.focus,
+  currentSessionDurationSeconds: PRESETS.classic.focus,
+  isRunning: false,
+  cycleFocusCount: 0,
+  completedToday: 0,
+  focusSecondsToday: 0,
+  autoAdvance: true,
+  soundEnabled: true,
+  vibrationEnabled: true,
+  backgroundAudioEnabled: false,
+  backgroundAudioLabelMode: "countdown",
+  backgroundAudioUpdateInterval: 10,
+  notificationsEnabled: false,
+  transitionAlertsEnabled: true,
+  soundTone: "bright",
+  soundVolume: 60,
+  vibrationPattern: "standard",
+  selectedPreset: "classic",
+  focusIntent: "",
+  log: [],
+};
+
 let timerId = null;
 let timerWorker = null;
 let endTime = null;
 let audioContext = null;
+let backgroundAudio = null;
 let deferredInstallPrompt = null;
 let serviceWorkerRegistration = null;
 let miniTimerWindow = null;
 let miniTimerElements = null;
+let lastMediaSessionStamp = "";
 
 const elements = {
   body: document.body,
@@ -82,6 +115,9 @@ const elements = {
   autoAdvance: document.getElementById("autoAdvance"),
   soundEnabled: document.getElementById("soundEnabled"),
   vibrationEnabled: document.getElementById("vibrationEnabled"),
+  backgroundAudioEnabled: document.getElementById("backgroundAudioEnabled"),
+  backgroundAudioLabelMode: document.getElementById("backgroundAudioLabelMode"),
+  backgroundAudioUpdateInterval: document.getElementById("backgroundAudioUpdateInterval"),
   notificationEnabled: document.getElementById("notificationEnabled"),
   transitionAlertsEnabled: document.getElementById("transitionAlertsEnabled"),
   completedToday: document.getElementById("completedToday"),
@@ -157,6 +193,35 @@ function bindEvents() {
 
   elements.vibrationEnabled.addEventListener("change", () => {
     state.vibrationEnabled = elements.vibrationEnabled.checked;
+    saveState();
+  });
+
+  elements.backgroundAudioEnabled.addEventListener("change", async () => {
+    state.backgroundAudioEnabled = elements.backgroundAudioEnabled.checked;
+
+    if (state.backgroundAudioEnabled && state.isRunning) {
+      await startBackgroundAudio();
+    } else if (!state.backgroundAudioEnabled) {
+      stopBackgroundAudio();
+    }
+
+    renderControls();
+    saveState();
+  });
+
+  elements.backgroundAudioLabelMode.addEventListener("change", () => {
+    state.backgroundAudioLabelMode = elements.backgroundAudioLabelMode.value;
+    updateMediaSessionMetadata(true);
+    saveState();
+  });
+
+  elements.backgroundAudioUpdateInterval.addEventListener("change", () => {
+    state.backgroundAudioUpdateInterval = sanitizeNumber(
+      elements.backgroundAudioUpdateInterval.value,
+      10,
+      60,
+    );
+    updateMediaSessionMetadata(true);
     saveState();
   });
 
@@ -437,6 +502,7 @@ function startTimer() {
   state.isRunning = true;
   endTime = Date.now() + state.remainingSeconds * 1000;
   startTicking();
+  startBackgroundAudio();
   render();
   saveState();
 }
@@ -456,6 +522,7 @@ function pauseTimer() {
   state.isRunning = false;
   stopTicking();
   endTime = null;
+  stopBackgroundAudio();
   render();
   saveState();
 }
@@ -469,6 +536,7 @@ function resetTimer() {
   endTime = null;
   state.isRunning = false;
   resetCurrentSession(state.mode, getDurationSeconds(state.mode));
+  stopBackgroundAudio();
 
   addLog({
     title: `${MODE_META[state.mode].label} 리셋`,
@@ -482,6 +550,7 @@ function resetCycleProgress() {
   stopTicking();
   endTime = null;
   state.isRunning = false;
+  stopBackgroundAudio();
   state.cycleFocusCount = 0;
   state.completedToday = 0;
   state.focusSecondsToday = 0;
@@ -506,6 +575,7 @@ function switchMode(mode, fromManualSelection = false) {
   stopTicking();
   endTime = null;
   state.isRunning = false;
+  stopBackgroundAudio();
 
   if (state.mode === "longBreak" && mode !== "longBreak") {
     state.cycleFocusCount = 0;
@@ -532,6 +602,7 @@ function syncTimer() {
   const secondsLeft = getRemainingSeconds(endTime);
   state.remainingSeconds = secondsLeft;
   renderTimer();
+  updateMediaSessionMetadata();
   renderMiniTimerWindow();
 
   if (secondsLeft <= 0) {
@@ -591,6 +662,11 @@ function advanceMode(markComplete) {
   }
 
   resetCurrentSession(nextMode, getDurationSeconds(nextMode));
+
+  if (!markComplete || !state.autoAdvance) {
+    stopBackgroundAudio();
+  }
+
   render();
   saveState();
 
@@ -712,12 +788,17 @@ function renderControls() {
   elements.autoAdvance.checked = state.autoAdvance;
   elements.soundEnabled.checked = state.soundEnabled;
   elements.vibrationEnabled.checked = state.vibrationEnabled;
+  elements.backgroundAudioEnabled.checked = state.backgroundAudioEnabled;
+  elements.backgroundAudioLabelMode.value = state.backgroundAudioLabelMode;
+  elements.backgroundAudioUpdateInterval.value = String(state.backgroundAudioUpdateInterval);
   elements.notificationEnabled.checked = state.notificationsEnabled;
   elements.transitionAlertsEnabled.checked = state.transitionAlertsEnabled;
   elements.soundTone.value = state.soundTone;
   elements.soundVolume.value = String(state.soundVolume);
   elements.soundVolumeValue.textContent = `${state.soundVolume}%`;
   elements.vibrationPattern.value = state.vibrationPattern;
+  elements.backgroundAudioLabelMode.disabled = !state.backgroundAudioEnabled;
+  elements.backgroundAudioUpdateInterval.disabled = !state.backgroundAudioEnabled;
 
   if (elements.miniTimerButton) {
     const supported = supportsMiniTimer();
@@ -986,6 +1067,148 @@ function unlockAudio() {
   }
 
   audioContext = new AudioContextClass();
+}
+
+function ensureBackgroundAudioElement() {
+  if (backgroundAudio) {
+    return backgroundAudio;
+  }
+
+  backgroundAudio = new Audio(SILENT_AUDIO_DATA_URI);
+  backgroundAudio.loop = true;
+  backgroundAudio.preload = "auto";
+  backgroundAudio.playsInline = true;
+  backgroundAudio.volume = 0.01;
+  bindMediaSessionHandlers();
+  return backgroundAudio;
+}
+
+async function startBackgroundAudio() {
+  if (!state.backgroundAudioEnabled) {
+    return;
+  }
+
+  const audio = ensureBackgroundAudioElement();
+  updateMediaSessionMetadata(true);
+
+  try {
+    await audio.play();
+  } catch (error) {
+    state.backgroundAudioEnabled = false;
+    renderControls();
+    saveState();
+    return;
+  }
+
+  updateMediaSessionPlaybackState();
+}
+
+function stopBackgroundAudio() {
+  if (backgroundAudio) {
+    backgroundAudio.pause();
+    backgroundAudio.currentTime = 0;
+  }
+
+  clearMediaSessionMetadata();
+}
+
+function updateMediaSessionMetadata(force = false) {
+  if (!state.backgroundAudioEnabled || !("mediaSession" in navigator)) {
+    return;
+  }
+
+  const interval = state.backgroundAudioUpdateInterval;
+  const stamp = `${state.mode}:${Math.ceil(state.remainingSeconds / interval)}:${state.backgroundAudioLabelMode}:${state.isRunning}`;
+  if (!force && stamp === lastMediaSessionStamp) {
+    return;
+  }
+
+  lastMediaSessionStamp = stamp;
+  const timeLabel = `${String(Math.floor(state.remainingSeconds / 60)).padStart(2, "0")}:${String(
+    state.remainingSeconds % 60,
+  ).padStart(2, "0")}`;
+  const labelMap = {
+    countdown: {
+      title: `남은 시간 ${timeLabel}`,
+      artist: MODE_META[state.mode].label,
+    },
+    mode: {
+      title: `${MODE_META[state.mode].label} · ${timeLabel}`,
+      artist: state.isRunning ? "백그라운드 타이머 유지 중" : "일시정지됨",
+    },
+    minimal: {
+      title: MODE_META[state.mode].label,
+      artist: `남은 시간 ${timeLabel}`,
+    },
+  };
+  const metadata = labelMap[state.backgroundAudioLabelMode] || labelMap.countdown;
+
+  if (typeof MediaMetadata === "function") {
+    navigator.mediaSession.metadata = new MediaMetadata({
+      title: metadata.title,
+      artist: metadata.artist,
+      album: "Bloomodoro",
+      artwork: [
+        { src: "icons/icon-192.png", sizes: "192x192", type: "image/png" },
+        { src: "icons/icon-512.png", sizes: "512x512", type: "image/png" },
+      ],
+    });
+  }
+
+  updateMediaSessionPlaybackState();
+}
+
+function clearMediaSessionMetadata() {
+  if (!("mediaSession" in navigator)) {
+    return;
+  }
+
+  lastMediaSessionStamp = "";
+  navigator.mediaSession.metadata = null;
+  updateMediaSessionPlaybackState();
+}
+
+function updateMediaSessionPlaybackState() {
+  if (!("mediaSession" in navigator)) {
+    return;
+  }
+
+  navigator.mediaSession.playbackState =
+    state.backgroundAudioEnabled && state.isRunning ? "playing" : "paused";
+}
+
+function bindMediaSessionHandlers() {
+  if (!("mediaSession" in navigator)) {
+    return;
+  }
+
+  const handlers = {
+    play: () => {
+      if (!state.isRunning) {
+        startTimer();
+      }
+    },
+    pause: () => {
+      if (state.isRunning) {
+        pauseTimer();
+      }
+    },
+    stop: () => {
+      if (state.isRunning) {
+        pauseTimer();
+      }
+    },
+    nexttrack: () => advanceMode(false),
+    previoustrack: resetTimer,
+  };
+
+  Object.entries(handlers).forEach(([action, handler]) => {
+    try {
+      navigator.mediaSession.setActionHandler(action, handler);
+    } catch (error) {
+      // Ignore unsupported actions.
+    }
+  });
 }
 
 function playCompletionSound() {
@@ -1327,88 +1550,37 @@ function supportsMiniTimer() {
 }
 
 function saveState() {
-  const payload = {
-    settings: state.settings,
-    mode: state.mode,
-    remainingSeconds: state.remainingSeconds,
-    currentSessionDurationSeconds: state.currentSessionDurationSeconds,
-    isRunning: state.isRunning,
-    endTime,
-    cycleFocusCount: state.cycleFocusCount,
-    completedToday: state.completedToday,
-    focusSecondsToday: state.focusSecondsToday,
-    autoAdvance: state.autoAdvance,
-    soundEnabled: state.soundEnabled,
-    vibrationEnabled: state.vibrationEnabled,
-    notificationsEnabled: state.notificationsEnabled,
-    transitionAlertsEnabled: state.transitionAlertsEnabled,
-    soundTone: state.soundTone,
-    soundVolume: state.soundVolume,
-    vibrationPattern: state.vibrationPattern,
-    selectedPreset: state.selectedPreset,
-    focusIntent: state.focusIntent,
-    log: state.log,
-    todayKey: state.todayKey,
-  };
-
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
+  localStorage.removeItem(STORAGE_KEY);
 }
 
 function loadState() {
-  const stored = localStorage.getItem(STORAGE_KEY);
-  if (!stored) {
-    resetCurrentSession("focus", PRESETS.classic.focus);
-    return;
-  }
+  localStorage.removeItem(STORAGE_KEY);
+  endTime = null;
+  stopBackgroundAudio();
 
-  try {
-    const parsed = JSON.parse(stored);
-    state.settings = normalizeSettings(parsed.settings);
-    state.mode = MODE_META[parsed.mode] ? parsed.mode : "focus";
-    state.currentSessionDurationSeconds = sanitizeNumber(
-      parsed.currentSessionDurationSeconds ?? getDurationSeconds(state.mode),
-      1,
-      90 * 60,
-    );
-    state.remainingSeconds = Number.isFinite(parsed.remainingSeconds)
-      ? parsed.remainingSeconds
-      : state.currentSessionDurationSeconds;
-    state.isRunning = parsed.isRunning ?? false;
-    endTime = Number.isFinite(parsed.endTime) ? parsed.endTime : null;
-    state.cycleFocusCount = sanitizeNumber(parsed.cycleFocusCount ?? 0, 0, state.settings.cycleLength);
-    state.completedToday = parsed.completedToday || 0;
-    state.focusSecondsToday = parsed.focusSecondsToday || 0;
-    state.autoAdvance = parsed.autoAdvance ?? true;
-    state.soundEnabled = parsed.soundEnabled ?? true;
-    state.vibrationEnabled = parsed.vibrationEnabled ?? true;
-    state.notificationsEnabled = parsed.notificationsEnabled ?? false;
-    state.transitionAlertsEnabled = parsed.transitionAlertsEnabled ?? true;
-    state.soundTone = parsed.soundTone || "bright";
-    state.soundVolume = sanitizeNumber(parsed.soundVolume ?? 60, 10, 100);
-    state.vibrationPattern = parsed.vibrationPattern || "standard";
-    state.selectedPreset = parsed.selectedPreset || getPresetMatch() || "classic";
-    state.focusIntent = parsed.focusIntent || "";
-    state.log = Array.isArray(parsed.log) ? parsed.log : [];
-    state.todayKey = parsed.todayKey || getTodayKey();
-  } catch (error) {
-    localStorage.removeItem(STORAGE_KEY);
-    resetCurrentSession("focus", PRESETS.classic.focus);
-    return;
-  }
-
-  if (state.todayKey !== getTodayKey()) {
-    state.todayKey = getTodayKey();
-    state.completedToday = 0;
-    state.focusSecondsToday = 0;
-    state.cycleFocusCount = 0;
-    state.log = [];
-  }
-
-  if (!("Notification" in window) || Notification.permission !== "granted") {
-    state.notificationsEnabled = false;
-  }
-
-  state.remainingSeconds = Math.min(state.remainingSeconds, state.currentSessionDurationSeconds);
+  state.settings = { ...DEFAULT_STATE.settings };
+  state.mode = DEFAULT_STATE.mode;
+  state.remainingSeconds = DEFAULT_STATE.remainingSeconds;
+  state.currentSessionDurationSeconds = DEFAULT_STATE.currentSessionDurationSeconds;
+  state.isRunning = DEFAULT_STATE.isRunning;
+  state.cycleFocusCount = DEFAULT_STATE.cycleFocusCount;
+  state.completedToday = DEFAULT_STATE.completedToday;
+  state.focusSecondsToday = DEFAULT_STATE.focusSecondsToday;
+  state.autoAdvance = DEFAULT_STATE.autoAdvance;
+  state.soundEnabled = DEFAULT_STATE.soundEnabled;
+  state.vibrationEnabled = DEFAULT_STATE.vibrationEnabled;
+  state.backgroundAudioEnabled = DEFAULT_STATE.backgroundAudioEnabled;
+  state.backgroundAudioLabelMode = DEFAULT_STATE.backgroundAudioLabelMode;
+  state.backgroundAudioUpdateInterval = DEFAULT_STATE.backgroundAudioUpdateInterval;
+  state.notificationsEnabled = DEFAULT_STATE.notificationsEnabled;
+  state.transitionAlertsEnabled = DEFAULT_STATE.transitionAlertsEnabled;
+  state.soundTone = DEFAULT_STATE.soundTone;
+  state.soundVolume = DEFAULT_STATE.soundVolume;
+  state.vibrationPattern = DEFAULT_STATE.vibrationPattern;
+  state.selectedPreset = DEFAULT_STATE.selectedPreset;
+  state.focusIntent = DEFAULT_STATE.focusIntent;
+  state.log = [];
+  state.todayKey = getTodayKey();
 }
 
 function normalizeSettings(rawSettings) {
