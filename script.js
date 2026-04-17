@@ -1094,7 +1094,7 @@ function ensureBackgroundAudioElement() {
   backgroundAudio.preload = "auto";
   backgroundAudio.autoplay = false;
   backgroundAudio.playsInline = true;
-  backgroundAudio.volume = 0.01;
+  backgroundAudio.volume = 1;
   backgroundAudio.muted = false;
   backgroundAudio.setAttribute("webkit-playsinline", "true");
   backgroundAudio.setAttribute("aria-hidden", "true");
