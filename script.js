@@ -1095,7 +1095,7 @@ function ensureBackgroundAudioElement() {
   backgroundAudio.preload = "auto";
   backgroundAudio.autoplay = false;
   backgroundAudio.playsInline = true;
-  backgroundAudio.volume = 0.02;
+  backgroundAudio.volume = 0.001;
   backgroundAudio.muted = false;
   backgroundAudio.setAttribute("webkit-playsinline", "true");
   backgroundAudio.setAttribute("aria-hidden", "true");
@@ -1230,8 +1230,7 @@ function createKeepAliveAudioBuffer() {
   const dataSize = totalSamples * numChannels * (bitsPerSample / 8);
   const buffer = new ArrayBuffer(44 + dataSize);
   const view = new DataView(buffer);
-  const amplitude = 256;
-  const frequency = 220;
+  const amplitude = 327;
 
   writeAscii(view, 0, "RIFF");
   view.setUint32(4, 36 + dataSize, true);
@@ -1249,7 +1248,7 @@ function createKeepAliveAudioBuffer() {
 
   let offset = 44;
   for (let index = 0; index < totalSamples; index += 1) {
-    const sample = Math.round(amplitude * Math.sin((2 * Math.PI * frequency * index) / sampleRate));
+    const sample = Math.round((Math.random() * 2 - 1) * amplitude);
     view.setInt16(offset, sample, true);
     offset += 2;
   }
