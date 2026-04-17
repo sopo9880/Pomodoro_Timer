@@ -196,34 +196,40 @@ function bindEvents() {
     saveState();
   });
 
-  elements.backgroundAudioEnabled.addEventListener("change", async () => {
-    state.backgroundAudioEnabled = elements.backgroundAudioEnabled.checked;
+  if (elements.backgroundAudioEnabled) {
+    elements.backgroundAudioEnabled.addEventListener("change", async () => {
+      state.backgroundAudioEnabled = elements.backgroundAudioEnabled.checked;
 
-    if (state.backgroundAudioEnabled && state.isRunning) {
-      await startBackgroundAudio();
-    } else if (!state.backgroundAudioEnabled) {
-      stopBackgroundAudio();
-    }
+      if (state.backgroundAudioEnabled && state.isRunning) {
+        await startBackgroundAudio();
+      } else if (!state.backgroundAudioEnabled) {
+        stopBackgroundAudio();
+      }
 
-    renderControls();
-    saveState();
-  });
+      renderControls();
+      saveState();
+    });
+  }
 
-  elements.backgroundAudioLabelMode.addEventListener("change", () => {
-    state.backgroundAudioLabelMode = elements.backgroundAudioLabelMode.value;
-    updateMediaSessionMetadata(true);
-    saveState();
-  });
+  if (elements.backgroundAudioLabelMode) {
+    elements.backgroundAudioLabelMode.addEventListener("change", () => {
+      state.backgroundAudioLabelMode = elements.backgroundAudioLabelMode.value;
+      updateMediaSessionMetadata(true);
+      saveState();
+    });
+  }
 
-  elements.backgroundAudioUpdateInterval.addEventListener("change", () => {
-    state.backgroundAudioUpdateInterval = sanitizeNumber(
-      elements.backgroundAudioUpdateInterval.value,
-      10,
-      60,
-    );
-    updateMediaSessionMetadata(true);
-    saveState();
-  });
+  if (elements.backgroundAudioUpdateInterval) {
+    elements.backgroundAudioUpdateInterval.addEventListener("change", () => {
+      state.backgroundAudioUpdateInterval = sanitizeNumber(
+        elements.backgroundAudioUpdateInterval.value,
+        10,
+        60,
+      );
+      updateMediaSessionMetadata(true);
+      saveState();
+    });
+  }
 
   elements.notificationEnabled.addEventListener("change", async () => {
     if (elements.notificationEnabled.checked) {
@@ -788,17 +794,26 @@ function renderControls() {
   elements.autoAdvance.checked = state.autoAdvance;
   elements.soundEnabled.checked = state.soundEnabled;
   elements.vibrationEnabled.checked = state.vibrationEnabled;
-  elements.backgroundAudioEnabled.checked = state.backgroundAudioEnabled;
-  elements.backgroundAudioLabelMode.value = state.backgroundAudioLabelMode;
-  elements.backgroundAudioUpdateInterval.value = String(state.backgroundAudioUpdateInterval);
+  if (elements.backgroundAudioEnabled) {
+    elements.backgroundAudioEnabled.checked = state.backgroundAudioEnabled;
+  }
+
+  if (elements.backgroundAudioLabelMode) {
+    elements.backgroundAudioLabelMode.value = state.backgroundAudioLabelMode;
+    elements.backgroundAudioLabelMode.disabled = !state.backgroundAudioEnabled;
+  }
+
+  if (elements.backgroundAudioUpdateInterval) {
+    elements.backgroundAudioUpdateInterval.value = String(state.backgroundAudioUpdateInterval);
+    elements.backgroundAudioUpdateInterval.disabled = !state.backgroundAudioEnabled;
+  }
+
   elements.notificationEnabled.checked = state.notificationsEnabled;
   elements.transitionAlertsEnabled.checked = state.transitionAlertsEnabled;
   elements.soundTone.value = state.soundTone;
   elements.soundVolume.value = String(state.soundVolume);
   elements.soundVolumeValue.textContent = `${state.soundVolume}%`;
   elements.vibrationPattern.value = state.vibrationPattern;
-  elements.backgroundAudioLabelMode.disabled = !state.backgroundAudioEnabled;
-  elements.backgroundAudioUpdateInterval.disabled = !state.backgroundAudioEnabled;
 
   if (elements.miniTimerButton) {
     const supported = supportsMiniTimer();
