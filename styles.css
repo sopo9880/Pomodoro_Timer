@@ -675,6 +675,11 @@ body[data-mode="longBreak"] {
   font-weight: 700;
 }
 
+.setting-field strong {
+  font-size: 1rem;
+  line-height: 1.5;
+}
+
 .setting-field.full-span {
   grid-column: 1 / -1;
 }
@@ -702,6 +707,35 @@ body[data-mode="longBreak"] {
 .duration-inputs small {
   margin: 0;
   white-space: nowrap;
+}
+
+.notification-field {
+  align-items: start;
+}
+
+.notification-copy {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.6;
+}
+
+.permission-button {
+  width: fit-content;
+}
+
+.inline-text-button {
+  margin-top: 14px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--accent-soft);
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.inline-text-button:hover {
+  color: var(--text);
 }
 
 .event-log {

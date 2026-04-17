@@ -47,6 +47,8 @@ const state = {
   autoAdvance: true,
   soundEnabled: true,
   vibrationEnabled: true,
+  notificationsEnabled: false,
+  transitionAlertsEnabled: true,
   soundTone: "bright",
   soundVolume: 60,
   vibrationPattern: "standard",
@@ -60,6 +62,7 @@ let timerId = null;
 let endTime = null;
 let audioContext = null;
 let deferredInstallPrompt = null;
+let serviceWorkerRegistration = null;
 
 const elements = {
   body: document.body,
@@ -74,12 +77,15 @@ const elements = {
   autoAdvance: document.getElementById("autoAdvance"),
   soundEnabled: document.getElementById("soundEnabled"),
   vibrationEnabled: document.getElementById("vibrationEnabled"),
+  notificationEnabled: document.getElementById("notificationEnabled"),
+  transitionAlertsEnabled: document.getElementById("transitionAlertsEnabled"),
   completedToday: document.getElementById("completedToday"),
   focusMinutesToday: document.getElementById("focusMinutesToday"),
   nextModeLabel: document.getElementById("nextModeLabel"),
   longBreakCountdown: document.getElementById("longBreakCountdown"),
   cycleCaption: document.getElementById("cycleCaption"),
   sessionDots: document.getElementById("sessionDots"),
+  resetCycleButton: document.getElementById("resetCycleButton"),
   focusIntent: document.getElementById("focusIntent"),
   focusIntentPreview: document.getElementById("focusIntentPreview"),
   installButton: document.getElementById("installButton"),
@@ -97,6 +103,9 @@ const elements = {
   soundVolume: document.getElementById("soundVolume"),
   soundVolumeValue: document.getElementById("soundVolumeValue"),
   vibrationPattern: document.getElementById("vibrationPattern"),
+  notificationStatus: document.getElementById("notificationStatus"),
+  notificationHint: document.getElementById("notificationHint"),
+  notificationPermissionButton: document.getElementById("notificationPermissionButton"),
   modeButtons: Array.from(document.querySelectorAll(".mode-pill")),
   presetButtons: Array.from(document.querySelectorAll(".preset-chip")),
 };
@@ -106,6 +115,7 @@ function init() {
   bindEvents();
   bindInstallEvents();
   registerServiceWorker();
+  restoreRunningTimer();
   render();
 }
 
@@ -140,6 +150,38 @@ function bindEvents() {
     saveState();
   });
 
+  elements.notificationEnabled.addEventListener("change", async () => {
+    if (elements.notificationEnabled.checked) {
+      const granted = await ensureNotificationPermission(true);
+      state.notificationsEnabled = granted;
+
+      if (!granted) {
+        elements.notificationEnabled.checked = false;
+      }
+    } else {
+      state.notificationsEnabled = false;
+    }
+
+    renderNotificationState();
+    saveState();
+  });
+
+  elements.transitionAlertsEnabled.addEventListener("change", () => {
+    state.transitionAlertsEnabled = elements.transitionAlertsEnabled.checked;
+    saveState();
+  });
+
+  elements.notificationPermissionButton.addEventListener("click", async () => {
+    const granted = await ensureNotificationPermission(true);
+
+    if (granted) {
+      state.notificationsEnabled = true;
+    }
+
+    render();
+    saveState();
+  });
+
   elements.focusIntent.addEventListener("input", () => {
     state.focusIntent = elements.focusIntent.value.trim();
     renderFocusIntent();
@@ -166,6 +208,8 @@ function bindEvents() {
     state.vibrationPattern = elements.vibrationPattern.value;
     saveState();
   });
+
+  elements.resetCycleButton.addEventListener("click", resetCycleProgress);
 
   document.addEventListener("keydown", (event) => {
     const isTyping =
@@ -246,7 +290,12 @@ function registerServiceWorker() {
   }
 
   window.addEventListener("load", () => {
-    navigator.serviceWorker.register("sw.js").catch(() => {});
+    navigator.serviceWorker
+      .register("sw.js")
+      .then((registration) => {
+        serviceWorkerRegistration = registration;
+      })
+      .catch(() => {});
   });
 }
 
@@ -380,6 +429,16 @@ function resetTimer() {
   saveState();
 }
 
+function resetCycleProgress() {
+  state.completedFocusSessions = 0;
+  addLog({
+    title: "사이클 초기화",
+    detail: "긴 휴식 카운트를 처음부터 다시 시작했어요.",
+  });
+  render();
+  saveState();
+}
+
 function switchMode(mode, fromManualSelection = false) {
   if (!MODE_META[mode]) {
     return;
@@ -421,6 +480,8 @@ function syncTimer() {
 }
 
 function handleCompletion() {
+  const completedMode = state.mode;
+  const nextMode = getNextMode(completedMode, true);
   state.isRunning = false;
 
   if (state.soundEnabled) {
@@ -431,12 +492,13 @@ function handleCompletion() {
     vibrateOnCompletion();
   }
 
-  showNotification();
+  showNotification(completedMode, nextMode);
   advanceMode(true);
 }
 
 function advanceMode(markComplete) {
   const previousMode = state.mode;
+  const nextMode = getNextMode(previousMode, markComplete);
 
   if (markComplete && previousMode === "focus") {
     state.completedFocusSessions += 1;
@@ -458,7 +520,7 @@ function advanceMode(markComplete) {
     });
   }
 
-  state.mode = getNextMode(previousMode, markComplete);
+  state.mode = nextMode;
   state.remainingSeconds = getDurationSeconds(state.mode);
   render();
   saveState();
@@ -490,6 +552,7 @@ function render() {
   renderTimer();
   renderMode();
   renderControls();
+  renderNotificationState();
   renderSettings();
   renderStats();
   renderFocusIntent();
@@ -527,10 +590,47 @@ function renderControls() {
   elements.autoAdvance.checked = state.autoAdvance;
   elements.soundEnabled.checked = state.soundEnabled;
   elements.vibrationEnabled.checked = state.vibrationEnabled;
+  elements.notificationEnabled.checked = state.notificationsEnabled;
+  elements.transitionAlertsEnabled.checked = state.transitionAlertsEnabled;
   elements.soundTone.value = state.soundTone;
   elements.soundVolume.value = String(state.soundVolume);
   elements.soundVolumeValue.textContent = `${state.soundVolume}%`;
   elements.vibrationPattern.value = state.vibrationPattern;
+}
+
+function renderNotificationState() {
+  if (!elements.notificationStatus || !elements.notificationHint || !elements.notificationPermissionButton) {
+    return;
+  }
+
+  if (!("Notification" in window)) {
+    elements.notificationStatus.textContent = "이 브라우저는 시스템 알림을 지원하지 않아요.";
+    elements.notificationHint.textContent = "PC 알림은 Chromium 계열 또는 지원 브라우저에서 사용할 수 있어요.";
+    elements.notificationPermissionButton.hidden = true;
+    return;
+  }
+
+  const permission = Notification.permission;
+  elements.notificationPermissionButton.hidden = permission === "granted";
+
+  if (permission === "granted") {
+    elements.notificationStatus.textContent = state.notificationsEnabled
+      ? "시스템 알림이 켜져 있어요."
+      : "권한은 허용되어 있지만 알림 토글이 꺼져 있어요.";
+    elements.notificationHint.textContent = state.transitionAlertsEnabled
+      ? "세션 완료와 다음 세션 전환 안내를 운영체제 알림으로 전달합니다."
+      : "세션 완료만 운영체제 알림으로 전달합니다.";
+    return;
+  }
+
+  if (permission === "denied") {
+    elements.notificationStatus.textContent = "브라우저에서 알림 권한이 차단되어 있어요.";
+    elements.notificationHint.textContent = "브라우저 사이트 설정에서 알림을 다시 허용해야 사용할 수 있어요.";
+    return;
+  }
+
+  elements.notificationStatus.textContent = "브라우저 알림을 아직 켜지 않았어요.";
+  elements.notificationHint.textContent = "PC 작업 중이거나 설치형 앱으로 백그라운드에 둘 때 세션 완료를 더 잘 알아차릴 수 있어요.";
 }
 
 function renderSettings() {
@@ -775,17 +875,37 @@ function playCompletionSound() {
   });
 }
 
-function showNotification() {
-  if (!("Notification" in window)) {
+async function showNotification(completedMode, nextMode) {
+  if (!shouldSendSystemNotification()) {
     return;
   }
 
-  if (Notification.permission === "granted" && document.hidden) {
-    const nextLabel = MODE_META[getNextMode(state.mode, true)].label;
-    new Notification(`${MODE_META[state.mode].label} 완료`, {
-      body: `이제 ${nextLabel}으로 넘어갈 시간이에요.`,
-    });
+  const nextLabel = MODE_META[nextMode].label;
+  const registration = await getNotificationRegistration();
+  const notificationOptions = {
+    body: state.transitionAlertsEnabled
+      ? state.autoAdvance
+        ? `다음 세션인 ${nextLabel}이 시작됐어요.`
+        : `다음 세션은 ${nextLabel}이에요. 직접 시작해 주세요.`
+      : `${MODE_META[completedMode].label} 세션이 끝났어요.`,
+    badge: "icons/icon-192.png",
+    icon: "icons/icon-192.png",
+    renotify: true,
+    requireInteraction: isDesktopDevice(),
+    tag: `bloomodoro-${completedMode}-${Date.now()}`,
+    vibrate: state.vibrationEnabled ? getVibrationPattern() : undefined,
+    data: {
+      url: "./",
+      mode: nextMode,
+    },
+  };
+
+  if (registration && typeof registration.showNotification === "function") {
+    registration.showNotification(`${MODE_META[completedMode].label} 완료`, notificationOptions);
+    return;
   }
+
+  new Notification(`${MODE_META[completedMode].label} 완료`, notificationOptions);
 }
 
 function vibrateOnCompletion() {
@@ -793,13 +913,124 @@ function vibrateOnCompletion() {
     return;
   }
 
+  navigator.vibrate(getVibrationPattern());
+}
+
+function getVibrationPattern() {
   const patterns = {
     gentle: [120],
     standard: [180, 80, 220],
     urgent: [120, 60, 120, 60, 220],
   };
 
-  navigator.vibrate(patterns[state.vibrationPattern] || patterns.standard);
+  return patterns[state.vibrationPattern] || patterns.standard;
+}
+
+async function ensureNotificationPermission(promptUser = false) {
+  if (!("Notification" in window)) {
+    return false;
+  }
+
+  if (Notification.permission === "granted") {
+    return true;
+  }
+
+  if (Notification.permission === "denied" || !promptUser) {
+    return false;
+  }
+
+  try {
+    return (await Notification.requestPermission()) === "granted";
+  } catch (error) {
+    return false;
+  }
+}
+
+function shouldSendSystemNotification() {
+  return (
+    state.notificationsEnabled &&
+    "Notification" in window &&
+    Notification.permission === "granted" &&
+    (document.hidden || isStandaloneMode() || isDesktopDevice())
+  );
+}
+
+async function getNotificationRegistration() {
+  if (serviceWorkerRegistration) {
+    return serviceWorkerRegistration;
+  }
+
+  if (!("serviceWorker" in navigator)) {
+    return null;
+  }
+
+  try {
+    serviceWorkerRegistration = await navigator.serviceWorker.getRegistration();
+  } catch (error) {
+    serviceWorkerRegistration = null;
+  }
+
+  return serviceWorkerRegistration;
+}
+
+function restoreRunningTimer() {
+  if (!state.isRunning || !endTime) {
+    state.isRunning = false;
+    endTime = null;
+    return;
+  }
+
+  const now = Date.now();
+  if (endTime > now) {
+    state.remainingSeconds = Math.max(0, Math.ceil((endTime - now) / 1000));
+    clearInterval(timerId);
+    timerId = window.setInterval(syncTimer, 250);
+    return;
+  }
+
+  let elapsedSeconds = Math.max(0, Math.floor((now - endTime) / 1000));
+  let recoveredSessions = 0;
+
+  while (state.isRunning) {
+    const completedMode = state.mode;
+    const nextMode = getNextMode(completedMode, true);
+
+    if (completedMode === "focus") {
+      state.completedFocusSessions += 1;
+      state.completedToday += 1;
+      state.focusSecondsToday += state.settings.focus;
+    }
+
+    recoveredSessions += 1;
+    state.mode = nextMode;
+
+    if (!state.autoAdvance) {
+      state.isRunning = false;
+      endTime = null;
+      state.remainingSeconds = getDurationSeconds(state.mode);
+      break;
+    }
+
+    const nextDuration = getDurationSeconds(state.mode);
+    if (elapsedSeconds < nextDuration) {
+      state.remainingSeconds = Math.max(0, nextDuration - elapsedSeconds);
+      endTime = now + state.remainingSeconds * 1000;
+      clearInterval(timerId);
+      timerId = window.setInterval(syncTimer, 250);
+      break;
+    }
+
+    elapsedSeconds -= nextDuration;
+  }
+
+  if (recoveredSessions > 0) {
+    addLog({
+      title: "백그라운드 복구",
+      detail: `비활성 상태였던 동안 ${recoveredSessions}개 세션을 반영했고 현재 ${MODE_META[state.mode].label} 상태예요.`,
+    });
+  }
+
+  saveState();
 }
 
 function saveState() {
@@ -807,12 +1038,16 @@ function saveState() {
     settings: state.settings,
     mode: state.mode,
     remainingSeconds: state.remainingSeconds,
+    isRunning: state.isRunning,
+    endTime,
     completedFocusSessions: state.completedFocusSessions,
     completedToday: state.completedToday,
     focusSecondsToday: state.focusSecondsToday,
     autoAdvance: state.autoAdvance,
     soundEnabled: state.soundEnabled,
     vibrationEnabled: state.vibrationEnabled,
+    notificationsEnabled: state.notificationsEnabled,
+    transitionAlertsEnabled: state.transitionAlertsEnabled,
     soundTone: state.soundTone,
     soundVolume: state.soundVolume,
     vibrationPattern: state.vibrationPattern,
@@ -838,6 +1073,8 @@ function loadState() {
     state.remainingSeconds = Number.isFinite(parsed.remainingSeconds)
       ? parsed.remainingSeconds
       : getDurationSeconds(state.mode);
+    state.isRunning = parsed.isRunning ?? false;
+    endTime = Number.isFinite(parsed.endTime) ? parsed.endTime : null;
     state.completedFocusSessions = parsed.completedFocusSessions || 0;
     state.completedToday = parsed.completedToday || 0;
     state.focusSecondsToday =
@@ -845,6 +1082,8 @@ function loadState() {
     state.autoAdvance = parsed.autoAdvance ?? true;
     state.soundEnabled = parsed.soundEnabled ?? true;
     state.vibrationEnabled = parsed.vibrationEnabled ?? true;
+    state.notificationsEnabled = parsed.notificationsEnabled ?? false;
+    state.transitionAlertsEnabled = parsed.transitionAlertsEnabled ?? true;
     state.soundTone = parsed.soundTone || "bright";
     state.soundVolume = sanitizeNumber(parsed.soundVolume ?? 60, 10, 100);
     state.vibrationPattern = parsed.vibrationPattern || "standard";
@@ -863,7 +1102,10 @@ function loadState() {
     state.log = [];
   }
 
-  state.isRunning = false;
+  if (!("Notification" in window) || Notification.permission !== "granted") {
+    state.notificationsEnabled = false;
+  }
+
   state.remainingSeconds = Math.min(state.remainingSeconds, getDurationSeconds(state.mode));
 }
 
@@ -909,6 +1151,10 @@ function isIosDevice() {
 
 function isAndroidDevice() {
   return /android/i.test(window.navigator.userAgent);
+}
+
+function isDesktopDevice() {
+  return window.matchMedia("(pointer:fine)").matches && !isAndroidDevice() && !isIosDevice();
 }
 
 function isSafariBrowser() {

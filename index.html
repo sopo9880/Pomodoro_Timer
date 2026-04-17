@@ -113,6 +113,18 @@
                   <span class="toggle-track"></span>
                   <em>안드로이드 진동</em>
                 </label>
+
+                <label class="toggle">
+                  <input id="notificationEnabled" type="checkbox" />
+                  <span class="toggle-track"></span>
+                  <em>시스템 알림</em>
+                </label>
+
+                <label class="toggle">
+                  <input id="transitionAlertsEnabled" type="checkbox" checked />
+                  <span class="toggle-track"></span>
+                  <em>다음 세션 안내</em>
+                </label>
               </div>
             </section>
 
@@ -143,6 +155,9 @@
                 </div>
                 <p class="cycle-copy" id="cycleCaption">4회 집중 후 긴 휴식</p>
                 <div class="session-dots" id="sessionDots" aria-label="사이클 진행 표시"></div>
+                <button class="inline-text-button" id="resetCycleButton" type="button">
+                  현재 사이클 초기화
+                </button>
               </div>
 
               <div class="focus-card">
@@ -255,6 +270,17 @@
                     </select>
                     <small>안드로이드 지원 브라우저에서만 동작</small>
                   </label>
+
+                  <div class="setting-field full-span notification-field">
+                    <span>브라우저 알림 권한</span>
+                    <strong id="notificationStatus">브라우저 알림을 아직 켜지 않았어요.</strong>
+                    <p class="notification-copy" id="notificationHint">
+                      PC 작업 중이거나 설치형 앱으로 백그라운드에 둘 때 세션 완료를 더 잘 알아차릴 수 있어요.
+                    </p>
+                    <button class="action-button secondary permission-button" id="notificationPermissionButton" type="button">
+                      알림 권한 요청
+                    </button>
+                  </div>
                 </div>
               </section>
             </div>
