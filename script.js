@@ -92,9 +92,9 @@ const DEFAULT_STATE = {
 let timerId = null;
 let timerWorker = null;
 let endTime = null;
-let displayLoopId = null;
 let audioContext = null;
 let backgroundAudio = null;
+let keepAliveAudioUrl = null;
 let deferredInstallPrompt = null;
 let serviceWorkerRegistration = null;
 let miniTimerWindow = null;
@@ -730,59 +730,17 @@ function commitCurrentFocusProgress(forceFullSession = false) {
   return elapsed;
 }
 
-function refreshRunningDisplay(now = Date.now()) {
-  if (!state.isRunning || !endTime) {
-    return;
-  }
-
-  state.remainingSeconds = getRemainingSeconds(endTime, now);
-  renderTimer();
-  renderStats();
-  renderMiniTimerWindow();
-}
-
-function runDisplayLoop() {
-  if (!state.isRunning || !endTime) {
-    displayLoopId = null;
-    return;
-  }
-
-  refreshRunningDisplay();
-  displayLoopId = window.requestAnimationFrame(runDisplayLoop);
-}
-
-function startDisplayLoop() {
-  stopDisplayLoop();
-
-  if (!state.isRunning || !endTime) {
-    return;
-  }
-
-  runDisplayLoop();
-}
-
-function stopDisplayLoop() {
-  if (displayLoopId) {
-    window.cancelAnimationFrame(displayLoopId);
-    displayLoopId = null;
-  }
-}
-
 function startTicking() {
   stopTicking();
-  startDisplayLoop();
+  syncTimer();
+  timerId = window.setInterval(syncTimer, 250);
 
   if (timerWorker) {
     timerWorker.postMessage({ type: "start", endTime });
-    return;
   }
-
-  timerId = window.setInterval(syncTimer, 250);
 }
 
 function stopTicking() {
-  stopDisplayLoop();
-
   if (timerId) {
     clearInterval(timerId);
     timerId = null;
@@ -1131,12 +1089,22 @@ function ensureBackgroundAudioElement() {
     return backgroundAudio;
   }
 
-  backgroundAudio = new Audio(createKeepAliveAudioDataUri());
+  backgroundAudio = new Audio();
+  backgroundAudio.src = getKeepAliveAudioUrl();
   backgroundAudio.loop = true;
   backgroundAudio.preload = "auto";
+  backgroundAudio.autoplay = false;
   backgroundAudio.playsInline = true;
-  backgroundAudio.volume = 1;
+  backgroundAudio.volume = 0.02;
+  backgroundAudio.muted = false;
   backgroundAudio.setAttribute("webkit-playsinline", "true");
+  backgroundAudio.setAttribute("aria-hidden", "true");
+
+  if (!backgroundAudio.isConnected) {
+    backgroundAudio.style.display = "none";
+    document.body.append(backgroundAudio);
+  }
+
   bindMediaSessionHandlers();
   return backgroundAudio;
 }
@@ -1147,7 +1115,9 @@ async function startBackgroundAudio() {
   }
 
   const audio = ensureBackgroundAudioElement();
-  updateMediaSessionMetadata(true);
+  if (audio.readyState === 0) {
+    audio.load();
+  }
 
   try {
     await audio.play();
@@ -1158,6 +1128,7 @@ async function startBackgroundAudio() {
     return;
   }
 
+  updateMediaSessionMetadata(true);
   updateMediaSessionPlaybackState();
 }
 
@@ -1240,7 +1211,17 @@ function getValidatedBackgroundAudioInterval(rawValue) {
   return BACKGROUND_AUDIO_UPDATE_INTERVAL_OPTIONS.includes(parsed) ? parsed : 10;
 }
 
-function createKeepAliveAudioDataUri() {
+function getKeepAliveAudioUrl() {
+  if (keepAliveAudioUrl) {
+    return keepAliveAudioUrl;
+  }
+
+  const blob = new Blob([createKeepAliveAudioBuffer()], { type: "audio/wav" });
+  keepAliveAudioUrl = URL.createObjectURL(blob);
+  return keepAliveAudioUrl;
+}
+
+function createKeepAliveAudioBuffer() {
   const sampleRate = 16000;
   const durationSeconds = 2;
   const numChannels = 1;
@@ -1249,7 +1230,7 @@ function createKeepAliveAudioDataUri() {
   const dataSize = totalSamples * numChannels * (bitsPerSample / 8);
   const buffer = new ArrayBuffer(44 + dataSize);
   const view = new DataView(buffer);
-  const amplitude = 8;
+  const amplitude = 256;
   const frequency = 220;
 
   writeAscii(view, 0, "RIFF");
@@ -1273,13 +1254,7 @@ function createKeepAliveAudioDataUri() {
     offset += 2;
   }
 
-  const bytes = new Uint8Array(buffer);
-  let binary = "";
-  bytes.forEach((byte) => {
-    binary += String.fromCharCode(byte);
-  });
-
-  return `data:audio/wav;base64,${window.btoa(binary)}`;
+  return buffer;
 }
 
 function writeAscii(view, offset, text) {
