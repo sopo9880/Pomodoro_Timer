@@ -1583,11 +1583,26 @@ function supportsMiniTimer() {
 }
 
 function saveState() {
-  localStorage.removeItem(STORAGE_KEY);
+  const persistedState = {
+    settings: state.settings,
+    autoAdvance: state.autoAdvance,
+    soundEnabled: state.soundEnabled,
+    vibrationEnabled: state.vibrationEnabled,
+    backgroundAudioEnabled: state.backgroundAudioEnabled,
+    backgroundAudioLabelMode: state.backgroundAudioLabelMode,
+    backgroundAudioUpdateInterval: state.backgroundAudioUpdateInterval,
+    notificationsEnabled: state.notificationsEnabled,
+    transitionAlertsEnabled: state.transitionAlertsEnabled,
+    soundTone: state.soundTone,
+    soundVolume: state.soundVolume,
+    vibrationPattern: state.vibrationPattern,
+    selectedPreset: state.selectedPreset,
+  };
+
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(persistedState));
 }
 
 function loadState() {
-  localStorage.removeItem(STORAGE_KEY);
   endTime = null;
   stopBackgroundAudio();
 
@@ -1614,6 +1629,50 @@ function loadState() {
   state.focusIntent = DEFAULT_STATE.focusIntent;
   state.log = [];
   state.todayKey = getTodayKey();
+
+  const rawState = localStorage.getItem(STORAGE_KEY);
+  if (!rawState) {
+    return;
+  }
+
+  try {
+    const persistedState = JSON.parse(rawState);
+    state.settings = normalizeSettings(persistedState.settings);
+    state.autoAdvance = Boolean(persistedState.autoAdvance ?? DEFAULT_STATE.autoAdvance);
+    state.soundEnabled = Boolean(persistedState.soundEnabled ?? DEFAULT_STATE.soundEnabled);
+    state.vibrationEnabled = Boolean(persistedState.vibrationEnabled ?? DEFAULT_STATE.vibrationEnabled);
+    state.backgroundAudioEnabled = Boolean(
+      persistedState.backgroundAudioEnabled ?? DEFAULT_STATE.backgroundAudioEnabled,
+    );
+    state.backgroundAudioLabelMode = ["countdown", "mode", "minimal"].includes(
+      persistedState.backgroundAudioLabelMode,
+    )
+      ? persistedState.backgroundAudioLabelMode
+      : DEFAULT_STATE.backgroundAudioLabelMode;
+    state.backgroundAudioUpdateInterval = getValidatedBackgroundAudioInterval(
+      persistedState.backgroundAudioUpdateInterval,
+    );
+    state.notificationsEnabled = Boolean(
+      persistedState.notificationsEnabled ?? DEFAULT_STATE.notificationsEnabled,
+    );
+    state.transitionAlertsEnabled = Boolean(
+      persistedState.transitionAlertsEnabled ?? DEFAULT_STATE.transitionAlertsEnabled,
+    );
+    state.soundTone = ["bright", "soft", "bell"].includes(persistedState.soundTone)
+      ? persistedState.soundTone
+      : DEFAULT_STATE.soundTone;
+    state.soundVolume = sanitizeNumber(
+      persistedState.soundVolume ?? DEFAULT_STATE.soundVolume,
+      10,
+      100,
+    );
+    state.vibrationPattern = ["gentle", "standard", "urgent"].includes(persistedState.vibrationPattern)
+      ? persistedState.vibrationPattern
+      : DEFAULT_STATE.vibrationPattern;
+    state.selectedPreset = getPresetMatch() || persistedState.selectedPreset || DEFAULT_STATE.selectedPreset;
+  } catch (error) {
+    localStorage.removeItem(STORAGE_KEY);
+  }
 }
 
 function normalizeSettings(rawSettings) {
