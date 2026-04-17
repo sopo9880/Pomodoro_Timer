@@ -94,7 +94,6 @@ let timerWorker = null;
 let endTime = null;
 let audioContext = null;
 let backgroundAudio = null;
-let keepAliveAudioUrl = null;
 let deferredInstallPrompt = null;
 let serviceWorkerRegistration = null;
 let miniTimerWindow = null;
@@ -1090,12 +1089,12 @@ function ensureBackgroundAudioElement() {
   }
 
   backgroundAudio = new Audio();
-  backgroundAudio.src = getKeepAliveAudioUrl();
+  backgroundAudio.src = "keepalive.mp3";
   backgroundAudio.loop = true;
   backgroundAudio.preload = "auto";
   backgroundAudio.autoplay = false;
   backgroundAudio.playsInline = true;
-  backgroundAudio.volume = 0.001;
+  backgroundAudio.volume = 1;
   backgroundAudio.muted = false;
   backgroundAudio.setAttribute("webkit-playsinline", "true");
   backgroundAudio.setAttribute("aria-hidden", "true");
@@ -1209,57 +1208,6 @@ function updateMediaSessionPlaybackState() {
 function getValidatedBackgroundAudioInterval(rawValue) {
   const parsed = Number.parseInt(String(rawValue), 10);
   return BACKGROUND_AUDIO_UPDATE_INTERVAL_OPTIONS.includes(parsed) ? parsed : 10;
-}
-
-function getKeepAliveAudioUrl() {
-  if (keepAliveAudioUrl) {
-    return keepAliveAudioUrl;
-  }
-
-  const blob = new Blob([createKeepAliveAudioBuffer()], { type: "audio/wav" });
-  keepAliveAudioUrl = URL.createObjectURL(blob);
-  return keepAliveAudioUrl;
-}
-
-function createKeepAliveAudioBuffer() {
-  const sampleRate = 16000;
-  const durationSeconds = 2;
-  const numChannels = 1;
-  const bitsPerSample = 16;
-  const totalSamples = sampleRate * durationSeconds;
-  const dataSize = totalSamples * numChannels * (bitsPerSample / 8);
-  const buffer = new ArrayBuffer(44 + dataSize);
-  const view = new DataView(buffer);
-  const amplitude = 327;
-
-  writeAscii(view, 0, "RIFF");
-  view.setUint32(4, 36 + dataSize, true);
-  writeAscii(view, 8, "WAVE");
-  writeAscii(view, 12, "fmt ");
-  view.setUint32(16, 16, true);
-  view.setUint16(20, 1, true);
-  view.setUint16(22, numChannels, true);
-  view.setUint32(24, sampleRate, true);
-  view.setUint32(28, sampleRate * numChannels * (bitsPerSample / 8), true);
-  view.setUint16(32, numChannels * (bitsPerSample / 8), true);
-  view.setUint16(34, bitsPerSample, true);
-  writeAscii(view, 36, "data");
-  view.setUint32(40, dataSize, true);
-
-  let offset = 44;
-  for (let index = 0; index < totalSamples; index += 1) {
-    const sample = Math.round((Math.random() * 2 - 1) * amplitude);
-    view.setInt16(offset, sample, true);
-    offset += 2;
-  }
-
-  return buffer;
-}
-
-function writeAscii(view, offset, text) {
-  for (let index = 0; index < text.length; index += 1) {
-    view.setUint8(offset + index, text.charCodeAt(index));
-  }
 }
 
 function bindMediaSessionHandlers() {
