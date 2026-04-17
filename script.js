@@ -36,8 +36,7 @@ const PRESETS = {
   },
 };
 
-const SILENT_AUDIO_DATA_URI =
-  "data:audio/mp3;base64,SUQzAwAAAAAAFlRFTkMAAAAMAAADTGF2ZjU4LjI5LjEwMQAAAAAAAAAAAAAA//uQxAADBzQAUQBIAAAhAAAACAAADSAAAAEtQVVNTU1NTU1NTU1NTU1NTU1NTU1NTU1NTU1NTU1NTU1NTU1NTU1NTU1NTU1NTU1NTU1NTU1NTU1NTU1P/uQxAADBzQAUQBIAAAhAAAACAAADSAAAAFNJSUxFRU5DRVNJTEVOQ0VTSUxFTkNFU0lMRU5DRVNJTEVOQ0VTSUxFTkNFU0lMRU5DRf/7kMQAAwc0AFEASAAAIQAAAAgAAA0gAAAAT1VVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVQ==";
+const BACKGROUND_AUDIO_UPDATE_INTERVAL_OPTIONS = [1, 5, 10, 30, 60];
 
 const state = {
   settings: { ...PRESETS.classic },
@@ -221,10 +220,8 @@ function bindEvents() {
 
   if (elements.backgroundAudioUpdateInterval) {
     elements.backgroundAudioUpdateInterval.addEventListener("change", () => {
-      state.backgroundAudioUpdateInterval = sanitizeNumber(
+      state.backgroundAudioUpdateInterval = getValidatedBackgroundAudioInterval(
         elements.backgroundAudioUpdateInterval.value,
-        10,
-        60,
       );
       updateMediaSessionMetadata(true);
       saveState();
@@ -369,6 +366,8 @@ function handleTimerWorkerMessage(event) {
 
   state.remainingSeconds = data.remainingSeconds;
   renderTimer();
+  renderStats();
+  updateMediaSessionMetadata();
   renderMiniTimerWindow();
 
   if (data.completed) {
@@ -608,6 +607,7 @@ function syncTimer() {
   const secondsLeft = getRemainingSeconds(endTime);
   state.remainingSeconds = secondsLeft;
   renderTimer();
+  renderStats();
   updateMediaSessionMetadata();
   renderMiniTimerWindow();
 
@@ -1089,11 +1089,12 @@ function ensureBackgroundAudioElement() {
     return backgroundAudio;
   }
 
-  backgroundAudio = new Audio(SILENT_AUDIO_DATA_URI);
+  backgroundAudio = new Audio(createSilentWavDataUri());
   backgroundAudio.loop = true;
   backgroundAudio.preload = "auto";
   backgroundAudio.playsInline = true;
   backgroundAudio.volume = 0.01;
+  backgroundAudio.setAttribute("webkit-playsinline", "true");
   bindMediaSessionHandlers();
   return backgroundAudio;
 }
@@ -1132,7 +1133,7 @@ function updateMediaSessionMetadata(force = false) {
     return;
   }
 
-  const interval = state.backgroundAudioUpdateInterval;
+  const interval = getValidatedBackgroundAudioInterval(state.backgroundAudioUpdateInterval);
   const stamp = `${state.mode}:${Math.ceil(state.remainingSeconds / interval)}:${state.backgroundAudioLabelMode}:${state.isRunning}`;
   if (!force && stamp === lastMediaSessionStamp) {
     return;
@@ -1190,6 +1191,50 @@ function updateMediaSessionPlaybackState() {
 
   navigator.mediaSession.playbackState =
     state.backgroundAudioEnabled && state.isRunning ? "playing" : "paused";
+}
+
+function getValidatedBackgroundAudioInterval(rawValue) {
+  const parsed = Number.parseInt(String(rawValue), 10);
+  return BACKGROUND_AUDIO_UPDATE_INTERVAL_OPTIONS.includes(parsed) ? parsed : 10;
+}
+
+function createSilentWavDataUri() {
+  const sampleRate = 8000;
+  const durationSeconds = 1;
+  const numChannels = 1;
+  const bitsPerSample = 16;
+  const totalSamples = sampleRate * durationSeconds;
+  const dataSize = totalSamples * numChannels * (bitsPerSample / 8);
+  const buffer = new ArrayBuffer(44 + dataSize);
+  const view = new DataView(buffer);
+
+  writeAscii(view, 0, "RIFF");
+  view.setUint32(4, 36 + dataSize, true);
+  writeAscii(view, 8, "WAVE");
+  writeAscii(view, 12, "fmt ");
+  view.setUint32(16, 16, true);
+  view.setUint16(20, 1, true);
+  view.setUint16(22, numChannels, true);
+  view.setUint32(24, sampleRate, true);
+  view.setUint32(28, sampleRate * numChannels * (bitsPerSample / 8), true);
+  view.setUint16(32, numChannels * (bitsPerSample / 8), true);
+  view.setUint16(34, bitsPerSample, true);
+  writeAscii(view, 36, "data");
+  view.setUint32(40, dataSize, true);
+
+  const bytes = new Uint8Array(buffer);
+  let binary = "";
+  bytes.forEach((byte) => {
+    binary += String.fromCharCode(byte);
+  });
+
+  return `data:audio/wav;base64,${window.btoa(binary)}`;
+}
+
+function writeAscii(view, offset, text) {
+  for (let index = 0; index < text.length; index += 1) {
+    view.setUint8(offset + index, text.charCodeAt(index));
+  }
 }
 
 function bindMediaSessionHandlers() {
