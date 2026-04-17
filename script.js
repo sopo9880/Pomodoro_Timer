@@ -1,4 +1,4 @@
-const STORAGE_KEY = "bloomodoro-state-v1";
+const STORAGE_KEY = "bloomodoro-state-v2";
 
 const MODE_META = {
   focus: {
@@ -40,8 +40,9 @@ const state = {
   settings: { ...PRESETS.classic },
   mode: "focus",
   remainingSeconds: PRESETS.classic.focus,
+  currentSessionDurationSeconds: PRESETS.classic.focus,
   isRunning: false,
-  completedFocusSessions: 0,
+  cycleFocusCount: 0,
   completedToday: 0,
   focusSecondsToday: 0,
   autoAdvance: true,
@@ -59,10 +60,13 @@ const state = {
 };
 
 let timerId = null;
+let timerWorker = null;
 let endTime = null;
 let audioContext = null;
 let deferredInstallPrompt = null;
 let serviceWorkerRegistration = null;
+let miniTimerWindow = null;
+let miniTimerElements = null;
 
 const elements = {
   body: document.body,
@@ -74,6 +78,7 @@ const elements = {
   startPauseButton: document.getElementById("startPauseButton"),
   resetButton: document.getElementById("resetButton"),
   skipButton: document.getElementById("skipButton"),
+  miniTimerButton: document.getElementById("miniTimerButton"),
   autoAdvance: document.getElementById("autoAdvance"),
   soundEnabled: document.getElementById("soundEnabled"),
   vibrationEnabled: document.getElementById("vibrationEnabled"),
@@ -112,6 +117,7 @@ const elements = {
 
 function init() {
   loadState();
+  setupTimerWorker();
   bindEvents();
   bindInstallEvents();
   registerServiceWorker();
@@ -123,6 +129,10 @@ function bindEvents() {
   elements.startPauseButton.addEventListener("click", toggleTimer);
   elements.resetButton.addEventListener("click", resetTimer);
   elements.skipButton.addEventListener("click", () => advanceMode(false));
+
+  if (elements.miniTimerButton) {
+    elements.miniTimerButton.addEventListener("click", toggleMiniTimer);
+  }
 
   elements.modeButtons.forEach((button) => {
     button.addEventListener("click", () => switchMode(button.dataset.mode, true));
@@ -267,6 +277,36 @@ function bindInstallEvents() {
   }
 }
 
+function setupTimerWorker() {
+  if (!("Worker" in window) || window.location.protocol === "file:") {
+    return;
+  }
+
+  try {
+    timerWorker = new Worker("timer-worker.js");
+    timerWorker.addEventListener("message", handleTimerWorkerMessage);
+  } catch (error) {
+    timerWorker = null;
+  }
+}
+
+function handleTimerWorkerMessage(event) {
+  const { data } = event;
+  if (!data || data.type !== "tick" || !state.isRunning || !endTime) {
+    return;
+  }
+
+  state.remainingSeconds = data.remainingSeconds;
+  renderTimer();
+  renderMiniTimerWindow();
+
+  if (data.completed) {
+    stopTicking();
+    endTime = null;
+    handleCompletion();
+  }
+}
+
 async function installApp() {
   if (!deferredInstallPrompt) {
     return;
@@ -305,14 +345,17 @@ function applyPreset(presetKey) {
     return;
   }
 
+  if (state.mode === "focus") {
+    commitCurrentFocusProgress();
+  }
+
   state.selectedPreset = presetKey;
   state.settings = { ...preset };
+  resetCurrentSession(state.mode, getDurationSeconds(state.mode));
 
-  if (!state.isRunning) {
-    state.remainingSeconds = getDurationSeconds(state.mode);
-  } else {
-    state.remainingSeconds = getDurationSeconds(state.mode);
+  if (state.isRunning) {
     endTime = Date.now() + state.remainingSeconds * 1000;
+    startTicking();
   }
 
   addLog({
@@ -325,6 +368,10 @@ function applyPreset(presetKey) {
 }
 
 function updateSetting() {
+  if (state.mode === "focus") {
+    commitCurrentFocusProgress();
+  }
+
   state.settings = {
     focus: combineDurationInputs(
       elements.focusDurationMinutes.value,
@@ -347,18 +394,18 @@ function updateSetting() {
     cycleLength: sanitizeNumber(elements.cycleLength.value, 2, 8),
   };
   state.selectedPreset = getPresetMatch() || "custom";
+  state.cycleFocusCount = Math.min(state.cycleFocusCount, state.settings.cycleLength);
 
-  const nextDuration = getDurationSeconds(state.mode);
-  if (!state.isRunning) {
-    state.remainingSeconds = nextDuration;
-  } else {
-    state.remainingSeconds = nextDuration;
+  resetCurrentSession(state.mode, getDurationSeconds(state.mode));
+
+  if (state.isRunning) {
     endTime = Date.now() + state.remainingSeconds * 1000;
+    startTicking();
   }
 
   addLog({
     title: "설정 변경",
-    detail: `${MODE_META[state.mode].label}을 ${formatDurationLabel(nextDuration)}으로 맞췄어요.`,
+    detail: `${MODE_META[state.mode].label}을 ${formatDurationLabel(state.remainingSeconds)}으로 맞췄어요.`,
   });
 
   render();
@@ -377,7 +424,7 @@ function startTimer() {
   unlockAudio();
 
   if (state.remainingSeconds <= 0) {
-    state.remainingSeconds = getDurationSeconds(state.mode);
+    resetCurrentSession(state.mode, getDurationSeconds(state.mode));
   }
 
   if (!state.isRunning) {
@@ -389,15 +436,14 @@ function startTimer() {
 
   state.isRunning = true;
   endTime = Date.now() + state.remainingSeconds * 1000;
-  clearInterval(timerId);
-  timerId = window.setInterval(syncTimer, 250);
+  startTicking();
   render();
   saveState();
 }
 
 function pauseTimer() {
   if (state.isRunning && endTime) {
-    state.remainingSeconds = Math.max(0, Math.ceil((endTime - Date.now()) / 1000));
+    state.remainingSeconds = getRemainingSeconds(endTime);
   }
 
   if (state.isRunning) {
@@ -408,19 +454,22 @@ function pauseTimer() {
   }
 
   state.isRunning = false;
-  clearInterval(timerId);
-  timerId = null;
+  stopTicking();
   endTime = null;
   render();
   saveState();
 }
 
 function resetTimer() {
-  clearInterval(timerId);
-  timerId = null;
+  if (state.mode === "focus") {
+    commitCurrentFocusProgress();
+  }
+
+  stopTicking();
   endTime = null;
   state.isRunning = false;
-  state.remainingSeconds = getDurationSeconds(state.mode);
+  resetCurrentSession(state.mode, getDurationSeconds(state.mode));
+
   addLog({
     title: `${MODE_META[state.mode].label} 리셋`,
     detail: `${formatDurationLabel(state.remainingSeconds)}으로 다시 맞췄어요.`,
@@ -430,10 +479,16 @@ function resetTimer() {
 }
 
 function resetCycleProgress() {
-  state.completedFocusSessions = 0;
+  stopTicking();
+  endTime = null;
+  state.isRunning = false;
+  state.cycleFocusCount = 0;
+  state.completedToday = 0;
+  state.focusSecondsToday = 0;
+  resetCurrentSession("focus", state.settings.focus);
   addLog({
     title: "사이클 초기화",
-    detail: "긴 휴식 카운트를 처음부터 다시 시작했어요.",
+    detail: "완료한 집중, 누적 집중 시간, 다음 세션 흐름을 모두 처음 상태로 되돌렸어요.",
   });
   render();
   saveState();
@@ -444,12 +499,19 @@ function switchMode(mode, fromManualSelection = false) {
     return;
   }
 
-  clearInterval(timerId);
-  timerId = null;
+  if (state.mode === "focus") {
+    commitCurrentFocusProgress();
+  }
+
+  stopTicking();
   endTime = null;
   state.isRunning = false;
-  state.mode = mode;
-  state.remainingSeconds = getDurationSeconds(mode);
+
+  if (state.mode === "longBreak" && mode !== "longBreak") {
+    state.cycleFocusCount = 0;
+  }
+
+  resetCurrentSession(mode, getDurationSeconds(mode));
 
   if (fromManualSelection) {
     addLog({
@@ -467,13 +529,13 @@ function syncTimer() {
     return;
   }
 
-  const secondsLeft = Math.max(0, Math.ceil((endTime - Date.now()) / 1000));
+  const secondsLeft = getRemainingSeconds(endTime);
   state.remainingSeconds = secondsLeft;
   renderTimer();
+  renderMiniTimerWindow();
 
   if (secondsLeft <= 0) {
-    clearInterval(timerId);
-    timerId = null;
+    stopTicking();
     endTime = null;
     handleCompletion();
   }
@@ -498,15 +560,19 @@ function handleCompletion() {
 
 function advanceMode(markComplete) {
   const previousMode = state.mode;
+  const completedDuration = state.currentSessionDurationSeconds;
   const nextMode = getNextMode(previousMode, markComplete);
 
+  if (previousMode === "focus") {
+    commitCurrentFocusProgress(markComplete);
+  }
+
   if (markComplete && previousMode === "focus") {
-    state.completedFocusSessions += 1;
+    state.cycleFocusCount = Math.min(state.settings.cycleLength, state.cycleFocusCount + 1);
     state.completedToday += 1;
-    state.focusSecondsToday += state.settings.focus;
     addLog({
       title: `${state.completedToday}번째 집중 완료`,
-      detail: `${formatDurationLabel(state.settings.focus)} 몰입을 끝냈어요.`,
+      detail: `${formatDurationLabel(completedDuration)} 몰입을 끝냈어요.`,
     });
   } else if (markComplete) {
     addLog({
@@ -520,8 +586,11 @@ function advanceMode(markComplete) {
     });
   }
 
-  state.mode = nextMode;
-  state.remainingSeconds = getDurationSeconds(state.mode);
+  if (previousMode === "longBreak") {
+    state.cycleFocusCount = 0;
+  }
+
+  resetCurrentSession(nextMode, getDurationSeconds(nextMode));
   render();
   saveState();
 
@@ -536,9 +605,8 @@ function getNextMode(mode, markComplete) {
       return "shortBreak";
     }
 
-    return state.completedFocusSessions % state.settings.cycleLength === 0
-      ? "longBreak"
-      : "shortBreak";
+    const projectedCycleCount = state.cycleFocusCount + 1;
+    return projectedCycleCount % state.settings.cycleLength === 0 ? "longBreak" : "shortBreak";
   }
 
   return "focus";
@@ -546,6 +614,59 @@ function getNextMode(mode, markComplete) {
 
 function getDurationSeconds(mode) {
   return state.settings[mode];
+}
+
+function resetCurrentSession(mode, durationSeconds) {
+  state.mode = mode;
+  state.currentSessionDurationSeconds = durationSeconds;
+  state.remainingSeconds = durationSeconds;
+}
+
+function getRemainingSeconds(targetEndTime, now = Date.now()) {
+  return Math.max(0, Math.ceil((targetEndTime - now) / 1000));
+}
+
+function getCurrentSessionElapsedSeconds(now = Date.now()) {
+  const remaining = state.isRunning && endTime ? getRemainingSeconds(endTime, now) : state.remainingSeconds;
+  return Math.max(
+    0,
+    Math.min(state.currentSessionDurationSeconds, state.currentSessionDurationSeconds - remaining),
+  );
+}
+
+function commitCurrentFocusProgress(forceFullSession = false) {
+  if (state.mode !== "focus") {
+    return 0;
+  }
+
+  const elapsed = forceFullSession ? state.currentSessionDurationSeconds : getCurrentSessionElapsedSeconds();
+  if (elapsed > 0) {
+    state.focusSecondsToday += elapsed;
+  }
+
+  return elapsed;
+}
+
+function startTicking() {
+  stopTicking();
+
+  if (timerWorker) {
+    timerWorker.postMessage({ type: "start", endTime });
+    return;
+  }
+
+  timerId = window.setInterval(syncTimer, 250);
+}
+
+function stopTicking() {
+  if (timerId) {
+    clearInterval(timerId);
+    timerId = null;
+  }
+
+  if (timerWorker) {
+    timerWorker.postMessage({ type: "stop" });
+  }
 }
 
 function render() {
@@ -558,10 +679,11 @@ function render() {
   renderFocusIntent();
   renderInstallState();
   renderEventLog();
+  renderMiniTimerWindow();
 }
 
 function renderTimer() {
-  const total = getDurationSeconds(state.mode);
+  const total = state.currentSessionDurationSeconds;
   const minutes = Math.floor(state.remainingSeconds / 60);
   const seconds = state.remainingSeconds % 60;
   const progress = total === 0 ? 0 : ((total - state.remainingSeconds) / total) * 100;
@@ -596,6 +718,15 @@ function renderControls() {
   elements.soundVolume.value = String(state.soundVolume);
   elements.soundVolumeValue.textContent = `${state.soundVolume}%`;
   elements.vibrationPattern.value = state.vibrationPattern;
+
+  if (elements.miniTimerButton) {
+    const supported = supportsMiniTimer();
+    elements.miniTimerButton.hidden = !supported;
+    if (supported) {
+      elements.miniTimerButton.textContent =
+        miniTimerWindow && !miniTimerWindow.closed ? "미니 닫기" : "미니 타이머";
+    }
+  }
 }
 
 function renderNotificationState() {
@@ -618,8 +749,8 @@ function renderNotificationState() {
       ? "시스템 알림이 켜져 있어요."
       : "권한은 허용되어 있지만 알림 토글이 꺼져 있어요.";
     elements.notificationHint.textContent = state.transitionAlertsEnabled
-      ? "세션 완료와 다음 세션 전환 안내를 운영체제 알림으로 전달합니다."
-      : "세션 완료만 운영체제 알림으로 전달합니다.";
+      ? "세션 완료와 다음 세션 전환 안내를 운영체제 알림으로 전달합니다. 오래 켜둘 때는 미니 타이머를 함께 쓰는 편이 더 안정적이에요."
+      : "세션 완료만 운영체제 알림으로 전달합니다. 오래 켜둘 때는 미니 타이머를 함께 쓰는 편이 더 안정적이에요.";
     return;
   }
 
@@ -654,7 +785,7 @@ function renderSettings() {
 
 function renderStats() {
   elements.completedToday.textContent = `${state.completedToday}회`;
-  elements.focusMinutesToday.textContent = formatDurationLabel(state.focusSecondsToday);
+  elements.focusMinutesToday.textContent = formatDurationLabel(getDisplayedFocusSeconds());
   elements.nextModeLabel.textContent = MODE_META[getNextMode(state.mode, true)].label;
   elements.longBreakCountdown.textContent = `${getLongBreakCountdown()}회`;
   elements.cycleCaption.textContent = `${state.settings.cycleLength}회 집중 후 긴 휴식`;
@@ -662,18 +793,18 @@ function renderStats() {
 }
 
 function renderSessionDots() {
-  const completedInCycle = state.completedFocusSessions % state.settings.cycleLength;
+  const filledDots = state.cycleFocusCount;
   elements.sessionDots.innerHTML = "";
 
   for (let index = 0; index < state.settings.cycleLength; index += 1) {
     const dot = document.createElement("span");
     dot.className = "session-dot";
 
-    if (index < completedInCycle) {
+    if (index < filledDots) {
       dot.classList.add("completed");
     }
 
-    if (index === completedInCycle && state.mode === "focus") {
+    if (index === filledDots && state.mode === "focus" && filledDots < state.settings.cycleLength) {
       dot.classList.add("current");
     }
 
@@ -722,7 +853,9 @@ function renderInstallState() {
   }
 
   elements.installStatus.textContent = "브라우저에서 바로 사용할 수 있어요";
-  elements.installHint.textContent = "지원 브라우저에서는 메뉴에서도 설치를 선택할 수 있어요.";
+  elements.installHint.textContent = supportsMiniTimer()
+    ? "지원 브라우저에서는 미니 타이머 창도 함께 사용할 수 있어요."
+    : "지원 브라우저에서는 메뉴에서도 설치를 선택할 수 있어요.";
 }
 
 function renderEventLog() {
@@ -754,6 +887,21 @@ function renderEventLog() {
   });
 }
 
+function renderMiniTimerWindow() {
+  if (!miniTimerWindow || miniTimerWindow.closed || !miniTimerElements) {
+    return;
+  }
+
+  miniTimerElements.mode.textContent = MODE_META[state.mode].label;
+  miniTimerElements.time.textContent = `${String(Math.floor(state.remainingSeconds / 60)).padStart(2, "0")}:${String(
+    state.remainingSeconds % 60,
+  ).padStart(2, "0")}`;
+  miniTimerElements.hint.textContent = state.transitionAlertsEnabled
+    ? `다음 세션: ${MODE_META[getNextMode(state.mode, true)].label}`
+    : MODE_META[state.mode].hint;
+  miniTimerElements.startPause.textContent = state.isRunning ? "일시정지" : "시작";
+}
+
 function addLog({ title, detail }) {
   state.log = [
     {
@@ -768,9 +916,16 @@ function addLog({ title, detail }) {
   ].slice(0, 8);
 }
 
+function getDisplayedFocusSeconds() {
+  return state.focusSecondsToday + (state.mode === "focus" ? getCurrentSessionElapsedSeconds() : 0);
+}
+
 function getLongBreakCountdown() {
-  const remainder = state.completedFocusSessions % state.settings.cycleLength;
-  return remainder === 0 ? state.settings.cycleLength : state.settings.cycleLength - remainder;
+  if (state.mode === "longBreak" && state.cycleFocusCount === state.settings.cycleLength) {
+    return 0;
+  }
+
+  return Math.max(0, state.settings.cycleLength - state.cycleFocusCount);
 }
 
 function getPresetMatch() {
@@ -982,13 +1137,12 @@ function restoreRunningTimer() {
 
   const now = Date.now();
   if (endTime > now) {
-    state.remainingSeconds = Math.max(0, Math.ceil((endTime - now) / 1000));
-    clearInterval(timerId);
-    timerId = window.setInterval(syncTimer, 250);
+    state.remainingSeconds = getRemainingSeconds(endTime, now);
+    startTicking();
     return;
   }
 
-  let elapsedSeconds = Math.max(0, Math.floor((now - endTime) / 1000));
+  let overflowSeconds = Math.max(0, Math.floor((now - endTime) / 1000));
   let recoveredSessions = 0;
 
   while (state.isRunning) {
@@ -996,31 +1150,32 @@ function restoreRunningTimer() {
     const nextMode = getNextMode(completedMode, true);
 
     if (completedMode === "focus") {
-      state.completedFocusSessions += 1;
+      commitCurrentFocusProgress(true);
+      state.cycleFocusCount = Math.min(state.settings.cycleLength, state.cycleFocusCount + 1);
       state.completedToday += 1;
-      state.focusSecondsToday += state.settings.focus;
+    }
+
+    if (completedMode === "longBreak") {
+      state.cycleFocusCount = 0;
     }
 
     recoveredSessions += 1;
-    state.mode = nextMode;
+    resetCurrentSession(nextMode, getDurationSeconds(nextMode));
 
     if (!state.autoAdvance) {
       state.isRunning = false;
       endTime = null;
-      state.remainingSeconds = getDurationSeconds(state.mode);
       break;
     }
 
-    const nextDuration = getDurationSeconds(state.mode);
-    if (elapsedSeconds < nextDuration) {
-      state.remainingSeconds = Math.max(0, nextDuration - elapsedSeconds);
+    if (overflowSeconds < state.currentSessionDurationSeconds) {
+      state.remainingSeconds = Math.max(0, state.currentSessionDurationSeconds - overflowSeconds);
       endTime = now + state.remainingSeconds * 1000;
-      clearInterval(timerId);
-      timerId = window.setInterval(syncTimer, 250);
+      startTicking();
       break;
     }
 
-    elapsedSeconds -= nextDuration;
+    overflowSeconds -= state.currentSessionDurationSeconds;
   }
 
   if (recoveredSessions > 0) {
@@ -1033,14 +1188,153 @@ function restoreRunningTimer() {
   saveState();
 }
 
+async function toggleMiniTimer() {
+  if (!supportsMiniTimer()) {
+    return;
+  }
+
+  if (miniTimerWindow && !miniTimerWindow.closed) {
+    miniTimerWindow.close();
+    return;
+  }
+
+  try {
+    miniTimerWindow = await window.documentPictureInPicture.requestWindow({ width: 360, height: 240 });
+  } catch (error) {
+    miniTimerWindow = null;
+    return;
+  }
+
+  initializeMiniTimerWindow(miniTimerWindow);
+  renderControls();
+  renderMiniTimerWindow();
+}
+
+function initializeMiniTimerWindow(pictureInPictureWindow) {
+  const doc = pictureInPictureWindow.document;
+  doc.documentElement.lang = "ko";
+  doc.title = "Bloomodoro Mini";
+  doc.head.innerHTML = `
+    <meta charset="UTF-8" />
+    <style>
+      :root {
+        color-scheme: dark;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        font-family: "Trebuchet MS", "Avenir Next", "Segoe UI", sans-serif;
+        background: radial-gradient(circle at top, rgba(255, 172, 120, 0.22), transparent 35%), #141015;
+        color: #fff8f3;
+      }
+
+      .mini-shell {
+        min-height: 100vh;
+        padding: 18px;
+        display: grid;
+        gap: 12px;
+        align-content: center;
+      }
+
+      .mini-mode {
+        margin: 0;
+        color: #ffd07f;
+        font-size: 0.86rem;
+        font-weight: 700;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+      }
+
+      .mini-time {
+        font-family: Georgia, "Times New Roman", serif;
+        font-size: 3.6rem;
+        line-height: 1;
+      }
+
+      .mini-hint {
+        margin: 0;
+        color: rgba(255, 248, 243, 0.72);
+        font-size: 0.95rem;
+      }
+
+      .mini-actions {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 10px;
+      }
+
+      button {
+        border: 0;
+        border-radius: 999px;
+        padding: 11px 12px;
+        background: rgba(255, 255, 255, 0.08);
+        color: inherit;
+        font: inherit;
+        font-weight: 700;
+        cursor: pointer;
+      }
+
+      button.primary {
+        background: linear-gradient(135deg, #ff845c, #ffd571);
+        color: #231217;
+      }
+    </style>
+  `;
+  doc.body.innerHTML = `
+    <main class="mini-shell">
+      <p class="mini-mode" id="miniMode"></p>
+      <strong class="mini-time" id="miniTime"></strong>
+      <p class="mini-hint" id="miniHint"></p>
+      <div class="mini-actions">
+        <button class="primary" id="miniStartPause" type="button"></button>
+        <button id="miniNext" type="button">다음</button>
+        <button id="miniReset" type="button">리셋</button>
+      </div>
+    </main>
+  `;
+
+  miniTimerElements = {
+    mode: doc.getElementById("miniMode"),
+    time: doc.getElementById("miniTime"),
+    hint: doc.getElementById("miniHint"),
+    startPause: doc.getElementById("miniStartPause"),
+    next: doc.getElementById("miniNext"),
+    reset: doc.getElementById("miniReset"),
+  };
+
+  miniTimerElements.startPause.addEventListener("click", toggleTimer);
+  miniTimerElements.next.addEventListener("click", () => advanceMode(false));
+  miniTimerElements.reset.addEventListener("click", resetTimer);
+
+  pictureInPictureWindow.addEventListener("pagehide", () => {
+    miniTimerWindow = null;
+    miniTimerElements = null;
+    renderControls();
+  });
+}
+
+function supportsMiniTimer() {
+  return Boolean(
+    window.documentPictureInPicture &&
+      typeof window.documentPictureInPicture.requestWindow === "function" &&
+      isDesktopDevice(),
+  );
+}
+
 function saveState() {
   const payload = {
     settings: state.settings,
     mode: state.mode,
     remainingSeconds: state.remainingSeconds,
+    currentSessionDurationSeconds: state.currentSessionDurationSeconds,
     isRunning: state.isRunning,
     endTime,
-    completedFocusSessions: state.completedFocusSessions,
+    cycleFocusCount: state.cycleFocusCount,
     completedToday: state.completedToday,
     focusSecondsToday: state.focusSecondsToday,
     autoAdvance: state.autoAdvance,
@@ -1063,6 +1357,7 @@ function saveState() {
 function loadState() {
   const stored = localStorage.getItem(STORAGE_KEY);
   if (!stored) {
+    resetCurrentSession("focus", PRESETS.classic.focus);
     return;
   }
 
@@ -1070,15 +1365,19 @@ function loadState() {
     const parsed = JSON.parse(stored);
     state.settings = normalizeSettings(parsed.settings);
     state.mode = MODE_META[parsed.mode] ? parsed.mode : "focus";
+    state.currentSessionDurationSeconds = sanitizeNumber(
+      parsed.currentSessionDurationSeconds ?? getDurationSeconds(state.mode),
+      1,
+      90 * 60,
+    );
     state.remainingSeconds = Number.isFinite(parsed.remainingSeconds)
       ? parsed.remainingSeconds
-      : getDurationSeconds(state.mode);
+      : state.currentSessionDurationSeconds;
     state.isRunning = parsed.isRunning ?? false;
     endTime = Number.isFinite(parsed.endTime) ? parsed.endTime : null;
-    state.completedFocusSessions = parsed.completedFocusSessions || 0;
+    state.cycleFocusCount = sanitizeNumber(parsed.cycleFocusCount ?? 0, 0, state.settings.cycleLength);
     state.completedToday = parsed.completedToday || 0;
-    state.focusSecondsToday =
-      parsed.focusSecondsToday ?? ((parsed.focusMinutesToday || 0) * 60);
+    state.focusSecondsToday = parsed.focusSecondsToday || 0;
     state.autoAdvance = parsed.autoAdvance ?? true;
     state.soundEnabled = parsed.soundEnabled ?? true;
     state.vibrationEnabled = parsed.vibrationEnabled ?? true;
@@ -1093,12 +1392,15 @@ function loadState() {
     state.todayKey = parsed.todayKey || getTodayKey();
   } catch (error) {
     localStorage.removeItem(STORAGE_KEY);
+    resetCurrentSession("focus", PRESETS.classic.focus);
+    return;
   }
 
   if (state.todayKey !== getTodayKey()) {
     state.todayKey = getTodayKey();
     state.completedToday = 0;
     state.focusSecondsToday = 0;
+    state.cycleFocusCount = 0;
     state.log = [];
   }
 
@@ -1106,7 +1408,7 @@ function loadState() {
     state.notificationsEnabled = false;
   }
 
-  state.remainingSeconds = Math.min(state.remainingSeconds, getDurationSeconds(state.mode));
+  state.remainingSeconds = Math.min(state.remainingSeconds, state.currentSessionDurationSeconds);
 }
 
 function normalizeSettings(rawSettings) {
