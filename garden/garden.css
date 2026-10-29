@@ -178,3 +178,7 @@
 @media(prefers-reduced-motion:reduce){
   .avatar-world-button{transition:none;}
 }
+
+#gardenWorld[data-interaction="avatar"]{cursor:crosshair;}
+#gardenWorld[data-interaction="avatar-hit"]{cursor:pointer;}
+#gardenWorld[data-interaction="companion"]{cursor:grab;}

@@ -712,7 +712,15 @@ export function mountGarden({ getGarden, setGarden, getTimerState, getEnvironmen
       ghost = { sprite: findGardenItem(object.itemId)?.sprite || "seed", x: pos.x, y: pos.y, rotation: object.rotation || 0 };
     }
     const pointer = pointers.get(event.pointerId);
-    if (!pointer) return;
+    if (!pointer) {
+      if(currentTool==="inspect"&&!editingLocked()){
+        const friend=renderer.getCompanionAt(pos.x,pos.y);
+        const avatar=renderer.getAvatarAt(pos.x,pos.y);
+        canvas.dataset.interaction=avatar?"avatar-hit":friend?"companion":
+          avatarSelected?"avatar":"";
+      }
+      return;
+    }
     pointer.x = event.clientX;
     pointer.y = event.clientY;
     if (pointers.size === 2) {
@@ -803,7 +811,7 @@ export function mountGarden({ getGarden, setGarden, getTimerState, getEnvironmen
     }
     ghost = null;
     dropPreview=null;
-    if(!pointers.size)canvas.dataset.interaction="";
+    if(!pointers.size)canvas.dataset.interaction=avatarSelected?"avatar":"";
     refresh(true);
   }
   canvas.addEventListener("pointerup", finishPointer);
@@ -836,8 +844,8 @@ export function mountGarden({ getGarden, setGarden, getTimerState, getEnvironmen
     else if (event.key === "-") renderer.zoomBy(1 / 1.12);
     else if (event.key === "Enter" && currentTool !== "inspect") applyPosition(renderer.camera.x, renderer.camera.y);
     else if (event.key === "Escape") {
+      stopAvatarControl();
       avatarSelected=false;
-      avatarMotion.cancel();
       setAction("inspect");
     }
     else return;
