@@ -180,6 +180,7 @@ export function createPixelGardenRenderer(canvas) {
   const ecology = createWildlifeEcology(map);
   let lastSimulationTime = null;
   let visibleFriends = [];
+  let visibleWildlifeCount = 0;
   let width = 1;
   let height = 1;
   function resize() {
@@ -337,6 +338,7 @@ export function createPixelGardenRenderer(canvas) {
       elapsedSeconds: time,
       reducedMotion,
     });
+    visibleWildlifeCount = wildlife.length;
     const actors = [
       ...garden.placements.map(object=>({ ...object,kind:"decor" })),
       ...garden.plants.map(object=>({ ...object,kind:"plant" })),
@@ -403,5 +405,7 @@ export function createPixelGardenRenderer(canvas) {
       else drawSprite(options.ghost.sprite,options.ghost.x,options.ghost.y,1.5,options.ghost.rotation||0,.65);
     }
   }
-  return { camera, resize, worldToScreen, screenToWorld, getViewportWorldRect, setCamera, panPixels, zoomBy, draw, getCompanionAt, map, terrainAtlas, flowerArt, friendArt, ecology };
+  return { camera, resize, worldToScreen, screenToWorld, getViewportWorldRect, setCamera, panPixels, zoomBy, draw, getCompanionAt,
+    getLifeStatus: () => ({friends:visibleFriends.length,wildlife:visibleWildlifeCount}),
+    map, terrainAtlas, flowerArt, friendArt, ecology };
 }

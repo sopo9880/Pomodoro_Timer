@@ -129,3 +129,11 @@
   .world-minimap-panel canvas{width:130px;height:130px;}
   .minimap-toggle{padding:6px 9px;font-size:10px;}
 }
+
+/* Compact wildlife presence indicator for the Phase 4B world. */
+.garden-life-line {
+  display:flex;align-items:center;padding:6px 10px;margin:1px 4px;
+  border:1px solid rgba(172,220,168,.27);border-radius:7px;
+  background:rgba(96,141,106,.13);color:#e3ebbf;
+  font-size:10px;font-weight:850;
+}

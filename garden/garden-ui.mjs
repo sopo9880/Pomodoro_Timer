@@ -7,6 +7,8 @@ import {
 import { createPixelGardenRenderer, drawGardenThumbnail } from "./pixel-world.mjs";
 import { createWorldMinimap } from "./minimap.mjs";
 import { REGION_SCENES } from "./world-map.mjs";
+import { drawPlantThumbnail } from "./plant-art.mjs";
+import { drawCompanionThumbnail } from "./companion-art.mjs";
 
 // The UI has no direct access to the timer's private state. Its save callback owns persistence.
 export function mountGarden({ getGarden, setGarden, getTimerState, getEnvironment = () => ({ season: 'spring', weather: 'clear', time: 'day' }) }) {
@@ -44,6 +46,7 @@ export function mountGarden({ getGarden, setGarden, getTimerState, getEnvironmen
     redo: byId("gardenRedo"),
     cancel: byId("gardenCancelPlacement"),
     currentAction: byId("gardenCurrentAction"),
+    life: byId("gardenLifeStatus"),
   };
   let currentTool = "inspect";
   let placingItemId = null;
@@ -213,7 +216,8 @@ export function mountGarden({ getGarden, setGarden, getTimerState, getEnvironmen
       actions.append(buy);
       card.append(thumb, body, actions);
       fragment.append(card);
-      drawGardenThumbnail(thumb, item.sprite);
+      if (item.kind === "plant") drawPlantThumbnail(thumb,renderer.flowerArt,item.sprite);
+      else drawGardenThumbnail(thumb,item.sprite);
     }
     view.inventory.replaceChildren(fragment);
   }
@@ -246,7 +250,7 @@ export function mountGarden({ getGarden, setGarden, getTimerState, getEnvironmen
       button.textContent = owned ? "함께하는 중" : unlocked ? "동료 맞이하기" : Math.ceil(friend.unlockAtSeconds / 60) + "분 집중 후 해금";
       card.append(thumb, details, button);
       fragment.append(card);
-      drawGardenThumbnail(thumb, friend.sprite);
+      drawCompanionThumbnail(thumb,renderer.friendArt,friend.sprite);
     }
     view.companions.replaceChildren(fragment);
   }
@@ -262,6 +266,9 @@ export function mountGarden({ getGarden, setGarden, getTimerState, getEnvironmen
     regionTitle.textContent = garden.unlockedZones.includes(zone.id)
       ? REGION_SCENES[zone.id]?.name || zone.name
       : "🔒 " + zone.name;
+    const inhabitants=renderer.getLifeStatus();
+    if (view.life) view.life.textContent =
+      "♡ 산책 중인 친구 " + inhabitants.friends + "명 · 자연 생물 " + inhabitants.wildlife + "마리";
     if (view.zonePicker.value !== zone.id) view.zonePicker.value = zone.id;
   }
   function refresh(force = false) {
@@ -477,7 +484,18 @@ export function mountGarden({ getGarden, setGarden, getTimerState, getEnvironmen
       if (mutate((garden) => moveGardenObject(garden, selected.kind, selected.id, x, y), "새 위치로 이동했어요.")) setAction("inspect");
       return;
     }
-    selectObject(pickObject(x, y));
+    const picked = pickObject(x,y);
+    if (!picked && !editingLocked()) {
+      const friend=renderer.getCompanionAt(x,y);
+      if(friend){
+        const companion=GARDEN_COMPANIONS.find(c=>c.speciesId===friend.speciesId);
+        selected=null;
+        setAction("inspect");
+        announce(friend.greeting || companion?.name+"가 반갑게 인사해요.");
+        return;
+      }
+    }
+    selectObject(picked);
   }
   canvas.addEventListener("pointerdown", (event) => {
     if (event.button !== 0 && event.pointerType === "mouse") return;
