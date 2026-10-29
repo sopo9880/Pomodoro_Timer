@@ -539,7 +539,10 @@ export function mountGarden({ getGarden, setGarden, getTimerState, getEnvironmen
       selected = null;
       placingItemId = null;
       currentTool = "inspect";
+      avatarSelected=false;
+      avatarMotion.cancel();
       setGarden(restored);
+      avatarMotion.sync(restored.avatar);
       lastFocusProgress = restored.progress.focusSeconds;
       announce("정원 백업을 복원했어요.");
       refresh(true);

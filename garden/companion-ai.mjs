@@ -97,6 +97,8 @@ function newState(companion, clock) {
     id:companion.id, speciesId:companion.speciesId,
     x:valid(companion.x)?companion.x:80,
     y:valid(companion.y)?companion.y:80,
+    savedX:valid(companion.x)?companion.x:80,
+    savedY:valid(companion.y)?companion.y:80,
     direction:"down", activity:"idle",
     route:[], decision:0, held:false,grabOrigin:null,reaction:null,reactionUntil:0,
     nextActionAt:clock+1.5, pace:profile.pace,
@@ -111,7 +113,16 @@ export function createCompanionSimulation(map) {
     for(const companion of garden.companions || []){
       if(!companion?.id || !COMPANION_PERSONALITIES[companion.speciesId])continue;
       desired.add(companion.id);
-      if(!agents.has(companion.id)) agents.set(companion.id,newState(companion,clock));
+      if(!agents.has(companion.id))agents.set(companion.id,newState(companion,clock));
+      else {
+        const agent=agents.get(companion.id);
+        if(!agent.held&&(agent.savedX!==companion.x||agent.savedY!==companion.y)){
+          agent.x=companion.x;agent.y=companion.y;
+          agent.savedX=companion.x;agent.savedY=companion.y;
+          agent.route=[];agent.activity="idle";
+          agent.nextActionAt=clock+1.5;
+        }
+      }
     }
     for(const id of agents.keys())if(!desired.has(id))agents.delete(id);
   }
