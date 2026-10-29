@@ -75,6 +75,7 @@ export function mountGarden({ getGarden, setGarden, getTimerState, getEnvironmen
   let ghost = null;
   let activeTab = "inventory";
   let avatarSelected = false;
+  let avatarReactionUntil = 0;
   let previousAvatarPaint = 0;
   let lastAvatarSave = 0;
   let cameraPanUntil = 0;
@@ -448,7 +449,8 @@ export function mountGarden({ getGarden, setGarden, getTimerState, getEnvironmen
     }
     if (onScreen) {
       renderer.draw(garden, getTimerState(), { selected, ghost, avatar:avatarMotion.visual(),
-        avatarSelected,dropPreview,moveFeedback:performance.now()<moveTargetUntil?moveFeedback:null,
+        avatarSelected,avatarReaction:performance.now()<avatarReactionUntil?"surprised":null,
+        dropPreview,moveFeedback:performance.now()<moveTargetUntil?moveFeedback:null,
         moveTarget:avatarSelected?avatarMotion.target():null,
         reduceMotion: reduceMotionQuery.matches, time: performance.now(), environment: getEnvironment() });
       paintMinimap(garden, force);
@@ -818,6 +820,7 @@ export function mountGarden({ getGarden, setGarden, getTimerState, getEnvironmen
       canvas.dataset.interaction="";
     }else if(gesture?.avatarHit&&!gesture.moved&&!editingLocked()){
       avatarSelected=true;
+      avatarReactionUntil=performance.now()+950;
       selected=null;
       setAction("inspect");
       announce("내 캐릭터 선택! WASD/방향키를 누르고 있거나 바닥을 터치해 이동해 보세요.");
@@ -954,7 +957,8 @@ export function mountGarden({ getGarden, setGarden, getTimerState, getEnvironmen
         }
       }
       renderer.draw(getGarden(),getTimerState(),{
-        selected,ghost,avatar:player,avatarSelected,dropPreview,
+        selected,ghost,avatar:player,avatarSelected,
+        avatarReaction:timestamp<avatarReactionUntil?"surprised":null,dropPreview,
         moveFeedback:timestamp<moveTargetUntil?moveFeedback:null,
         moveTarget:avatarSelected?avatarMotion.target():null,
         reduceMotion:reduceMotionQuery.matches,time:timestamp,environment:getEnvironment(),

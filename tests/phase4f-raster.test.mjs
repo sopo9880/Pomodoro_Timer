@@ -84,6 +84,7 @@ test("4F: new raster source files are wired into canvas, wardrobe, focus and off
   const sw=readFileSync(new URL("../sw.js",import.meta.url),"utf8");
   const ci=readFileSync(new URL("../.github/workflows/ci.yml",import.meta.url),"utf8");
   assert.match(world,/rasterArt\.avatar/);
+  assert.match(world,/reaction==="surprised"/);
   assert.match(world,/raster\?\.image/);
   assert.match(ui,/rasterAvatarPreviewUrl/);
   assert.match(ui,/rasterAvatarPortraitUrl/);

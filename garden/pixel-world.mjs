@@ -312,15 +312,16 @@ export function createPixelGardenRenderer(canvas) {
   function beginCompanionDrag(id){return companions.beginDrag(id);}
   function dragCompanion(id,x,y){return companions.dragTo(id,x,y);}
   function endCompanionDrag(id,accepted=false,point=null){return companions.endDrag(id,accepted,point);}
-  function drawAvatarSprite(avatar,garden,selected=false,{reducedMotion=false,time=0}={}){
+  function drawAvatarSprite(avatar,garden,selected=false,{reducedMotion=false,time=0,reaction=null}={}){
     const position=worldToScreen(avatar.x,avatar.y),tile=WORLD_SPEC.tileSize*camera.zoom;
     const walking=Boolean(avatar.moving);
     const frame=reducedMotion?0:walking?avatar.frame||0:Math.floor(time*1.8)%6;
-    const raster=rasterArt.avatar(garden.avatar?.equipped,avatar.direction,walking?"walk":"idle");
+    const pose=walking?"walk":reaction==="surprised"?"surprised":"idle";
+    const raster=rasterArt.avatar(garden.avatar?.equipped,avatar.direction,pose);
     // Use actual user-approved B reference artwork whenever a corresponding
     // raster pose exists; remaining views retain the current SVG fallback.
     const art=raster?.image ||
-      hiresArt.avatar(garden.avatar?.equipped,avatar.direction,walking?"walk":"idle",frame) ||
+      hiresArt.avatar(garden.avatar?.equipped,avatar.direction,pose,frame) ||
       avatarArt.frame(garden.avatar?.equipped,avatar.direction,frame,walking?"walk":"idle");
     const w=tile*2.08,h=w*(raster?.image?280/224:432/320);
     if(position.x<-w||position.y<-h||position.x>width+w||position.y>height+h)return;
@@ -463,7 +464,7 @@ export function createPixelGardenRenderer(canvas) {
         continue;
       }
       if(actor.kind==="avatar"){
-        drawAvatarSprite(actor,garden,Boolean(options.avatarSelected),{reducedMotion,time});
+        drawAvatarSprite(actor,garden,Boolean(options.avatarSelected),{reducedMotion,time,reaction:options.avatarReaction});
         continue;
       }
       const def=findGardenItem(actor.itemId);
