@@ -106,3 +106,22 @@ test("exported garden JSON payload can be restored without losing objects", () =
   assert.equal(restored.progress.focusSeconds, 1800);
   assert.equal(restored.wallet.sunshine, garden.wallet.sunshine);
 });
+
+
+test("progress-unlocked decoration cannot be purchased early", () => {
+  let garden = creditGardenFocus(createGardenState(), 3600);
+  assert.throws(() => purchaseGardenItem(garden, "forest-lamp"), /집중 시간/);
+  garden = creditGardenFocus(garden, 3600);
+  const purchased = purchaseGardenItem(garden, "forest-lamp");
+  assert.equal(getAvailableGardenQuantity(purchased, "forest-lamp"), 1);
+});
+
+test("companion friendship gains only from actually credited focus time", () => {
+  let garden = createGardenState();
+  garden = creditGardenFocus(garden, 1499);
+  assert.equal(garden.companions[0].affinity, 0);
+  garden = creditGardenFocus(garden, 1);
+  assert.equal(garden.companions[0].affinity, 1);
+  garden = creditGardenFocus(garden, 0);
+  assert.equal(garden.companions[0].affinity, 1);
+});

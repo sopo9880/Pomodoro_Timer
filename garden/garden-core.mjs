@@ -21,6 +21,12 @@ export const GARDEN_ITEMS = Object.freeze([
   { id: "lantern", name: "반딧불 가로등", kind: "decor", price: 6, sprite: "lantern", detail: "따뜻한 불빛을 비추는 조명" },
   { id: "wooden-fence", name: "원목 울타리", kind: "decor", price: 1, sprite: "wooden-fence", detail: "정원 경계를 예쁘게 꾸미는 울타리" },
   { id: "birdhouse", name: "새집", kind: "decor", price: 8, sprite: "birdhouse", detail: "새들이 찾아오는 작은 집" },
+  { id: "moss-boulder", name: "이끼 바위", kind: "decor", price: 3, sprite: "moss-boulder", detail: "정원의 오래된 돌과 푸른 이끼" },
+  { id: "picnic-cloth", name: "피크닉 돗자리", kind: "decor", price: 7, sprite: "picnic-cloth", detail: "친구들과 낮잠을 즐기는 장소" },
+  { id: "forest-lamp", name: "숲속 등불", kind: "decor", price: 8, sprite: "forest-lamp", detail: "온실 구역에서 발견하는 은은한 불빛", unlockAtSeconds: 2 * 3600 },
+  { id: "little-tree", name: "사과나무", kind: "decor", price: 10, sprite: "little-tree", detail: "아기자기한 작은 과일나무", unlockAtSeconds: 6 * 3600 },
+  { id: "wishing-well", name: "소원 우물", kind: "decor", price: 18, sprite: "wishing-well", detail: "숲속 서재의 오래된 이야기", unlockAtSeconds: 12 * 3600 },
+  { id: "star-crystal", name: "별빛 수정", kind: "decor", price: 14, sprite: "star-crystal", detail: "밤하늘처럼 반짝이는 정원의 보물", unlockAtSeconds: 35 * 3600 },
   { id: "daisy-seed", name: "데이지 씨앗", kind: "plant", price: 2, sprite: "daisy", growSeconds: [0, 600, 1500, 3600], detail: "집중 60분에 완전히 피어나는 데이지" },
   { id: "rose-seed", name: "장미 씨앗", kind: "plant", price: 4, sprite: "rose", growSeconds: [0, 900, 2400, 5400], detail: "집중 90분에 피어나는 붉은 장미" },
   { id: "tulip-seed", name: "튤립 씨앗", kind: "plant", price: 3, sprite: "tulip", growSeconds: [0, 750, 1800, 4200], detail: "집중 70분에 피어나는 튤립" },
@@ -159,6 +165,7 @@ export function getAvailableGardenQuantity(garden, itemId) {
 export function purchaseGardenItem(garden, itemId) {
   const item = findGardenItem(itemId);
   if (!item) throw new Error("존재하지 않는 아이템입니다.");
+  if (garden.progress.focusSeconds < (item.unlockAtSeconds || 0)) throw new Error("집중 시간을 쌓으면 구매할 수 있는 아이템입니다.");
   if (garden.wallet.sunshine < item.price) throw new Error("햇살이 부족합니다.");
   const inventory = garden.inventory.map((entry) => ({ ...entry }));
   const owned = inventory.find((entry) => entry.itemId === itemId);

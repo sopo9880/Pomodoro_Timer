@@ -194,8 +194,9 @@ export function mountGarden({ getGarden, setGarden, getTimerState, getEnvironmen
       buy.className = "garden-buy-button";
       buy.dataset.gardenAction = "buy";
       buy.dataset.itemId = item.id;
-      buy.textContent = "햇살 " + item.price + "개";
-      buy.disabled = editingLocked() || garden.wallet.sunshine < item.price;
+      const isLocked = garden.progress.focusSeconds < (item.unlockAtSeconds || 0);
+      buy.textContent = isLocked ? "🔒 " + Math.ceil(item.unlockAtSeconds / 3600) + "시간 해금" : "햇살 " + item.price + "개";
+      buy.disabled = editingLocked() || isLocked || garden.wallet.sunshine < item.price;
       actions.append(buy);
       card.append(thumb, body, actions);
       fragment.append(card);
