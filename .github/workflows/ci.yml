@@ -1,0 +1,29 @@
+name: PR checks
+
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    name: Syntax and unit tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Check JavaScript syntax
+        run: |
+          node --check script.js
+          node --check server.js
+          node --check timer-worker.js
+          node --check sw.js
+          node --check core/focus-core.mjs
+          node --check garden/garden-core.mjs
+      - name: Run focus and garden unit tests
+        run: node --test tests/*.test.mjs
