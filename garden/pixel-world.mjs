@@ -1,6 +1,11 @@
 import { WORLD_SPEC, GARDEN_COMPANIONS, getPlantGrowthStage, findGardenItem } from "./garden-core.mjs";
 import { createWorldMap, REGION_SCENES } from "./world-map.mjs";
 import { createWorldArtAtlas } from "./tile-atlas.mjs";
+import { createCompanionSimulation } from "./companion-ai.mjs";
+import { createCompanionSpriteAtlas } from "./companion-art.mjs";
+import { createPlantSpriteAtlas } from "./plant-art.mjs";
+import { createWildlifeEcology } from "./ecology.mjs";
+import { createWildlifeSpriteAtlas } from "./wildlife-art.mjs";
 
 // All artwork below is original, hand-authored pixel art (16x16 transparent sprites).
 // Drawing is nearest-neighbor and the canvas renders only visible tiles, not the entire world.
@@ -168,6 +173,13 @@ export function createPixelGardenRenderer(canvas) {
   const camera = { x: 80, y: 80, zoom: 1.2 };
   const map = createWorldMap(WORLD_SPEC);
   const terrainAtlas = createWorldArtAtlas(document);
+  const friendArt = createCompanionSpriteAtlas(document);
+  const flowerArt = createPlantSpriteAtlas(document);
+  const wildlifeArt = createWildlifeSpriteAtlas(document);
+  const companions = createCompanionSimulation(map);
+  const ecology = createWildlifeEcology(map);
+  let lastSimulationTime = null;
+  let visibleFriends = [];
   let width = 1;
   let height = 1;
   function resize() {
@@ -237,6 +249,25 @@ export function createPixelGardenRenderer(canvas) {
     ctx.drawImage(imageForSprite(kind), -spriteWidth / 2, -spriteWidth * 0.68, spriteWidth, spriteWidth);
     ctx.restore();
   }
+  function drawImageSprite(art, x, y, scale, rotation = 0, opacity = 1) {
+    const tile = WORLD_SPEC.tileSize * camera.zoom;
+    const point = worldToScreen(x, y), size = tile * scale;
+    if (point.x < -size || point.y < -size || point.x > width + size || point.y > height + size) return;
+    ctx.save();
+    ctx.globalAlpha = opacity;
+    ctx.translate(point.x, point.y);
+    ctx.rotate(rotation * Math.PI / 180);
+    ctx.fillStyle = "rgba(20,43,33,.20)";
+    ctx.beginPath();
+    ctx.ellipse(0, size*.24, size*.27, size*.07, 0, 0, Math.PI*2);
+    ctx.fill();
+    ctx.drawImage(art, -size / 2, -size * .73, size, size);
+    ctx.restore();
+  }
+  function getCompanionAt(x,y, radius=1.1) {
+    return visibleFriends.filter(c=>Math.hypot(c.x-x,c.y-y)<=radius)
+      .sort((a,b)=>Math.hypot(a.x-x,a.y-y)-Math.hypot(b.x-x,b.y-y))[0] || null;
+  }
   function draw(garden, timer, options = {}) {
     if (!garden) return;
     resize();
@@ -249,6 +280,13 @@ export function createPixelGardenRenderer(canvas) {
     const visible = { left: viewport.left - 1, top: viewport.top - 1, right: viewport.right + 1, bottom: viewport.bottom + 1 };
     const season = environment.season || "spring";
     const unlocked = new Set(garden.unlockedZones);
+    const reducedMotion = Boolean(options.reduceMotion);
+    const currentTime = Number.isFinite(options.time) ? options.time : 0;
+    const deltaSeconds = lastSimulationTime === null ? 0 :
+      Math.min(.25,Math.max(0,(currentTime-lastSimulationTime)/1000));
+    lastSimulationTime = currentTime;
+    visibleFriends = companions.advance(garden,deltaSeconds,{reducedMotion});
+    const time = reducedMotion ? 0 : currentTime / 1000;
     for (const chunk of map.getVisibleChunks(visible)) {
       for (const cell of chunk.tiles) {
         if (cell.x < visible.left || cell.x > visible.right || cell.y < visible.top || cell.y > visible.bottom) continue;
@@ -290,34 +328,48 @@ export function createPixelGardenRenderer(canvas) {
       ctx.fillText(label, Math.round(pos.x), Math.round(pos.y));
       ctx.restore();
     }
-    const items = [
-      ...garden.placements.map((object) => ({ ...object, kind: "decor" })),
-      ...garden.plants.map((object) => ({ ...object, kind: "plant" })),
-    ].sort((a, b) => a.y - b.y);
-    for (const item of items) {
-      const definition = findGardenItem(item.itemId);
-      let sprite = definition?.sprite || "seed";
-      if (item.kind === "plant") {
-        const stage = getPlantGrowthStage(item, garden.progress.focusSeconds);
-        sprite = stage === 0 ? "seed" : stage === 1 ? "leaf" : stage === 2 ? "bud" : definition.sprite;
+    // One z-index order for user decorations, focus-grown plants, walking
+    // companions and biome wildlife: the lower actor appears in the foreground.
+    const wildlife = ecology.visibleWildlife({
+      unlockedZones: garden.unlockedZones,
+      environment,
+      viewport: visible,
+      elapsedSeconds: time,
+      reducedMotion,
+    });
+    const actors = [
+      ...garden.placements.map(object=>({ ...object,kind:"decor" })),
+      ...garden.plants.map(object=>({ ...object,kind:"plant" })),
+      ...visibleFriends.map(object=>({ ...object,kind:"companion" })),
+      ...wildlife.map(object=>({ ...object,kind:"wildlife" })),
+    ].filter(actor=>actor.x>visible.left-3&&actor.x<visible.right+3&&
+      actor.y>visible.top-3&&actor.y<visible.bottom+3)
+     .sort((a,b)=>a.y-b.y);
+    for (const actor of actors) {
+      if (actor.kind === "wildlife") {
+        drawImageSprite(wildlifeArt.frame(actor.speciesId,actor.frame),actor.x,actor.y,.9);
+        continue;
       }
-      drawSprite(sprite, item.x, item.y, 1.5, item.rotation || 0);
-      if (options.selected?.id === item.id) {
-        const pos = worldToScreen(item.x, item.y);
-        ctx.strokeStyle = "#f4e39a";
-        ctx.lineWidth = 2;
-        ctx.strokeRect(pos.x - tile * .7, pos.y - tile * .9, tile * 1.4, tile * 1.4);
+      if (actor.kind === "companion") {
+        drawImageSprite(friendArt.frame(actor.speciesId,actor.direction,actor.activity,actor.frame),
+          actor.x,actor.y,1.9);
+        continue;
       }
-    }
-    const reducedMotion = Boolean(options.reduceMotion);
-    const time = reducedMotion ? 0 : (options.time || 0) / 1000;
-    for (let index = 0; index < garden.companions.length; index += 1) {
-      const companion = garden.companions[index];
-      if (!GARDEN_COMPANIONS.some((entry) => entry.speciesId === companion.speciesId)) continue;
-      const wander = timer?.isRunning && timer?.mode === "focus" ? .16 : .4;
-      const x = companion.x + Math.sin(time * .4 + index * 2.4) * wander;
-      const y = companion.y + Math.cos(time * .29 + index * 1.4) * wander;
-      drawSprite(companion.speciesId, x, y, 1.9);
+      const def=findGardenItem(actor.itemId);
+      if (actor.kind === "plant" && def) {
+        const stage=getPlantGrowthStage(actor,garden.progress.focusSeconds);
+        const frame=reducedMotion ? 0 : Math.floor(time*2+actor.x+actor.y)%4;
+        drawImageSprite(flowerArt.frame(def.sprite,stage,frame,environment.time==="night"),
+          actor.x,actor.y,1.58,
+          reducedMotion?0:Math.sin(time*1.2+actor.x)*1.2);
+      } else {
+        drawSprite(def?.sprite || "flower-pot",actor.x,actor.y,1.5,actor.rotation||0);
+      }
+      if (options.selected?.id === actor.id) {
+        const point=worldToScreen(actor.x,actor.y);
+        ctx.strokeStyle="#f4e39a";ctx.lineWidth=2;
+        ctx.strokeRect(point.x-tile*.7,point.y-tile*.9,tile*1.4,tile*1.4);
+      }
     }
     if (environment.time === "night") {
       ctx.fillStyle = "rgba(10,22,48,.27)";
@@ -343,7 +395,13 @@ export function createPixelGardenRenderer(canvas) {
         else { ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x - 4, y + 12); ctx.stroke(); }
       }
     }
-    if (options.ghost) drawSprite(options.ghost.sprite, options.ghost.x, options.ghost.y, 1.5, options.ghost.rotation || 0, .65);
+    if (options.ghost) {
+      const flower = garden.plants.some(x=>findGardenItem(x.itemId)?.sprite===options.ghost.sprite)
+        || ["daisy","rose","tulip","clover","lavender","hydrangea","sunflower","lotus","starflower"].includes(options.ghost.sprite);
+      if (flower) drawImageSprite(flowerArt.frame(options.ghost.sprite,3,0,false),
+        options.ghost.x,options.ghost.y,1.58,0,.55);
+      else drawSprite(options.ghost.sprite,options.ghost.x,options.ghost.y,1.5,options.ghost.rotation||0,.65);
+    }
   }
-  return { camera, resize, worldToScreen, screenToWorld, getViewportWorldRect, setCamera, panPixels, zoomBy, draw, map, terrainAtlas };
+  return { camera, resize, worldToScreen, screenToWorld, getViewportWorldRect, setCamera, panPixels, zoomBy, draw, getCompanionAt, map, terrainAtlas, flowerArt, friendArt, ecology };
 }
