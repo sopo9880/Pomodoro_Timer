@@ -284,13 +284,16 @@ export function createPixelGardenRenderer(canvas) {
     ctx.drawImage(art, -size / 2, -size * .73, size, size);
     ctx.restore();
   }
-  function getCompanionAt(x,y, radius=1.1) {
-    return visibleFriends.filter(c=>Math.hypot(c.x-x,c.y-y)<=radius)
-      .sort((a,b)=>Math.hypot(a.x-x,a.y-y)-Math.hypot(b.x-x,b.y-y))[0] || null;
+  function getCompanionAt(x,y,radius=1.08) {
+    // Actor positions mark the feet, but most of the sprite is ABOVE them.
+    // Use a silhouette hit-box rather than a tiny circle at ground level.
+    return visibleFriends.filter(c=>Math.abs(c.x-x)<radius&&
+      y<=c.y+.65&&y>=c.y-1.55)
+      .sort((a,b)=>Math.abs((a.y-.55)-y)-Math.abs((b.y-.55)-y))[0]||null;
   }
-  function getAvatarAt(x,y,radius=1.2){
-    const avatar=avatarVisual;
-    return avatar&&Math.hypot(avatar.x-x,avatar.y-y)<radius ? avatar:null;
+  function getAvatarAt(x,y,radius=1.08){
+    const actor=avatarVisual;
+    return actor&&Math.abs(actor.x-x)<radius&&y<=actor.y+.68&&y>=actor.y-1.9?actor:null;
   }
   function getWildlifeAt(x,y,radius=.65){
     return visibleWildlife.filter(a=>Math.hypot(a.x-x,a.y-y)<radius)
@@ -303,22 +306,39 @@ export function createPixelGardenRenderer(canvas) {
   function beginCompanionDrag(id){return companions.beginDrag(id);}
   function dragCompanion(id,x,y){return companions.dragTo(id,x,y);}
   function endCompanionDrag(id,accepted=false,point=null){return companions.endDrag(id,accepted,point);}
-  function drawAvatarSprite(avatar,garden,selected=false){
+  function drawAvatarSprite(avatar,garden,selected=false,{reducedMotion=false,time=0}={}){
     const position=worldToScreen(avatar.x,avatar.y),tile=WORLD_SPEC.tileSize*camera.zoom;
-    const w=tile*1.35,h=tile*2.02;
+    // Keep the native 48x64 sprite ratio, at an expressive readable size.
+    const w=tile*1.57,h=w*64/48;
     if(position.x<-w||position.y<-h||position.x>width+w||position.y>height+h)return;
-    const image=avatarArt.frame(garden.avatar?.equipped,avatar.direction,avatar.frame||0);
+    const walking=Boolean(avatar.moving);
+    const frame=reducedMotion?0:walking?avatar.frame||0:Math.floor(time*1.8)%6;
+    const art=avatarArt.frame(garden.avatar?.equipped,avatar.direction,frame,walking?"walk":"idle");
     ctx.save();
-    ctx.fillStyle="rgba(20,39,28,.21)";
-    ctx.beginPath();ctx.ellipse(position.x,position.y+h*.06,w*.33,h*.07,0,0,Math.PI*2);ctx.fill();
-    ctx.drawImage(image,Math.round(position.x-w/2),Math.round(position.y-h*.84),w,h);
+    ctx.fillStyle="rgba(22,38,28,.25)";
+    ctx.beginPath();ctx.ellipse(position.x,position.y+tile*.02,w*.3,tile*.14,0,0,Math.PI*2);ctx.fill();
+    ctx.drawImage(art,Math.round(position.x-w/2),Math.round(position.y-h*.88),Math.ceil(w),Math.ceil(h));
     if(selected){
-      ctx.strokeStyle="#fff1a0";ctx.lineWidth=2;
-      ctx.strokeRect(position.x-w*.55,position.y-h*.88,w*1.1,h*.98);
-      ctx.font="bold 10px system-ui";
-      ctx.textAlign="center";
-      ctx.fillStyle="#ffedb6";ctx.fillText("나",position.x,position.y-h*.97);
+      ctx.strokeStyle="#ffeba2";ctx.lineWidth=2.5;
+      ctx.beginPath();ctx.ellipse(position.x,position.y+tile*.04,tile*.72,tile*.21,0,0,Math.PI*2);ctx.stroke();
+      ctx.font="bold 11px system-ui";
+      ctx.textAlign="center";ctx.fillStyle="#fff2c0";
+      ctx.fillText("내 캐릭터",position.x,position.y-h*.92);
     }
+    ctx.restore();
+  }
+  function drawInteractionMarker(point,allowed,goal=false){
+    if(!point||!Number.isFinite(point.x)||!Number.isFinite(point.y))return;
+    const position=worldToScreen(point.x,point.y),tile=WORLD_SPEC.tileSize*camera.zoom;
+    const color=goal?"#f3db92":allowed?"#a1e4a2":"#f19c95";
+    ctx.save();
+    ctx.lineWidth=3;ctx.strokeStyle=color;
+    ctx.fillStyle=goal?"rgba(239,202,118,.19)":allowed?"rgba(88,176,117,.22)":"rgba(217,90,87,.23)";
+    ctx.beginPath();ctx.ellipse(position.x,position.y,tile*.6,tile*.23,0,0,Math.PI*2);
+    ctx.fill();ctx.stroke();
+    ctx.font="bold 16px system-ui";ctx.textAlign="center";
+    ctx.fillStyle=color;
+    ctx.fillText(goal?"⌖":allowed?"✓":"×",position.x,position.y-tile*.46);
     ctx.restore();
   }
   function draw(garden, timer, options = {}) {
@@ -408,8 +428,9 @@ export function createPixelGardenRenderer(canvas) {
         continue;
       }
       if (actor.kind === "companion") {
-        drawImageSprite(friendArt.frame(actor.speciesId,actor.direction,actor.activity,actor.frame),
-          actor.x,actor.y,actor.held?2.25:1.9);
+        drawImageSprite(friendArt.frame(actor.speciesId,actor.direction,actor.activity,
+            reducedMotion?0:actor.frame,actor.reaction),
+          actor.x,actor.y,actor.held?2.25:2.02);
         if(actor.held||actor.reaction){
           const pos=worldToScreen(actor.x,actor.y);
           ctx.save();ctx.fillStyle="#fff0bb";ctx.textAlign="center";ctx.font="bold 15px system-ui";
@@ -420,7 +441,7 @@ export function createPixelGardenRenderer(canvas) {
         continue;
       }
       if(actor.kind==="avatar"){
-        drawAvatarSprite(actor,garden,Boolean(options.avatarSelected));
+        drawAvatarSprite(actor,garden,Boolean(options.avatarSelected),{reducedMotion,time});
         continue;
       }
       const def=findGardenItem(actor.itemId);
@@ -463,6 +484,8 @@ export function createPixelGardenRenderer(canvas) {
         else { ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x - 4, y + 12); ctx.stroke(); }
       }
     }
+    if (options.moveTarget)drawInteractionMarker(options.moveTarget,true,true);
+    if (options.dropPreview)drawInteractionMarker(options.dropPreview,Boolean(options.dropPreview.allowed));
     if (options.ghost) {
       const flower = garden.plants.some(x=>findGardenItem(x.itemId)?.sprite===options.ghost.sprite)
         || ["daisy","rose","tulip","clover","lavender","hydrangea","sunflower","lotus","starflower"].includes(options.ghost.sprite);
