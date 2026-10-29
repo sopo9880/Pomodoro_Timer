@@ -28,5 +28,8 @@ jobs:
           node --check garden/garden-ui.mjs
           node --check ui/game-shell.mjs
           node --check garden/pixel-world.mjs
+          node --check garden/world-map.mjs
+          node --check garden/tile-atlas.mjs
+          node --check garden/minimap.mjs
       - name: Run focus and garden unit tests
         run: node --test tests/*.test.mjs
