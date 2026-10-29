@@ -680,6 +680,8 @@ export function mountGarden({ getGarden, setGarden, getTimerState, getEnvironmen
       previousPinchCenter = { x: (points[0].x + points[1].x) / 2, y: (points[0].y + points[1].y) / 2 };
       if(pointerGesture?.friendHeld)renderer.endCompanionDrag(pointerGesture.friendId,false);
       pointerGesture = null;
+      dropPreview=null;
+      canvas.dataset.interaction="";
       ghost = null;
       return;
     }
@@ -764,6 +766,8 @@ export function mountGarden({ getGarden, setGarden, getTimerState, getEnvironmen
     if (pointers.size) {
       if(pointerGesture?.friendHeld)renderer.endCompanionDrag(pointerGesture.friendId,false);
       pointerGesture = null;
+      dropPreview=null;
+      canvas.dataset.interaction="";
       previousPinchCenter = null;
       previousPinchDistance = 0;
       return;

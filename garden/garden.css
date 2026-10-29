@@ -162,3 +162,19 @@
 .codex-items{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:5px;padding:8px;}
 .codex-item{padding:7px 6px;background:#f5e5c5;border:1px solid #e4cea6;border-radius:5px;font-size:9px;line-height:1.5;color:#52775c;}
 .codex-item.undiscovered{color:#9b957e;filter:grayscale(1);}
+
+/* Phase 4D — tactile game-world interaction language. */
+#gardenWorld {cursor:grab;touch-action:none;}
+#gardenWorld[data-interaction="pan"]{cursor:grabbing;}
+#gardenWorld[data-interaction="can-drop"]{cursor:copy;}
+#gardenWorld[data-interaction="no-drop"]{cursor:not-allowed;}
+.avatar-world-button{transition:background .12s ease,transform .12s ease,box-shadow .12s ease;}
+.avatar-world-button:focus-visible,.minimap-toggle:focus-visible{
+  outline:3px solid #ffdda1;outline-offset:3px;
+}
+.avatar-world-button[aria-pressed="true"]{
+  box-shadow:0 0 0 3px rgba(250,222,149,.28),2px 3px 0 rgba(28,57,40,.38);
+}
+@media(prefers-reduced-motion:reduce){
+  .avatar-world-button{transition:none;}
+}

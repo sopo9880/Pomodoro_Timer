@@ -220,6 +220,9 @@ export function createCompanionSimulation(map) {
     const destination=accepted&&target&&Number.isFinite(target.x)&&Number.isFinite(target.y)
       ? target:agent.grabOrigin;
     agent.x=destination.x;agent.y=destination.y;
+    // A successful drop already persisted the exact target via garden-core;
+    // keep the reaction while sync() sees the newly saved coordinate.
+    if(accepted){agent.savedX=destination.x;agent.savedY=destination.y;}
     agent.held=false;agent.grabOrigin=null;agent.route=[];
     agent.reaction=accepted?"happy":"surprised";
     agent.reactionUntil=clock+2;

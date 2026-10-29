@@ -155,7 +155,8 @@ function drawSpecies(ctx,species,direction,activity,frame,emotion){
     blossom(ctx,8,10+bounce,"#f5d2ae");
   }
   // Ears/feathers differ, but faces share one premium expression language.
-  face(ctx,c,facing,frame,held?(frame%2?"wiggle":"surprised"):(emotion||activity==="react"?"happy":"idle"),bounce);
+  const expression=held?(frame%2?"wiggle":"surprised"):(emotion||(activity==="react"?"happy":"idle"));
+  face(ctx,c,facing,frame,expression,bounce);
   if(held){
     block(ctx,5,23+(frame%2?-4:0),9,12,c.ink);
     block(ctx,7,24+(frame%2?-4:0),6,10,c.light);
