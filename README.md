@@ -152,3 +152,22 @@ The artwork direction is **B — Polished JRPG**: original botanical fantasy cha
 - No account/backend changes. No effect on focus rewards, time points, bought clothes, inventories, plants, companion positions or legacy backups. No APK/EXE built or released; existing `v1.0.0` GitHub Release remains unchanged.
 
 This phase opens a PR and runs GitHub checks. Only merge after successful checks in the separate '확인해' step; final formal release follows separate approval.
+
+
+## Phase 4F — Real B-reference raster sprite integration (PR only)
+
+The user-approved Polished JRPG sheet is now the source of **real, transparent image assets**, rather than another code-generated approximation.
+
+- `assets/art/avatar/base/idle-down.png` — transparent 224×280 sprite extracted from the approved B reference image.
+- `assets/art/avatar/base/walk-right.png` — transparent 224×280 walking pose from the same reference. The in-game leftward walking pose is mirrored temporarily.
+- `assets/art/avatar/base/surprised-down.png` — transparent 224×280 reaction image.
+- `assets/art/avatar/portraits/portrait.webp` — original B close-up for the focus illustration; its parchment backdrop is intentional.
+- `garden/raster-art.mjs` — explicit image-file loader, fixed paths and bounded decoded-image cache, lazy loading and fallback when a file fails or has not decoded.
+- `garden/pixel-world.mjs` — the default in-game avatar uses PNG artwork where a real pose is available, with display-size antialiasing and mirrored left walking; unsupported views use the previous renderer.
+- `garden/garden-ui.mjs` — default outfit wardrobe, shop preview and focus page use the actual reference image files. Non-default clothing still uses the existing vector illustrations to **preserve visible customization**, not the wrong/default outfit image.
+- `sw.js` cache v18 includes every new raster asset, manifest and loader for offline PWA.
+- No changes to focus credit, earned time points, bought cosmetics, garden placements, guest profile, save keys or schema.
+
+**Honest limitations:** This is step 1 (main character asset pipeline) of the multi-stage plan. It is not yet four complete direction-specific animated sheets, individually painted apparel overlays, all six companion PNG sets or all wildlife images. The 4E code-generated SVG companion/wildlife visual fallback remains. The approved image is preserved instead of falsely claiming procedural shapes are pixel-perfect. Later PRs should expand the real authored image set by direction, outfit and species. Visual fidelity and mobile usability require user verification after formal release.
+
+The image assets are reference-derived with consent from the supplied conversation; extracted sprites have transparent backgrounds. This PR is development only; do not merge or publish a formal GitHub release until GitHub Actions checks have passed and the user asks `확인해`.
