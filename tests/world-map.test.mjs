@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
-  WORLD_SPEC, createGardenState, normalizeGardenState, creditGardenFocus, placeDecoration,
+  WORLD_SPEC, createGardenState, normalizeGardenState, creditGardenFocus, placeDecoration, moveGardenObject,
 } from "../garden/garden-core.mjs";
 import { CHUNK_SIZE, GROUND, REGION_SCENES, WORLD_LANDMARKS, createWorldMap, worldHash } from "../garden/world-map.mjs";
 
@@ -105,4 +105,17 @@ test("previous garden saves keep purchased objects and fractional coordinates ex
   assert.equal(restored.progress.focusSeconds, oldSave.progress.focusSeconds);
   assert.deepEqual(restored.wallet, oldSave.wallet);
   assert.equal(restored.plants[0].x, garden.plants[0].x);
+});
+
+
+test("grandfathered water-area decoration can still rotate without relocation", () => {
+  const base = createGardenState();
+  const previous = { ...base, placements: [
+    { id: "existing-water-pot", itemId: "flower-pot", x: 75.25, y: 110.75, rotation: 0 },
+  ] };
+  const unlocked = creditGardenFocus(previous, 21600);
+  const turned = moveGardenObject(unlocked, "decor", "existing-water-pot", 75.25, 110.75, 90);
+  assert.equal(turned.placements[0].rotation, 90);
+  assert.equal(turned.placements[0].x, 75.25);
+  assert.throws(() => moveGardenObject(unlocked, "decor", "existing-water-pot", 76, 111, 0), RangeError);
 });

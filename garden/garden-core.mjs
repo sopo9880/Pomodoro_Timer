@@ -149,10 +149,10 @@ export function getPlantGrowthStage(plant, accumulatedFocusSeconds) {
   const elapsed = Math.max(0, accumulatedFocusSeconds - nonNegative(plant.plantedAtFocusSeconds));
   return item.growSeconds.reduce((stage, threshold, index) => elapsed >= threshold ? index : stage, 0);
 }
-function assertAvailableLocation(garden, x, y, ignoreId = null) {
+function assertAvailableLocation(garden, x, y, ignoreId = null, allowSameLegacySurface = false) {
   if (!validPosition(x, y)) throw new RangeError("정원 범위를 벗어난 위치입니다.");
   // Validate NEW operations only. Never delete or relocate previously saved items.
-  if (!TERRAIN_MAP.getTile(x, y).buildable) throw new RangeError("물가와 다리 위에는 배치할 수 없어요.");
+  if (!allowSameLegacySurface && !TERRAIN_MAP.getTile(x, y).buildable) throw new RangeError("물가와 다리 위에는 배치할 수 없어요.");
   const zone = getGardenZone(x, y);
   if (!zone || !garden.unlockedZones.includes(zone.id)) throw new RangeError("아직 열리지 않은 정원 구역입니다.");
   const objects = [...garden.placements, ...garden.plants];
@@ -205,7 +205,7 @@ export function moveGardenObject(garden, kind, id, x, y, rotation = undefined) {
   const key = kind === "decor" ? "placements" : "plants";
   const object = garden[key].find((item) => item.id === id);
   if (!object) throw new Error("존재하지 않는 정원 오브젝트입니다.");
-  assertAvailableLocation(garden, x, y, id);
+  assertAvailableLocation(garden, x, y, id, object.x === x && object.y === y);
   if (rotation !== undefined && !Number.isFinite(rotation)) throw new RangeError("회전 값이 잘못되었습니다.");
   return { ...garden, [key]: garden[key].map((item) => item.id === id ? {
     ...item, x, y, ...(kind === "decor" && rotation !== undefined ? { rotation } : {}),
