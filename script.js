@@ -1,5 +1,6 @@
 import { normalizeSettings as normalizeSavedSettings, normalizeDailyStats, creditFocusInterval, creditCompletedSession, recoverCheckpoint, localDayKey } from "./core/focus-core.mjs";
 import { createGardenState, normalizeGardenState, creditGardenFocus } from "./garden/garden-core.mjs";
+import { mountGarden } from "./garden/garden-ui.mjs";
 
 const STORAGE_KEY = "bloomodoro-state-v3";
 const LEGACY_STORAGE_KEY = "bloomodoro-state-v2";
@@ -107,6 +108,7 @@ let miniTimerWindow = null;
 let miniTimerElements = null;
 let lastMediaSessionStamp = "";
 let lastCheckpointSave = 0;
+let gardenInterface = null;
 
 const elements = {
   body: document.body,
@@ -166,6 +168,11 @@ function init() {
   registerServiceWorker();
   restoreRunningTimer();
   render();
+  gardenInterface = mountGarden({
+    getGarden: () => state.garden,
+    setGarden: (nextGarden) => { state.garden = nextGarden; saveState(); },
+    getTimerState: () => ({ mode: state.mode, isRunning: state.isRunning }),
+  });
 }
 
 function bindEvents() {
@@ -753,6 +760,7 @@ function commitCurrentFocusProgress(forceFullSession = false) {
   state.dailyStats = creditFocusInterval(state.dailyStats, finishAt - deltaSeconds * 1000, finishAt);
   state.sessionCreditedSeconds = elapsed;
   state.garden = creditGardenFocus(state.garden, deltaSeconds);
+  gardenInterface?.refresh();
   const today = state.dailyStats[getTodayKey()] || { focusSeconds: 0, completedSessions: 0 };
   state.focusSecondsToday = today.focusSeconds;
   return deltaSeconds;
@@ -790,6 +798,7 @@ function render() {
   renderInstallState();
   renderEventLog();
   renderMiniTimerWindow();
+  gardenInterface?.refresh();
 }
 
 function renderTimer() {

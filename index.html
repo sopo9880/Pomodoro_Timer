@@ -13,6 +13,7 @@
     <link rel="icon" href="icons/icon-192.png" />
     <link rel="apple-touch-icon" href="icons/apple-touch-icon.png" />
     <link rel="stylesheet" href="styles.css" />
+    <link rel="stylesheet" href="garden/garden.css" />
   </head>
   <body data-mode="focus">
     <div class="app-shell">
@@ -338,6 +339,75 @@
               <span><kbd>N</kbd> 다음 세션</span>
             </div>
           </section>
+        </section>
+
+        <section class="garden-section glass" id="gardenSection" aria-labelledby="gardenHeading">
+          <div class="garden-heading">
+            <div>
+              <p class="eyebrow">PIXEL GARDEN · MY LITTLE WORLD</p>
+              <h2 id="gardenHeading">작은 친구들의 정원 🌿</h2>
+              <p class="garden-lede">집중하는 시간만큼 꽃이 피어나요. 정원을 꾸미고 새로운 친구를 만나보세요.</p>
+            </div>
+            <a class="garden-back-link" href="#startPauseButton">타이머로 돌아가기 ↑</a>
+          </div>
+          <div class="garden-stat-strip" aria-label="정원 진행 상태">
+            <div><span>누적 집중</span><strong id="gardenFocusTotal">0분</strong></div>
+            <div><span>☀️ 햇살</span><strong id="gardenSunshine">0</strong></div>
+            <div><span>🌸 꽃잎</span><strong id="gardenPetals">0</strong></div>
+            <div><span>해금 지역</span><strong id="gardenZonesUnlocked">1 / 6구역</strong></div>
+          </div>
+          <div class="garden-layout">
+            <div class="garden-map-panel">
+              <div class="garden-toolbar">
+                <label class="garden-zone-label" for="gardenZoneSelect">둘러볼 곳
+                  <select id="gardenZoneSelect" aria-label="정원 지역 선택"></select>
+                </label>
+                <div class="garden-camera-tools" role="group" aria-label="정원 카메라">
+                  <button type="button" id="gardenZoomOut" aria-label="축소">−</button>
+                  <button type="button" id="gardenZoomIn" aria-label="확대">＋</button>
+                  <button type="button" id="gardenCenter">중앙으로</button>
+                </div>
+              </div>
+              <div class="garden-canvas-frame">
+                <canvas id="gardenWorld" width="960" height="540" tabindex="0"
+                  aria-label="픽셀 정원. 마우스나 손가락으로 이동하고, 휠·핀치로 확대하세요. 키보드 방향키로 이동할 수도 있습니다."></canvas>
+                <div class="garden-map-hint" id="gardenCurrentAction">드래그하여 이동 · 오브젝트를 눌러 편집</div>
+              </div>
+              <div class="garden-feedback" id="gardenMessage" role="status" aria-live="polite">
+                🌱 기본 화단과 데이지가 준비됐어요. 인벤토리에서 물건을 선택해 배치해 보세요.
+              </div>
+              <div class="garden-edit-actions">
+                <button type="button" id="gardenUndo" disabled>↶ 실행 취소</button>
+                <button type="button" id="gardenRedo" disabled>↷ 다시 실행</button>
+                <button type="button" id="gardenCancelPlacement" hidden>배치 취소</button>
+              </div>
+              <div class="garden-selection" id="gardenSelection" hidden>
+                <div>
+                  <strong id="gardenSelectionTitle">선택한 아이템</strong>
+                  <p id="gardenSelectionDetail">배치 위치를 조절할 수 있어요.</p>
+                </div>
+                <div class="garden-edit-actions">
+                  <button type="button" id="gardenMove">이동</button>
+                  <button type="button" id="gardenRotate">90° 회전</button>
+                  <button type="button" id="gardenRemove">회수</button>
+                </div>
+              </div>
+              <div class="garden-backup-tools">
+                <button type="button" id="gardenExport">정원 JSON 백업</button>
+                <button type="button" id="gardenImportButton">정원 백업 불러오기</button>
+                <input type="file" id="gardenImportFile" accept=".json,application/json" hidden aria-label="정원 데이터 백업 파일" />
+              </div>
+              <p class="garden-note">집중 중에는 정원을 조용히 감상할 수 있고, 휴식·일시정지 중에는 편집할 수 있어요. 수집품은 사라지지 않아요.</p>
+            </div>
+            <aside class="garden-sidebar" aria-label="정원 아이템과 동료">
+              <div class="garden-sidebar-tabs" role="tablist" aria-label="정원 수집 메뉴">
+                <button type="button" role="tab" id="gardenTabInventory" aria-controls="gardenInventory" aria-selected="true">꾸미기 보관함</button>
+                <button type="button" role="tab" id="gardenTabCompanions" aria-controls="gardenCompanions" aria-selected="false">동료 친구들</button>
+              </div>
+              <div class="garden-sidebar-scroll" id="gardenInventory" role="tabpanel" aria-labelledby="gardenTabInventory"></div>
+              <div class="garden-sidebar-scroll" id="gardenCompanions" role="tabpanel" aria-labelledby="gardenTabCompanions" hidden></div>
+            </aside>
+          </div>
         </section>
       </main>
     </div>
