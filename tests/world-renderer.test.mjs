@@ -53,7 +53,9 @@ test("all eighteen authored landmark art assets can be rendered", () => {
 
 test("renderer paints only visible chunks and keeps zoom anchor stable", () => {
   const originalDocument = globalThis.document;
+  const originalWindow = globalThis.window;
   globalThis.document = fakeDocument();
+  globalThis.window = { devicePixelRatio: 1 };
   try {
     const { canvas, counts } = fakeCanvas();
     const renderer = createPixelGardenRenderer(canvas);
@@ -72,6 +74,7 @@ test("renderer paints only visible chunks and keeps zoom anchor stable", () => {
     renderer.draw(createGardenState(), null, { environment: { season: "winter", time: "night", weather: "snow" }, time: 30 });
   } finally {
     globalThis.document = originalDocument;
+    globalThis.window = originalWindow;
   }
 });
 
