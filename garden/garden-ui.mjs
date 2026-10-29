@@ -10,6 +10,7 @@ import { REGION_SCENES, WORLD_LANDMARKS } from "./world-map.mjs";
 import { WILDLIFE_SPECIES } from "./ecology.mjs";
 import { createAvatarMotion } from "./avatar-motion.mjs";
 import { avatarIllustrationUri, companionIllustrationUri, wildlifeIllustrationUri } from "./hires-atlas.mjs";
+import { rasterAvatarPreviewUrl, rasterAvatarPortraitUrl } from "./raster-art.mjs";
 import { WEARABLES, purchaseWearable, equipWearable, moveAvatar, moveCompanionDrop,
   renameGuest, discover, collectionSnapshot } from "./life-core.mjs";
 import { drawPlantThumbnail } from "./plant-art.mjs";
@@ -322,8 +323,8 @@ export function mountGarden({ getGarden, setGarden, getTimerState, getEnvironmen
   }
   function paintAvatarWardrobe(garden) {
     view.avatarWallet.textContent = (garden.wallet.timePoints || 0).toLocaleString("ko-KR");
-    view.avatarPreview.src = avatarIllustrationUri(garden.avatar.equipped);
-    if(view.focusAvatar)view.focusAvatar.src=view.avatarPreview.src;
+    view.avatarPreview.src = rasterAvatarPreviewUrl(garden.avatar.equipped) || avatarIllustrationUri(garden.avatar.equipped);
+    if(view.focusAvatar)view.focusAvatar.src = rasterAvatarPortraitUrl(garden.avatar.equipped) || view.avatarPreview.src;
     const fragment=document.createDocumentFragment();
     for(const item of WEARABLES){
       const owned=garden.avatar.ownedWearables.includes(item.id);
@@ -333,7 +334,8 @@ export function mountGarden({ getGarden, setGarden, getTimerState, getEnvironmen
       const preview=document.createElement("img");
       preview.className="avatar-shop-preview";
       preview.alt="";preview.loading="lazy";preview.decoding="async";
-      preview.src=avatarIllustrationUri({...garden.avatar.equipped,[item.slot]:item.id});
+      const outfitPreview={...garden.avatar.equipped,[item.slot]:item.id};
+      preview.src=rasterAvatarPreviewUrl(outfitPreview) || avatarIllustrationUri(outfitPreview);
       const row=document.createElement("div");
       row.className="avatar-item-title";
       const label=document.createElement("strong");label.textContent=item.name;
