@@ -110,6 +110,11 @@ export function mountGarden({ getGarden, setGarden, getTimerState, getEnvironmen
         undoHistory.push(snapshot(before));
         if (undoHistory.length > 20) undoHistory.shift();
         redoHistory.length = 0;
+      } else {
+        // Non-undoable acquisitions, discoveries and guest changes must not
+        // be reverted by a previous decoration placement snapshot.
+        undoHistory.length = 0;
+        redoHistory.length = 0;
       }
       setGarden(after);
       if (successMessage) announce(successMessage);
@@ -123,7 +128,10 @@ export function mountGarden({ getGarden, setGarden, getTimerState, getEnvironmen
   function restoreHistory(historyFrom, historyTo) {
     if (editingLocked() || !historyFrom.length) return;
     historyTo.push(snapshot(getGarden()));
-    setGarden(historyFrom.pop());
+    avatarMotion.cancel();
+    const restored=historyFrom.pop();
+    setGarden(restored);
+    avatarMotion.sync(restored.avatar);
     selected = null;
     currentTool = "inspect";
     placingItemId = null;
@@ -787,6 +795,7 @@ export function mountGarden({ getGarden, setGarden, getTimerState, getEnvironmen
     event.preventDefault();
     try{
       const next=avatarMotion.step(getGarden(),command[0],command[1]);
+      undoHistory.length=0;redoHistory.length=0;
       setGarden(next);
       refresh(true);
     }catch(error){
@@ -820,6 +829,7 @@ export function mountGarden({ getGarden, setGarden, getTimerState, getEnvironmen
         if(step.done){
           try{
             const next=moveAvatar(getGarden(),renderer.map,step.position.x,step.position.y,step.direction);
+            undoHistory.length=0;redoHistory.length=0;
             setGarden(next);
           }catch(error){announce(error?.message||"아바타 이동을 완료하지 못했어요.");}
         }
