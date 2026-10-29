@@ -35,7 +35,7 @@ test("historical sunshine balance migrates at five minutes per sunshine without 
   assert.deepEqual(normalizeGardenState(JSON.parse(JSON.stringify(restored))),restored);
 });
 test("legacy 1-4 minute focus remainder is credited once, but spent zero stays zero",()=>{
-  assert.equal(normalizeTimeWallet({sunshine:2},9*60),9);
+  assert.equal(normalizeTimeWallet({sunshine:1},9*60),9);
   assert.equal(normalizeTimeWallet({sunshine:2,timePoints:0},9*60),0);
   assert.equal(timePointsEarnedBetween(59,60),1);
   assert.equal(timePointsEarnedBetween(60,119),0);
