@@ -25,5 +25,7 @@ jobs:
           node --check sw.js
           node --check core/focus-core.mjs
           node --check garden/garden-core.mjs
+          node --check garden/garden-ui.mjs
+          node --check garden/pixel-world.mjs
       - name: Run focus and garden unit tests
         run: node --test tests/*.test.mjs

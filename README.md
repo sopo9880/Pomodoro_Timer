@@ -62,3 +62,10 @@ node server.js
 
 ### 💡 Tip: 백그라운드 오디오 설정
 모바일에서 안정적인 알림을 받으려면 **[설정] > [백그라운드 오디오 유지]** 토글을 켜주세요. 10Hz 초저주파 또는 아날로그 시계 소리를 통해 시스템의 절전 모드 진입을 효과적으로 방지합니다.
+
+
+## 🌿 Pixel Garden (phase 2)
+
+The **나의 픽셀 정원** section below the timer includes a continuous tile world rendered with original pixel sprites (no licensed external artwork), the starter Daisy plant, editable decorations, the sunshine shop, unlockable companion characters (Sprout / Mushroom / Cat), and real-focus-time plant growth. Mouse drag or touch to pan; wheel or pinch to zoom; choose inventory items to place; click an existing object to move, rotate or return it to the inventory. Keyboard users can focus the canvas and use arrows, +/- and Enter to place at the camera center. Region selector jumps to one of six connected zones. Garden editing is paused while a focus session is active to protect concentration.
+
+The garden data model is a versioned JSON object within `bloomodoro-state-v3`, with schema-v1 migration. Web/PWA remains the deployment target; Android APK and native notification integration have **not** been implemented. Run the lightweight unit tests with `node --test tests/*.test.mjs` (Node 22+). Visual garden assets use Canvas 2D for portability.
