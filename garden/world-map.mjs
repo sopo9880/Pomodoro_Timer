@@ -196,6 +196,7 @@ export function createWorldMap(spec, chunkSize = CHUNK_SIZE) {
     getTile, getChunk, getVisibleChunks, getVisibleLandmarks,
     getZones() { return spec.zones; },
     isTraversable(x, y) { return getTile(x, y).passable; },
+    isBuildable(x, y) { return getTile(x, y).buildable; },
     getCachedChunkCount() { return cache.size; },
     getZone(x, y) { return spec.zones.find((zone) => inZone(zone, x, y)) || null; },
   });
