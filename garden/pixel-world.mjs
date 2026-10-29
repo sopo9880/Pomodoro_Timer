@@ -286,7 +286,7 @@ export function createPixelGardenRenderer(canvas) {
     const deltaSeconds = lastSimulationTime === null ? 0 :
       Math.min(.25,Math.max(0,(currentTime-lastSimulationTime)/1000));
     lastSimulationTime = currentTime;
-    visibleFriends = companions.advance(garden,deltaSeconds,{reducedMotion});
+    visibleFriends = companions.advance(garden,deltaSeconds,{reducedMotion,environment});
     const time = reducedMotion ? 0 : currentTime / 1000;
     for (const chunk of map.getVisibleChunks(visible)) {
       for (const cell of chunk.tiles) {

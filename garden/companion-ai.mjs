@@ -22,18 +22,36 @@ const hashString = value => {
   for (let i=0;i<value.length;i++) hash = (Math.imul(hash,31)+value.charCodeAt(i)) | 0;
   return hash;
 };
-function collides(x, y, garden, ignoreStart = null) {
+function buildCollisionIndex(garden) {
+  const buckets=new Map();
+  for(const object of [...(garden.placements||[]),...(garden.plants||[])]){
+    if(!valid(object?.x)||!valid(object?.y))continue;
+    const key=cellKey(Math.floor(object.x),Math.floor(object.y));
+    if(!buckets.has(key))buckets.set(key,[]);
+    buckets.get(key).push(object);
+  }
+  return buckets;
+}
+function collides(x, y, garden, ignoreStart = null, index = null) {
   if (ignoreStart && Math.abs(x - ignoreStart.x) < .5 && Math.abs(y-ignoreStart.y)<.5) return false;
-  if ([...(garden.placements || []),...(garden.plants || [])].some(object =>
-    Math.hypot(object.x - x,object.y-y) < .82)) return true;
+  if(index){
+    const cx=Math.floor(x),cy=Math.floor(y);
+    for(let dx=-1;dx<=1;dx++)for(let dy=-1;dy<=1;dy++){
+      const nearby=index.get(cellKey(cx+dx,cy+dy))||[];
+      if(nearby.some(object=>Math.hypot(object.x-x,object.y-y)<.82))return true;
+    }
+  }else{
+    if([...(garden.placements||[]),...(garden.plants||[])].some(object =>
+      Math.hypot(object.x-x,object.y-y)<.82))return true;
+  }
   return WORLD_LANDMARKS.some(landmark => Math.abs(landmark.x-x)<Math.min(2.5,landmark.width*.36) &&
     Math.abs(landmark.y-y)<Math.min(2.1,landmark.width*.32));
 }
-export function canCompanionStand(map, garden, x, y, ignoreStart = null) {
+export function canCompanionStand(map, garden, x, y, ignoreStart = null, index = null) {
   if (!valid(x)||!valid(y)) return false;
   const tile = map.getTile(Math.floor(x),Math.floor(y));
   return tile.passable && tile.zoneId && garden.unlockedZones?.includes(tile.zoneId) &&
-    !collides(x, y, garden, ignoreStart);
+    !collides(x, y, garden, ignoreStart, index);
 }
 
 /**
@@ -46,7 +64,8 @@ export function findCompanionPath(map, garden, start, goal, maxVisited = 1500) {
   const gx = Math.floor(goal.x), gy = Math.floor(goal.y);
   const startKey = cellKey(sx,sy), goalKey = cellKey(gx,gy);
   if(startKey===goalKey) return [];
-  if(!canCompanionStand(map,garden,gx+.5,gy+.5)) return [];
+  const occupancy=buildCollisionIndex(garden);
+  if(!canCompanionStand(map,garden,gx+.5,gy+.5,null,occupancy)) return [];
   const queue = [[sx,sy]], visited = new Set([startKey]), previous = new Map();
   let reached = false;
   for(let i=0;i<queue.length && i<maxVisited;i++) {
@@ -55,7 +74,7 @@ export function findCompanionPath(map, garden, start, goal, maxVisited = 1500) {
     for(const [dx,dy] of DIRECTIONS){
       const nx=x+dx,ny=y+dy,key=cellKey(nx,ny);
       if(visited.has(key))continue;
-      if(!canCompanionStand(map,garden,nx+.5,ny+.5,{x:sx+.5,y:sy+.5}))continue;
+      if(!canCompanionStand(map,garden,nx+.5,ny+.5,{x:sx+.5,y:sy+.5},occupancy))continue;
       previous.set(key,cellKey(x,y));
       visited.add(key);
       queue.push([nx,ny]);
@@ -96,16 +115,17 @@ export function createCompanionSimulation(map) {
     }
     for(const id of agents.keys())if(!desired.has(id))agents.delete(id);
   }
-  function selectAction(agent,garden) {
+  function selectAction(agent,garden,environment={}) {
     const profile=COMPANION_PERSONALITIES[agent.speciesId];
     agent.decision += 1;
     const salt=hashString(agent.id);
     const seed=worldHash(agent.decision,salt,17);
     const chosen=profile.activities[Math.floor(worldHash(agent.decision,salt,47)*profile.activities.length)];
-    agent.activity=chosen;
+    const nightActivity={sprout:"rest",mushroom:"read",cat:"nap",sparrow:"perch",turtle:"rest",fox:"stargaze"};
+    agent.activity=environment.time==="night" ? nightActivity[agent.speciesId]||chosen : chosen;
     agent.nextActionAt=clock+2.5+worldHash(agent.decision,salt,21)*4;
     agent.route=[];
-    if(seed<.36)return;
+    if(seed<(environment.time==="night"?.65:.36))return;
     // Walks usually remain near their last saved starting zone. This prevents
     // unseen teleports between newly unlocked zones while still using A* routes.
     const radius=3+Math.floor(worldHash(agent.decision,salt,44)*5);
@@ -118,7 +138,7 @@ export function createCompanionSimulation(map) {
       agent.activity="walk";
     }
   }
-  function advance(garden,deltaSeconds=0,{reducedMotion=false}={}){
+  function advance(garden,deltaSeconds=0,{reducedMotion=false,environment={}}={}){
     sync(garden);
     const dt=valid(deltaSeconds)?Math.min(.25,Math.max(0,deltaSeconds)):0;
     if(reducedMotion) {
@@ -128,7 +148,7 @@ export function createCompanionSimulation(map) {
     }
     clock+=dt;
     for(const agent of agents.values()){
-      if(!agent.route.length && clock>=agent.nextActionAt)selectAction(agent,garden);
+      if(!agent.route.length && clock>=agent.nextActionAt)selectAction(agent,garden,environment);
       if(agent.route.length && dt>0){
         const destination=agent.route[0],distance=Math.hypot(destination.x-agent.x,destination.y-agent.y);
         const travel=Math.min(distance,agent.pace*dt);
