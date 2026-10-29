@@ -8,13 +8,14 @@
   "scope": "./",
   "display": "standalone",
   "orientation": "portrait",
-  "background_color": "#1b302b",
-  "theme_color": "#1b302b",
+  "background_color": "#f8ead4",
+  "theme_color": "#f8ead4",
   "categories": [
     "productivity",
     "utilities"
   ],
   "icons": [
+    {"src":"icons/bloomodoro-b.svg","sizes":"any","type":"image/svg+xml","purpose":"any"},
     {
       "src": "icons/world-mark.svg",
       "sizes": "any",

@@ -30,6 +30,7 @@ const PRECACHE_URLS = [
   "./timer-worker.js",
   "./manifest.webmanifest",
   "./icons/world-mark.svg",
+  "./icons/bloomodoro-b.svg",
   "./icons/icon-192.png",
   "./icons/icon-512.png",
   "./icons/icon-maskable-512.png",
