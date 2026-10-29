@@ -1,4 +1,4 @@
-const CACHE_NAME = "bloomodoro-cache-v14";
+const CACHE_NAME = "bloomodoro-cache-v15";
 const PRECACHE_URLS = [
   "./",
   "./index.html",
@@ -17,6 +17,9 @@ const PRECACHE_URLS = [
   "./garden/plant-art.mjs",
   "./garden/ecology.mjs",
   "./garden/wildlife-art.mjs",
+  "./garden/life-core.mjs",
+  "./garden/avatar-art.mjs",
+  "./garden/avatar-motion.mjs",
   "./garden/garden.css",
   "./keepalive.mp3",
   "./timer-worker.js",

@@ -105,3 +105,15 @@ Phase 4B extends the connected world without changing `bloomodoro-state-v3`, `GA
 - **PWA:** all new modules are cached for offline use, and GitHub PR CI runs Node built-in tests and syntax validation.
 
 **Release gate:** 4B is PR-only. Phase 4C (encyclopedia, story interactions, data-recovery/multitab/offline QA and final polish) is **not** included. Formal publication remains deferred until the entire Phase 4 is approved.
+
+
+## ♙ Phase 4C — avatar, time points, guest mode and garden discovery (PR-only)
+
+- **Time currency:** one **time point (TP)** per whole minute of newly credited active focus. Historical sunshine balance is converted at the original 5-minutes-per-sunshine purchasing rate on save migration, plus its unrewarded 0-4 minute remainder. Inventory, lifetime focus and flower petals are preserved. Garden shop prices use the equivalent 5 TP per former sunshine; outfit prices are measured directly in TP. The existing sunshine field is retained as historical data and must not be removed by save migration.
+- **Player avatar:** a separately controllable player character, with original layered 32×48 art, a 15-item wardrobe, purchased and equipped outfit/hair/hat/shoes slots, WASD/arrow-key stepping and pointer-to-walk route navigation (only while the garden is not locked by an active focus timer).
+- **Companion interactions:** friends remain autonomous, do **not** accept player WASD input. Drag a companion to pick it up (surprised/wiggle animation), then release on a valid walkable tile for a short happy reaction. Cancel, locked zones, water and collisions restore the previous position. Companion drop writes only the single accepted position; earned focus and affinity are unchanged.
+- **Local guest mode:** the existing web/PWA experience starts as a local guest automatically, without registration or backend secrets. A changeable guest nickname is stored inside the garden save and can be backed up. This **is not** an online user account or an actual MongoDB login. Cloud accounts remain a separate future project.
+- **Discovery book:** plant, decorative item and companion ownership appear automatically; clicking visible wildlife or regional landmarks records the first discovery. Undiscovered entries remain concealed. The book uses additive IDs compatible with old garden JSON backups.
+- **Testing and release:** Node tests cover economic migration, lifetime-versus-spendable minutes, outfit ownership, movement/drag safety, discovery idempotency, old saves, and offline cache. **Phase 4C is not a formal release; after PR CI, merge/deploy checks and browser acceptance, release all of Phase 4 once from one final commit.**
+
+Not yet validated on real devices: visual polish, mobile touch nuance, concurrent tabs, and cloud synchronization. Do not count those as passed until independently tested.
