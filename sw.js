@@ -13,6 +13,7 @@ const PRECACHE_URLS = [
   "./keepalive.mp3",
   "./timer-worker.js",
   "./manifest.webmanifest",
+  "./icons/world-mark.svg",
   "./icons/icon-192.png",
   "./icons/icon-512.png",
   "./icons/icon-maskable-512.png",
