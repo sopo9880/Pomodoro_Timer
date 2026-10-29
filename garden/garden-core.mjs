@@ -1,4 +1,5 @@
 // Bloomodoro Pixel Garden — framework-independent shared Web / future Android domain.
+import { createWorldMap } from "./world-map.mjs";
 export const GARDEN_SCHEMA_VERSION = 2;
 export const WORLD_SPEC = Object.freeze({
   id: "bloomodoro-garden",
@@ -14,6 +15,8 @@ export const WORLD_SPEC = Object.freeze({
     { id: "starlight", name: "별빛 언덕", x: 64, y: 32, width: 32, height: 32, unlockAtSeconds: 35 * 3600 },
   ]),
 });
+// Derived, deterministic geography is not persisted. Old placements remain untouched.
+const TERRAIN_MAP = createWorldMap(WORLD_SPEC);
 export const GARDEN_ITEMS = Object.freeze([
   { id: "flower-bed", name: "작은 꽃밭", kind: "decor", price: 2, sprite: "flower-bed", detail: "꽃과 풀잎이 자라는 화단" },
   { id: "flower-pot", name: "테라코타 화분", kind: "decor", price: 2, sprite: "flower-pot", detail: "정원을 꾸미는 작은 화분" },
@@ -146,8 +149,10 @@ export function getPlantGrowthStage(plant, accumulatedFocusSeconds) {
   const elapsed = Math.max(0, accumulatedFocusSeconds - nonNegative(plant.plantedAtFocusSeconds));
   return item.growSeconds.reduce((stage, threshold, index) => elapsed >= threshold ? index : stage, 0);
 }
-function assertAvailableLocation(garden, x, y, ignoreId = null) {
+function assertAvailableLocation(garden, x, y, ignoreId = null, allowSameLegacySurface = false) {
   if (!validPosition(x, y)) throw new RangeError("정원 범위를 벗어난 위치입니다.");
+  // Validate NEW operations only. Never delete or relocate previously saved items.
+  if (!allowSameLegacySurface && !TERRAIN_MAP.getTile(x, y).buildable) throw new RangeError("물가와 다리 위에는 배치할 수 없어요.");
   const zone = getGardenZone(x, y);
   if (!zone || !garden.unlockedZones.includes(zone.id)) throw new RangeError("아직 열리지 않은 정원 구역입니다.");
   const objects = [...garden.placements, ...garden.plants];
@@ -200,7 +205,7 @@ export function moveGardenObject(garden, kind, id, x, y, rotation = undefined) {
   const key = kind === "decor" ? "placements" : "plants";
   const object = garden[key].find((item) => item.id === id);
   if (!object) throw new Error("존재하지 않는 정원 오브젝트입니다.");
-  assertAvailableLocation(garden, x, y, id);
+  assertAvailableLocation(garden, x, y, id, object.x === x && object.y === y);
   if (rotation !== undefined && !Number.isFinite(rotation)) throw new RangeError("회전 값이 잘못되었습니다.");
   return { ...garden, [key]: garden[key].map((item) => item.id === id ? {
     ...item, x, y, ...(kind === "decor" && rotation !== undefined ? { rotation } : {}),
