@@ -1,0 +1,257 @@
+/* Bloomodoro B — premium botanical storybook UI.
+   Pure scalable vector ornaments, crisp readable text and pale parchment.
+   Loaded last, overriding the previous dark/pixel shell without changing IDs.
+*/
+:root {
+ --b-ink:#534234;--b-dark:#365342;--b-forest:#3e6650;--b-leaf:#799779;
+ --b-gold:#c7a174;--b-gold-light:#eed9b4;--b-paper:#fff8ed;
+ --b-cream:#f8ead4;--b-rose:#d7958a;--b-line:#d4b897;
+ --ink:#534234;--ink-deep:#3b3f32;--fern:#3e6650;--fern-soft:#799779;
+ --moss:#97b48c;--gold:#e6c185;--gold-dark:#a47c52;--peach:#d7958a;
+ --cream:#fff7e7;--paper:#fff8ed;--paper-deep:#f3e4cb;
+ --muted:#827663;--line:#d4b897;--bg-1:#f3e7d3;--bg-2:#f8e9d4;
+}
+body{background:#f8eee0;color:var(--b-ink);}
+body::before{opacity:.44;background-image:
+ radial-gradient(circle at 18% 22%,rgba(244,208,167,.23),transparent 35%),
+ radial-gradient(circle at 83% 68%,rgba(155,185,141,.18),transparent 31%),
+ repeating-linear-gradient(0deg,transparent 0 35px,rgba(182,147,105,.055) 36px);}
+.game-app{
+ background:radial-gradient(ellipse at 59% 8%,#fffaf0 0%,#f8ecda 53%,#f2e2c9 100%);
+ border-left:1px solid #e8d4b5;border-right:1px solid #e8d4b5;
+}
+.game-topbar{
+ background:linear-gradient(180deg,#fffaf1,#f4e7ce);
+ border-bottom:2px solid #c69f6a;box-shadow:0 6px 18px rgba(93,68,43,.09);
+}
+.game-brand strong{color:#573e30;font-weight:900;text-shadow:none;letter-spacing:-.04em;}
+.game-brand small{color:#92795d;}
+.brand-mark{border:1px solid #b48e64;background:#fbecd4;box-shadow:0 0 0 3px #fffcf5,inset 0 0 0 2px #ead2af;}
+.brand-mark svg{image-rendering:auto;}
+.topbar-center{color:#6f836b;}
+.topbar-divider{color:#b9926b;}
+.topbar-gold,.topbar-petals,.guest-identity{
+ background:rgba(255,251,240,.89);color:#86683d;border:1px solid #d5b18a;
+ box-shadow:0 2px 6px rgba(119,86,55,.06);border-radius:999px;
+}
+.guest-identity{color:#58775d;}
+.topbar-petals{color:#ba7e75;}
+.icon-action,.topbar-settings{background:#f7e8d1;border:1px solid #cba57e;color:#69523e;border-radius:10px;}
+.icon-action:hover,.game-mobile-nav button:hover{background:#ead6b8;}
+.world-status-dot{background:#9aaf83;box-shadow:0 0 0 4px rgba(162,189,146,.18);}
+.game-sidebar{background:linear-gradient(180deg,#f5e8d4,#efe0c8);border-right:1px solid #dcc2a0;}
+.rail-heading{color:#a98c69;}
+.rail-link{color:#775e4b;border-radius:12px;}
+.rail-link:hover{color:#4b5945;background:#fff7e6;}
+.rail-link.active{
+ color:#365943;background:linear-gradient(120deg,#fffaf0,#e8e9d3);
+ border:1px solid #b9c6a1;box-shadow:inset 3px 0 0 #93a883,0 2px 6px rgba(74,86,59,.06);
+}
+.rail-glyph,.rail-link.active .rail-glyph{color:#a77c50;}
+.rail-note,.rail-version{color:#99886d;}
+.eyebrow{color:#9b8064;letter-spacing:.20em;}
+.world-title-area h1,.subscreen-heading h1{
+ color:#4e3b31;text-shadow:none;font-family:Georgia,"Noto Serif KR",serif;
+ letter-spacing:-.055em;
+}
+.world-heading,.subscreen-heading{position:relative;}
+.world-heading::before{
+ content:"";position:absolute;right:2%;top:-28px;width:145px;height:82px;
+ background:url("flower-ornament.svg") center/contain no-repeat;opacity:.75;pointer-events:none;
+}
+.world-title-area,.world-progress{position:relative;z-index:1;}
+.world-subtitle,.subscreen-heading p:not(.eyebrow){color:#816f5c;}
+.title-flower{color:#c9947d;}
+.world-progress-item{
+ background:linear-gradient(135deg,rgba(255,251,241,.98),rgba(240,232,210,.92));
+ border:1px solid #ddc7a5;border-radius:12px;box-shadow:0 3px 10px rgba(101,77,51,.07);
+}
+.world-progress-item span{color:#807565;}
+.world-progress-item strong{color:#58735a;}
+.game-main{background:transparent;}
+.world-stage-card,.world-right-dock,.game-focus-hud,.journal-insights,
+.settings-preferences,.playbook-settings,.install-card,.journal-sheet,.focus-quest{
+ border:1px solid #c9a47e;outline:0;border-radius:17px;
+ background:linear-gradient(165deg,#fffaf0,#f5e6ce);
+ box-shadow:0 8px 30px rgba(97,69,49,.11),inset 0 0 0 3px rgba(255,255,246,.88);
+ color:#554536;
+}
+.world-stage-card{overflow:hidden;}
+.world-stage-card::before,.world-right-dock::before,.game-focus-hud::before{
+ content:"";display:block;height:3px;background:linear-gradient(90deg,transparent,#b78d5b 24%,#ead5a3 50%,#b78d5b 76%,transparent);
+}
+.stage-toolbar{
+ background:linear-gradient(135deg,#f8edd9,#eee2cc);border-bottom:1px solid #d8b997;
+ padding:14px 16px;
+}
+.stage-sign-icon{
+ background:#f9f5e9;color:#7b966f;border:1px solid #c9ad83;
+ border-radius:50%;box-shadow:inset 0 0 0 3px #f4e5c9;
+}
+.stage-place-name{color:#514331;}
+.stage-place-name strong{color:#4b5c43;}
+.stage-place-name small{color:#9a825e;}
+.environment-control{color:#706553;font-weight:700;}
+.environment-control select,
+.setting-field select,.setting-field input,.environment-control input{
+ background:#fff9ed;color:#57493a;border:1px solid #cdb18c;
+ border-radius:10px;box-shadow:0 2px 5px rgba(104,80,50,.05);
+}
+.garden-map-panel{background:linear-gradient(#e3d1af,#f4e5c9);padding:10px 10px 0;}
+.garden-canvas-frame{border:2px solid #b38e63;background:#c8ba97;border-radius:12px;box-shadow:0 0 0 4px #f9efd9;overflow:hidden;}
+#gardenWorld{background:#aebd98;image-rendering:auto;}
+.world-map-message,.garden-map-hint,.garden-zone-label{
+ background:rgba(255,249,230,.93);color:#4a493a;border:1px solid rgba(191,153,104,.8);
+ border-radius:11px;box-shadow:0 2px 12px rgba(62,71,44,.11);
+ backdrop-filter:blur(6px);
+}
+.world-map-message span:last-child{color:#7b826c;}
+.pixel-bullet{color:#b98b66;}
+.garden-camera-tools button{
+ background:rgba(255,248,224,.95);border:1px solid #c4a478;color:#6f664a;
+ border-radius:9px;box-shadow:0 2px 7px rgba(61,55,42,.1);
+}
+.garden-camera-tools button:hover{background:#f2dcae;}
+.garden-zone-label select{color:#485c46;}
+.world-action-bar{background:linear-gradient(#fff9e8,#f4e6cf);}
+.garden-life-line,.garden-feedback{color:#61715a;}
+.garden-edit-actions button,.garden-backup-tools button{
+ background:#f5ecd9;color:#5d6950;border:1px solid #c9b08b;border-radius:9px;
+ box-shadow:0 2px 5px rgba(111,91,62,.06);
+}
+.garden-edit-actions button:not(:disabled):hover,.garden-backup-tools button:hover{background:#e9dbc1;}
+.avatar-world-button,.action-button.primary{
+ background:linear-gradient(150deg,#58836a,#345a48);color:#fff4e1;border:1px solid #37614b;
+ border-radius:10px;box-shadow:0 3px 0 #2f4e3d;
+}
+.avatar-world-button[aria-pressed="true"]{background:linear-gradient(#ead3a1,#dcb984);color:#3e5b45;}
+.garden-selection{background:#fffaf0;border:1px solid #d6b993;}
+.garden-selection strong{color:#4d654d;}
+.garden-selection p{color:#867765;}
+.dock-head{background:linear-gradient(135deg,#f9f0e0,#ecddc4);border-bottom:1px solid #d2b58f;}
+.dock-head h2{color:#4d644f;}
+.dock-head .eyebrow{color:#9a7b59;}
+.dock-stars{color:#bd9269;}
+.garden-sidebar-tabs button{
+ background:#f9f0df;border:1px solid #d9c4a5;border-radius:10px;color:#806c50;
+}
+.garden-sidebar-tabs button[aria-selected="true"]{
+ background:#53785d;color:#fff8e5;border-color:#426750;box-shadow:0 3px 9px rgba(66,104,77,.16);
+}
+.garden-sidebar-scroll{scrollbar-color:#ba9f78 transparent;}
+.garden-item-card,.garden-companion-card,.avatar-shop-card,.codex-category,
+.codex-item,.avatar-closet-head{
+ background:#fffaf1;border:1px solid #dfc8a4;border-radius:13px;
+ box-shadow:0 2px 8px rgba(111,86,55,.055);
+}
+.garden-item-body strong,.garden-companion-card strong,.avatar-item-title strong{color:#4f644c;}
+.garden-item-body small,.garden-companion-card small{color:#857861;}
+.garden-companion-card{grid-template-columns:98px minmax(0,1fr);gap:9px;align-items:center;min-height:120px;}
+.garden-companion-sprite{
+ width:96px;height:100px;object-fit:contain;background:radial-gradient(circle at 50% 49%,#f1efdd,#e2e9d5);
+ border:1px solid #c5caaa;border-radius:11px;image-rendering:auto;
+}
+.garden-companion-card button{grid-column:1/-1;border-radius:9px;}
+.garden-item-actions button,.garden-companion-card button:not(:disabled),
+.avatar-shop-card button,.preset-chip.active,.mode-pill.active{
+ background:#557c60;border:1px solid #466b50;color:#fff8e7;border-radius:9px;
+}
+.dock-footer{background:#f6ebd5;border-top:1px solid #d8b992;}
+.dock-footer p{color:#8b795b;}
+.avatar-closet-head{display:grid;grid-template-columns:110px minmax(0,1fr);gap:12px;align-items:center;padding:11px;}
+.avatar-closet-head img{
+ display:block;width:110px;height:145px;object-fit:contain;image-rendering:auto;
+ background:radial-gradient(circle,#e3efdc,#d4dec8);border:1px solid #c9c09c;
+ border-radius:12px;box-shadow:inset 0 0 0 4px rgba(255,255,240,.63);
+}
+.avatar-closet-head strong{color:#465c48;}
+.avatar-shop-card{grid-template-columns:62px minmax(0,1fr);gap:5px 10px;min-height:88px;padding:8px;}
+.avatar-shop-preview{
+ grid-row:1 / span 2;width:62px;height:82px;object-fit:contain;
+ background:radial-gradient(circle at 50% 45%,#f2eee0,#dce5d5);
+ border:1px solid #d5c69f;border-radius:9px;
+}
+.avatar-shop-card .avatar-item-title{align-items:flex-start;flex-wrap:wrap;}
+.avatar-shop-card button{grid-column:2;}
+.codex-intro{color:#827560;}
+.codex-category summary{background:#eadebf;color:#566f56;}
+.codex-items{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;}
+.codex-item{display:flex;align-items:center;justify-content:center;flex-direction:column;min-height:90px;padding:7px;color:#5f715b;}
+.codex-item img{width:76px;height:76px;object-fit:contain;image-rendering:auto;}
+.codex-item.undiscovered{background:#f5ebd8;color:#9b8b75;}
+.guest-profile-card{background:#f6f2e6;border-color:#cad3b5;box-shadow:none;}
+.game-focus-hud{background:#fff8e9;border:1px solid #c9aa80;outline:0;}
+.timer-ring{background:#fffaf2;border:1px solid #e3ceb0;}
+.timer-ring.running{background:#fffdf6;}
+.time-display{color:#465746;}
+.hud-illustration{background:linear-gradient(#e7eee0 0%,#c7dfc3 61%,#bad7b2 62%,#83ad83);}
+.mode-pill{background:#f6ebd7;color:#6b7b61;}
+.mode-pill.active{background:#55775b;}
+.action-button.secondary,.action-button.ghost{background:#f2e6cf;color:#58684f;}
+.focus-camp-art{
+ isolation:isolate;background:linear-gradient(160deg,#fff1d6,#cce1ba 58%,#96b789);
+ border:1px solid #c8ad82;border-radius:16px;box-shadow:inset 0 0 0 5px rgba(255,250,232,.75);
+}
+.b-focus-character{
+ position:absolute;bottom:-8px;left:52%;height:112%;width:min(38%,250px);
+ object-fit:contain;object-position:bottom;z-index:2;filter:drop-shadow(0 8px 12px rgba(66,61,42,.23));
+}
+.focus-camp-art .camp-house{opacity:.27;}
+.focus-camp-art .camp-sprout{opacity:.38;}
+.focus-camp-art .camp-art-quote{z-index:3;}
+.focus-quest,.journal-banner,.journal-sheet,.settings-preferences{color:#514333;}
+.journal-banner{background:linear-gradient(105deg,#f7e6c8,#fff6e6);border:1px solid #cca981;}
+.journal-banner h2,.journal-sheet h2{color:#48654f;}
+input,select{accent-color:#5f866a;}
+.game-mobile-nav{background:linear-gradient(#fffbf0,#efe0c6);border-top:2px solid #c49c71;box-shadow:0 -4px 17px rgba(70,53,40,.1);}
+.game-mobile-nav button{color:#86715a;}
+.game-mobile-nav button.active{background:#e8ead7;border-color:#bbc49f;color:#466848;}
+.game-app:not([data-active-screen="focus"]) .game-focus-hud{background:linear-gradient(#fff8e9,#f7e9cf);color:#4c5f46;}
+.game-app:not([data-active-screen="focus"]) .game-focus-hud .time-display{color:#445b4a;}
+@media(max-width:1100px){
+ .game-sidebar{background:#f5e7d3;}
+}
+@media(max-width:875px){
+ .world-heading::before{right:0;top:-14px;width:100px;opacity:.45;}
+ .world-right-dock{grid-template-columns:1fr;}
+ .garden-sidebar-scroll{max-height:330px;}
+ .world-map-message{font-size:10px;}
+}
+@media(max-width:560px){
+ .game-topbar{gap:4px;padding:0 9px;background:#fff9ea;}
+ .brand-mark{width:36px;height:36px;flex-shrink:0;}
+ .game-brand{gap:5px;}
+ .game-brand strong{font-size:clamp(15px,4.6vw,20px);letter-spacing:-.06em;}
+ .game-brand small{display:none;}
+ .topbar-right{gap:5px;}
+ .topbar-gold,.topbar-petals{min-width:0;padding:5px 7px;font-size:11px;}
+ .guest-identity{display:none;}
+ .topbar-settings{width:35px;height:35px;flex-shrink:0;}
+ .world-heading::before{opacity:.33;}
+ .game-main{padding:15px 9px 26px;}
+ .world-stage-card{border-radius:12px;}
+ .stage-toolbar{padding:9px;}
+ .stage-environment-controls{gap:6px;}
+ .garden-map-panel{padding:7px 7px 0;}
+ .garden-canvas-frame{border-radius:10px;}
+ #gardenWorld{min-height:355px;height:min(89vw,445px);}
+ .world-map-message{background:rgba(255,247,228,.92);}
+ .world-map-message span:last-child{display:none;}
+ .garden-camera-tools button{min-height:35px;min-width:35px;}
+ .garden-life-line{font-size:11px;}
+ .world-action-bar{padding:10px;}
+ .game-mobile-nav{padding-bottom:calc(8px + env(safe-area-inset-bottom,0px));}
+ .game-mobile-nav button{min-height:49px;color:#746c58;}
+ .game-app[data-active-screen="world"] .game-focus-hud,
+ .game-app[data-active-screen="journal"] .game-focus-hud,
+ .game-app[data-active-screen="settings"] .game-focus-hud{
+  background:#fff8e8;border:1px solid #c2a079;outline:0;border-radius:17px;
+  box-shadow:0 4px 16px rgba(79,59,37,.18);
+ }
+ .game-app:not([data-active-screen="focus"]) .game-focus-hud .time-display{color:#445b48;}
+ .avatar-closet-head img{height:145px;}
+ .b-focus-character{width:44%;left:55%;}
+}
+@media(prefers-reduced-motion:reduce){
+ .game-topbar,.avatar-world-button,.game-mobile-nav button{transition:none;}
+}
