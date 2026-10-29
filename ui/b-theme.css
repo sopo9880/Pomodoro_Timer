@@ -255,4 +255,5 @@ input,select{accent-color:#5f866a;}
 @media(prefers-reduced-motion:reduce){
  .game-topbar,.avatar-world-button,.game-mobile-nav button{transition:none;}
 }
-\n.brand-mark img{width:100%;height:100%;display:block;object-fit:contain;image-rendering:auto;}\n
+
+.brand-mark img{width:100%;height:100%;display:block;object-fit:contain;image-rendering:auto;}

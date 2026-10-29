@@ -97,3 +97,12 @@ After PR CI starts, report the Actions link and end the development turn. On the
 ### Release gate
 
 Keep original formal `v1.0.0` intact. After Phase 4D development CI, merge and deploy verification, assess the combined Phase 4A–4D baseline and prepare **one approved formal release**; do not publish another release or recompile APK/EXE here. Real-device verification is performed by the user after final release per project policy.
+
+
+## Phase 4E — reference-aligned high-resolution B character and interface overhaul
+
+This is an additional art-production follow-up because the previous Phase 4D 48×64 and 48×48 block-generated sprites **did not look like** the chosen polished JRPG reference. The new code path is real illustrated vector assets and is **not just a renamed low-res sprite**. A detailed illustration is not necessarily pixel-identical to the supplied poster, so avoid marketing it as an exact reproduction.
+
+Acceptance includes 1 player character at 320×432 in all four directions, all 15 wearable SKUs continuing to change visible cosmetic layers, all six existing companions and fourteen ecology species illustrated at 256×256, enlarged world hits, CSS and scalable original botanical decorations on all four screens, illustrated avatar preview, companion/collection cards and focus hero, mobile visual readability, PWA offline precache, proper original species IDs and non-destructive garden save normalization. Keep fallback art while SVG images decode. Tests enforce no external asset requests, stable cache memory budget, and no change in earned focus/rewards.
+
+Scope excludes expensive hand-drawn pixel-perfect front/back/side sprite-sheet recreation, remote login and cloud sync. Art-quality acceptance remains unverified until actual visual review, and functional real-device testing remains post-release.
