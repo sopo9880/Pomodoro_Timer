@@ -59,7 +59,7 @@
       <div class="world-adventure">
         <div class="world-stage-card" id="gardenSection" aria-labelledby="gardenHeading">
           <div class="stage-toolbar">
-            <div class="stage-place-name"><span class="stage-sign-icon">⌂</span><div><small>NOW EXPLORING</small><strong>Bloom Garden</strong></div></div>
+            <div class="stage-place-name"><span class="stage-sign-icon">⌂</span><div><small>NOW EXPLORING</small><strong id="gardenRegionTitle">작은 정원 마을</strong></div></div>
             <div class="stage-environment-controls">
               <label class="environment-control"><span>계절</span><select id="environmentSeason" aria-label="정원 계절"><option value="auto">자동</option><option value="spring">봄</option><option value="summer">여름</option><option value="autumn">가을</option><option value="winter">겨울</option></select></label>
               <label class="environment-control"><span>날씨</span><select id="environmentWeather" aria-label="정원 날씨"><option value="clear">맑음</option><option value="rain">비</option><option value="snow">눈</option></select></label>
@@ -72,6 +72,14 @@
               <div class="world-map-overlay-top">
                 <div class="world-map-message"><span class="pixel-bullet">✿</span> <strong>어서 와요!</strong><span>여기는 당신의 작은 숲속 마을이에요.</span></div>
                 <div class="garden-camera-tools" role="group" aria-label="정원 확대·축소"><button type="button" id="gardenZoomOut" aria-label="축소">−</button><button type="button" id="gardenZoomIn" aria-label="확대">＋</button><button type="button" id="gardenCenter">◎</button></div>
+              </div>
+              <div class="world-minimap-dock">
+                <button type="button" id="gardenMinimapToggle" class="minimap-toggle" aria-expanded="true" aria-controls="gardenMiniMapPanel">⌖ 월드 지도</button>
+                <div class="world-minimap-panel" id="gardenMiniMapPanel">
+                  <canvas id="gardenMiniMap" width="200" height="200" tabindex="0" role="button"
+                    aria-label="월드 미니맵. 지도를 누르면 해당 지역으로 이동합니다. 방향키로 이동, 엔터키로 중앙 정원으로 돌아옵니다."></canvas>
+                  <p>✦ 현재 위치 · <span>색상 지역은 개방됨</span></p>
+                </div>
               </div>
               <div class="world-map-overlay-bottom">
                 <div class="garden-map-hint" id="gardenCurrentAction">드래그로 산책 · 클릭해서 꾸미기</div>

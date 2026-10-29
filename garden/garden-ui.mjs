@@ -5,6 +5,8 @@ import {
   removeGardenObject, recruitGardenCompanion,
 } from "./garden-core.mjs";
 import { createPixelGardenRenderer, drawGardenThumbnail } from "./pixel-world.mjs";
+import { createWorldMinimap } from "./minimap.mjs";
+import { REGION_SCENES } from "./world-map.mjs";
 
 // The UI has no direct access to the timer's private state. Its save callback owns persistence.
 export function mountGarden({ getGarden, setGarden, getTimerState, getEnvironment = () => ({ season: 'spring', weather: 'clear', time: 'day' }) }) {
@@ -12,6 +14,15 @@ export function mountGarden({ getGarden, setGarden, getTimerState, getEnvironmen
   const canvas = byId("gardenWorld");
   if (!canvas) return { refresh() {} };
   const renderer = createPixelGardenRenderer(canvas);
+  const minimapCanvas = byId("gardenMiniMap");
+  const minimapPanel = byId("gardenMiniMapPanel");
+  const minimapToggle = byId("gardenMinimapToggle");
+  const minimap = createWorldMinimap(minimapCanvas, renderer);
+  const regionTitle = byId("gardenRegionTitle");
+  const compactView = window.matchMedia("(max-width: 875px)").matches;
+  let minimapExpanded = !compactView;
+  minimapPanel.hidden = !minimapExpanded;
+  minimapToggle.setAttribute("aria-expanded", String(minimapExpanded));
   const view = {
     focus: byId("gardenFocusTotal"),
     sunshine: byId("gardenSunshine"),
@@ -48,6 +59,8 @@ export function mountGarden({ getGarden, setGarden, getTimerState, getEnvironmen
   let previousPinchDistance = 0;
   let animationFrame = 0;
   let lastPaint = 0;
+  let lastMinimapPaint = 0;
+  let previousPinchCenter = null;
   let onScreen = true;
   const reduceMotionQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
   const editingLocked = () => {
@@ -237,6 +250,20 @@ export function mountGarden({ getGarden, setGarden, getTimerState, getEnvironmen
     }
     view.companions.replaceChildren(fragment);
   }
+  function paintMinimap(garden, force = false) {
+    const time = performance.now();
+    if (!minimapExpanded || (!force && time - lastMinimapPaint < 280)) return;
+    minimap.draw(garden, getEnvironment());
+    lastMinimapPaint = time;
+  }
+  function updateRegionName(garden) {
+    const zone = renderer.map.getZone(renderer.camera.x, renderer.camera.y);
+    if (!zone) return;
+    regionTitle.textContent = garden.unlockedZones.includes(zone.id)
+      ? REGION_SCENES[zone.id]?.name || zone.name
+      : "🔒 " + zone.name;
+    if (view.zonePicker.value !== zone.id) view.zonePicker.value = zone.id;
+  }
   function refresh(force = false) {
     const garden = getGarden();
     if (lastFocusProgress !== garden.progress.focusSeconds) {
@@ -272,7 +299,11 @@ export function mountGarden({ getGarden, setGarden, getTimerState, getEnvironmen
       paintCompanionCards();
       lastFingerprint = fingerprint;
     }
-    if (onScreen) renderer.draw(garden, getTimerState(), { selected, ghost, reduceMotion: reduceMotionQuery.matches, time: performance.now(), environment: getEnvironment() });
+    if (onScreen) {
+      renderer.draw(garden, getTimerState(), { selected, ghost, reduceMotion: reduceMotionQuery.matches, time: performance.now(), environment: getEnvironment() });
+      paintMinimap(garden, force);
+      updateRegionName(garden);
+    }
   }
   for (const zone of WORLD_SPEC.zones) {
     const option = document.createElement("option");
@@ -281,6 +312,34 @@ export function mountGarden({ getGarden, setGarden, getTimerState, getEnvironmen
     view.zonePicker.append(option);
   }
   view.zonePicker.value = "central";
+  minimapToggle.addEventListener("click", () => {
+    minimapExpanded = !minimapExpanded;
+    minimapPanel.hidden = !minimapExpanded;
+    minimapToggle.setAttribute("aria-expanded", String(minimapExpanded));
+    if (minimapExpanded) paintMinimap(getGarden(), true);
+  });
+  minimapCanvas.addEventListener("pointerdown", (event) => {
+    event.preventDefault();
+    const point = minimap.jumpFromEvent(event);
+    if (point.zone && !getGarden().unlockedZones.includes(point.zone.id)) {
+      announce(point.zone.name + " 지역은 누적 " + Math.round(point.zone.unlockAtSeconds / 60) + "분 집중 후 열려요.");
+    }
+    refresh(true);
+  });
+  minimapCanvas.addEventListener("keydown", (event) => {
+    const direction = {
+      ArrowUp: [0, -4], ArrowDown: [0, 4], ArrowLeft: [-4, 0], ArrowRight: [4, 0],
+    }[event.key];
+    if (direction) {
+      event.preventDefault();
+      renderer.setCamera(renderer.camera.x + direction[0], renderer.camera.y + direction[1]);
+      refresh(true);
+    } else if (event.key === "Enter") {
+      event.preventDefault();
+      renderer.setCamera(80, 80);
+      refresh(true);
+    }
+  });
   view.zonePicker.addEventListener("change", () => {
     const zone = WORLD_SPEC.zones.find((item) => item.id === view.zonePicker.value);
     if (zone) renderer.setCamera(zone.x + zone.width / 2, zone.y + zone.height / 2);
@@ -428,7 +487,9 @@ export function mountGarden({ getGarden, setGarden, getTimerState, getEnvironmen
     if (pointers.size >= 2) {
       const points = [...pointers.values()];
       previousPinchDistance = Math.hypot(points[0].x - points[1].x, points[0].y - points[1].y);
+      previousPinchCenter = { x: (points[0].x + points[1].x) / 2, y: (points[0].y + points[1].y) / 2 };
       pointerGesture = null;
+      ghost = null;
       return;
     }
     const pos = targetPosition(event);
@@ -455,8 +516,14 @@ export function mountGarden({ getGarden, setGarden, getTimerState, getEnvironmen
     if (pointers.size === 2) {
       const values = [...pointers.values()];
       const dist = Math.hypot(values[0].x - values[1].x, values[0].y - values[1].y);
-      if (previousPinchDistance > 0 && dist > 0) renderer.zoomBy(dist / previousPinchDistance);
+      const midpoint = { x: (values[0].x + values[1].x) / 2, y: (values[0].y + values[1].y) / 2 };
+      if (previousPinchCenter) renderer.panPixels(midpoint.x - previousPinchCenter.x, midpoint.y - previousPinchCenter.y);
+      const rect = canvas.getBoundingClientRect();
+      if (previousPinchDistance > 0 && dist > 0) {
+        renderer.zoomBy(dist / previousPinchDistance, midpoint.x - rect.left, midpoint.y - rect.top);
+      }
       previousPinchDistance = dist;
+      previousPinchCenter = midpoint;
       return;
     }
     const gesture = pointerGesture;
@@ -481,8 +548,11 @@ export function mountGarden({ getGarden, setGarden, getTimerState, getEnvironmen
     pointers.delete(event.pointerId);
     if (pointers.size) {
       pointerGesture = null;
+      previousPinchCenter = null;
+      previousPinchDistance = 0;
       return;
     }
+    previousPinchCenter = null;
     previousPinchDistance = 0;
     const gesture = pointerGesture;
     pointerGesture = null;
@@ -501,12 +571,15 @@ export function mountGarden({ getGarden, setGarden, getTimerState, getEnvironmen
   canvas.addEventListener("pointercancel", (event) => {
     pointers.delete(event.pointerId);
     pointerGesture = null;
+    previousPinchCenter = null;
+    previousPinchDistance = 0;
     ghost = null;
   });
   canvas.addEventListener("contextmenu", (event) => event.preventDefault());
   canvas.addEventListener("wheel", (event) => {
     event.preventDefault();
-    renderer.zoomBy(event.deltaY < 0 ? 1.1 : 1 / 1.1);
+    const rect = canvas.getBoundingClientRect();
+    renderer.zoomBy(event.deltaY < 0 ? 1.1 : 1 / 1.1, event.clientX - rect.left, event.clientY - rect.top);
     refresh();
   }, { passive: false });
   canvas.addEventListener("keydown", (event) => {
@@ -541,6 +614,8 @@ export function mountGarden({ getGarden, setGarden, getTimerState, getEnvironmen
     const interval = reduceMotionQuery.matches ? 500 : 100;
     if (timestamp - lastPaint >= interval) {
       renderer.draw(getGarden(), getTimerState(), { selected, ghost, reduceMotion: reduceMotionQuery.matches, time: timestamp, environment: getEnvironment() });
+      paintMinimap(getGarden());
+      updateRegionName(getGarden());
       lastPaint = timestamp;
     }
     animationFrame = requestAnimationFrame(tick);
