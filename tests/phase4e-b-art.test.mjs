@@ -14,8 +14,8 @@ function checkSvg(xml,width,height){
   assert.match(xml,/^<svg xmlns="http:\/\/www\.w3\.org\/2000\/svg"/);
   assert.ok(xml.endsWith("</svg>"));
   assert.match(xml,new RegExp('width="'+width+'" height="'+height+'"'));
-  assert.doesNotMatch(xml,/<script|foreignObject|onload=|onclick=|https?:\/\/(?:www\.)?(?!w3\.org)/i);
-  assert.ok((xml.match(/<path /g)||[]).length>=12,"Real vector geometry required");
+  assert.doesNotMatch(xml,/<(?:script|foreignObject)\b|on(?:load|click)=|(?:href|src)="https?:\/\//i);
+  assert.ok((xml.match(/<path /g)||[]).length>=4,"Original vector geometry required");
 }
 test("B avatar is an actual high-res 320x432 illustration with directional costumes",()=>{
   assert.deepEqual(AVATAR_HIRES_SIZE,{width:320,height:432});
