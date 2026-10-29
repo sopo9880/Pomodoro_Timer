@@ -9,11 +9,11 @@ import { createWorldMinimap } from "./minimap.mjs";
 import { REGION_SCENES, WORLD_LANDMARKS } from "./world-map.mjs";
 import { WILDLIFE_SPECIES } from "./ecology.mjs";
 import { createAvatarMotion } from "./avatar-motion.mjs";
-import { drawAvatarPreview } from "./avatar-art.mjs";
+import { avatarIllustrationUri, companionIllustrationUri, wildlifeIllustrationUri } from "./hires-atlas.mjs";
 import { WEARABLES, purchaseWearable, equipWearable, moveAvatar, moveCompanionDrop,
   renameGuest, discover, collectionSnapshot } from "./life-core.mjs";
 import { drawPlantThumbnail } from "./plant-art.mjs";
-import { drawCompanionThumbnail } from "./companion-art.mjs";
+
 
 // The UI has no direct access to the timer's private state. Its save callback owns persistence.
 export function mountGarden({ getGarden, setGarden, getTimerState, getEnvironment = () => ({ season: 'spring', weather: 'clear', time: 'day' }) }) {
@@ -47,6 +47,7 @@ export function mountGarden({ getGarden, setGarden, getTimerState, getEnvironmen
     avatarPanel: byId("gardenAvatar"),
     codexPanel: byId("gardenCodex"),
     avatarPreview: byId("avatarPreview"),
+    focusAvatar: byId("bFocusAvatar"),
     avatarWallet: byId("avatarWallet"),
     avatarWearables: byId("avatarWearables"),
     codexEntries: byId("gardenCodexEntries"),
@@ -292,10 +293,13 @@ export function mountGarden({ getGarden, setGarden, getTimerState, getEnvironmen
       const unlocked = garden.progress.focusSeconds >= friend.unlockAtSeconds;
       const card = document.createElement("article");
       card.className = "garden-companion-card";
-      const thumb = document.createElement("canvas");
+      const thumb = document.createElement("img");
       thumb.className = "garden-companion-sprite";
-      thumb.width = thumb.height = 72;
-      thumb.setAttribute("aria-hidden", "true");
+      thumb.width = thumb.height = 112;
+      thumb.alt = "";
+      thumb.loading = "lazy";
+      thumb.decoding = "async";
+      thumb.src = companionIllustrationUri(friend.speciesId);
       const details = document.createElement("div");
       const name = document.createElement("strong");
       name.textContent = friend.name;
@@ -312,19 +316,24 @@ export function mountGarden({ getGarden, setGarden, getTimerState, getEnvironmen
       button.textContent = owned ? "함께하는 중" : unlocked ? "동료 맞이하기" : Math.ceil(friend.unlockAtSeconds / 60) + "분 집중 후 해금";
       card.append(thumb, details, button);
       fragment.append(card);
-      drawCompanionThumbnail(thumb,renderer.friendArt,friend.sprite);
+
     }
     view.companions.replaceChildren(fragment);
   }
   function paintAvatarWardrobe(garden) {
     view.avatarWallet.textContent = (garden.wallet.timePoints || 0).toLocaleString("ko-KR");
-    drawAvatarPreview(view.avatarPreview,renderer.avatarArt,garden.avatar.equipped);
+    view.avatarPreview.src = avatarIllustrationUri(garden.avatar.equipped);
+    if(view.focusAvatar)view.focusAvatar.src=view.avatarPreview.src;
     const fragment=document.createDocumentFragment();
     for(const item of WEARABLES){
       const owned=garden.avatar.ownedWearables.includes(item.id);
       const equipped=garden.avatar.equipped[item.slot]===item.id;
       const card=document.createElement("article");
       card.className="avatar-shop-card";
+      const preview=document.createElement("img");
+      preview.className="avatar-shop-preview";
+      preview.alt="";preview.loading="lazy";preview.decoding="async";
+      preview.src=avatarIllustrationUri({...garden.avatar.equipped,[item.slot]:item.id});
       const row=document.createElement("div");
       row.className="avatar-item-title";
       const label=document.createElement("strong");label.textContent=item.name;
@@ -336,7 +345,7 @@ export function mountGarden({ getGarden, setGarden, getTimerState, getEnvironmen
       button.dataset.avatarAction=owned?"equip":"buy";
       button.disabled=equipped||editingLocked()||(!owned&&(garden.wallet.timePoints||0)<item.price);
       button.textContent=equipped?"착용 중":owned?"착용":"구매";
-      card.append(row,button);fragment.append(card);
+      card.append(preview,row,button);fragment.append(card);
     }
     view.avatarWearables.replaceChildren(fragment);
   }
@@ -357,7 +366,15 @@ export function mountGarden({ getGarden, setGarden, getTimerState, getEnvironmen
       for(const entry of entries){
         const tile=document.createElement("div");
         tile.className="codex-item"+(entry.discovered?"":" undiscovered");
-        tile.textContent=entry.discovered?entry.name:"??? · 미발견";
+        if(entry.discovered&&(category==="companions"||category==="wildlife")){
+          const picture=document.createElement("img");
+          picture.alt="";picture.loading="lazy";picture.decoding="async";
+          picture.src=category==="companions"?companionIllustrationUri(entry.id):wildlifeIllustrationUri(entry.id);
+          tile.append(picture);
+        }
+        const label=document.createElement("span");
+        label.textContent=entry.discovered?entry.name:"??? · 미발견";
+        tile.append(label);
         cards.append(tile);
       }
       details.append(sum,cards);fragment.append(details);
