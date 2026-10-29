@@ -1,0 +1,52 @@
+{
+  "version": 1,
+  "source": "User-provided Bloomodoro B / Polished JRPG reference sheet",
+  "format": "Transparent, palette-optimized PNG for poses; WebP portrait has intentionally illustrated cream background",
+  "canvas": {
+    "width": 224,
+    "height": 280
+  },
+  "assets": [
+    {
+      "file": "idle-down.png",
+      "bytes": 20524,
+      "width": 224,
+      "height": 280,
+      "pose": "idle-down"
+    },
+    {
+      "file": "walk-right.png",
+      "bytes": 21408,
+      "width": 224,
+      "height": 280,
+      "pose": "walk-right"
+    },
+    {
+      "file": "surprised-down.png",
+      "bytes": 20910,
+      "width": 224,
+      "height": 280,
+      "pose": "surprised-down"
+    },
+    {
+      "file": "portrait.webp",
+      "bytes": 27306,
+      "width": 345,
+      "height": 406,
+      "pose": "portrait"
+    }
+  ],
+  "available": [
+    "front idle",
+    "right-facing walk",
+    "surprised front",
+    "UI portrait"
+  ],
+  "notYetProduced": [
+    "back-facing illustration",
+    "distinct side idle frames",
+    "full 4-direction walk animation",
+    "customized outfits and accessories",
+    "six companion image sheets"
+  ]
+}

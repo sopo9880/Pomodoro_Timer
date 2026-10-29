@@ -10,6 +10,7 @@ import { REGION_SCENES, WORLD_LANDMARKS } from "./world-map.mjs";
 import { WILDLIFE_SPECIES } from "./ecology.mjs";
 import { createAvatarMotion } from "./avatar-motion.mjs";
 import { avatarIllustrationUri, companionIllustrationUri, wildlifeIllustrationUri } from "./hires-atlas.mjs";
+import { rasterAvatarPreviewUrl, rasterAvatarPortraitUrl } from "./raster-art.mjs";
 import { WEARABLES, purchaseWearable, equipWearable, moveAvatar, moveCompanionDrop,
   renameGuest, discover, collectionSnapshot } from "./life-core.mjs";
 import { drawPlantThumbnail } from "./plant-art.mjs";
@@ -74,6 +75,7 @@ export function mountGarden({ getGarden, setGarden, getTimerState, getEnvironmen
   let ghost = null;
   let activeTab = "inventory";
   let avatarSelected = false;
+  let avatarReactionUntil = 0;
   let previousAvatarPaint = 0;
   let lastAvatarSave = 0;
   let cameraPanUntil = 0;
@@ -322,8 +324,8 @@ export function mountGarden({ getGarden, setGarden, getTimerState, getEnvironmen
   }
   function paintAvatarWardrobe(garden) {
     view.avatarWallet.textContent = (garden.wallet.timePoints || 0).toLocaleString("ko-KR");
-    view.avatarPreview.src = avatarIllustrationUri(garden.avatar.equipped);
-    if(view.focusAvatar)view.focusAvatar.src=view.avatarPreview.src;
+    view.avatarPreview.src = rasterAvatarPreviewUrl(garden.avatar.equipped) || avatarIllustrationUri(garden.avatar.equipped);
+    if(view.focusAvatar)view.focusAvatar.src = rasterAvatarPortraitUrl(garden.avatar.equipped) || view.avatarPreview.src;
     const fragment=document.createDocumentFragment();
     for(const item of WEARABLES){
       const owned=garden.avatar.ownedWearables.includes(item.id);
@@ -333,7 +335,8 @@ export function mountGarden({ getGarden, setGarden, getTimerState, getEnvironmen
       const preview=document.createElement("img");
       preview.className="avatar-shop-preview";
       preview.alt="";preview.loading="lazy";preview.decoding="async";
-      preview.src=avatarIllustrationUri({...garden.avatar.equipped,[item.slot]:item.id});
+      const outfitPreview={...garden.avatar.equipped,[item.slot]:item.id};
+      preview.src=rasterAvatarPreviewUrl(outfitPreview) || avatarIllustrationUri(outfitPreview);
       const row=document.createElement("div");
       row.className="avatar-item-title";
       const label=document.createElement("strong");label.textContent=item.name;
@@ -446,7 +449,8 @@ export function mountGarden({ getGarden, setGarden, getTimerState, getEnvironmen
     }
     if (onScreen) {
       renderer.draw(garden, getTimerState(), { selected, ghost, avatar:avatarMotion.visual(),
-        avatarSelected,dropPreview,moveFeedback:performance.now()<moveTargetUntil?moveFeedback:null,
+        avatarSelected,avatarReaction:performance.now()<avatarReactionUntil?"surprised":null,
+        dropPreview,moveFeedback:performance.now()<moveTargetUntil?moveFeedback:null,
         moveTarget:avatarSelected?avatarMotion.target():null,
         reduceMotion: reduceMotionQuery.matches, time: performance.now(), environment: getEnvironment() });
       paintMinimap(garden, force);
@@ -816,6 +820,7 @@ export function mountGarden({ getGarden, setGarden, getTimerState, getEnvironmen
       canvas.dataset.interaction="";
     }else if(gesture?.avatarHit&&!gesture.moved&&!editingLocked()){
       avatarSelected=true;
+      avatarReactionUntil=performance.now()+950;
       selected=null;
       setAction("inspect");
       announce("내 캐릭터 선택! WASD/방향키를 누르고 있거나 바닥을 터치해 이동해 보세요.");
@@ -952,7 +957,8 @@ export function mountGarden({ getGarden, setGarden, getTimerState, getEnvironmen
         }
       }
       renderer.draw(getGarden(),getTimerState(),{
-        selected,ghost,avatar:player,avatarSelected,dropPreview,
+        selected,ghost,avatar:player,avatarSelected,
+        avatarReaction:timestamp<avatarReactionUntil?"surprised":null,dropPreview,
         moveFeedback:timestamp<moveTargetUntil?moveFeedback:null,
         moveTarget:avatarSelected?avatarMotion.target():null,
         reduceMotion:reduceMotionQuery.matches,time:timestamp,environment:getEnvironment(),

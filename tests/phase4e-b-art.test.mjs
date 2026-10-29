@@ -111,7 +111,8 @@ test("full premium interface is linked, mobile-aware, self-contained, and cached
   assert.match(runner,/hiresArt\.avatar/);
   assert.match(runner,/hiresArt\.companion/);
   assert.match(runner,/hiresArt\.wildlife/);
-  assert.match(sw,/bloomodoro-cache-v17/);
+  // A previous phase must not block forward-compatible PWA cache updates.
+  assert.match(sw,/bloomodoro-cache-v\d+/);
   for(const asset of ["garden/hires-avatar.mjs","garden/hires-companions.mjs",
        "garden/hires-atlas.mjs","ui/b-theme.css","ui/flower-ornament.svg"]){
     assert.ok(sw.includes(asset),"Missing offline asset "+asset);

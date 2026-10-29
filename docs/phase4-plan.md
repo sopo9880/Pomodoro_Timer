@@ -106,3 +106,12 @@ This is an additional art-production follow-up because the previous Phase 4D 48�
 Acceptance includes 1 player character at 320×432 in all four directions, all 15 wearable SKUs continuing to change visible cosmetic layers, all six existing companions and fourteen ecology species illustrated at 256×256, enlarged world hits, CSS and scalable original botanical decorations on all four screens, illustrated avatar preview, companion/collection cards and focus hero, mobile visual readability, PWA offline precache, proper original species IDs and non-destructive garden save normalization. Keep fallback art while SVG images decode. Tests enforce no external asset requests, stable cache memory budget, and no change in earned focus/rewards.
 
 Scope excludes expensive hand-drawn pixel-perfect front/back/side sprite-sheet recreation, remote login and cloud sync. Art-quality acceptance remains unverified until actual visual review, and functional real-device testing remains post-release.
+
+
+## Phase 4F — actual raster game art, stage 1
+
+The main character image-file production workflow replaces procedural avatar art for available approved-reference poses. Assets live under `assets/art/avatar` with a JSON manifest listing every available pose and every missing view. A raster loader prioritizes authored PNGs for the default outfit, does not substitute that outfit for purchased customizations, and safely retains the former SVG fallback for unsupported directions or while loading.
+
+Stage 1 acceptance: transparent 224×280 idle/front, walk/right, surprised/front PNGs, real 345×406 portrait, mobile viewport smoothing, PWA v18 precache, data compatibility, image header+alpha tests, loader fallback tests and PR syntax+unit CI. Stage 2: complete painted directional movement and actual cosmetic variant atlases. Stage 3: real painted companion PNG sets. Stage 4: wildlife art, UI illustration and final art quality review.
+
+Full reference-fidelity in **all** states is not claimed until stages 2–4 are genuinely finished. This phase must not publish a release. Current `v1.0.0` remains intact.

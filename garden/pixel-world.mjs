@@ -8,6 +8,7 @@ import { createWildlifeEcology } from "./ecology.mjs";
 import { createWildlifeSpriteAtlas } from "./wildlife-art.mjs";
 import { createAvatarSpriteAtlas } from "./avatar-art.mjs";
 import { createHighResolutionAtlas } from "./hires-atlas.mjs";
+import { createRasterAvatarAtlas } from "./raster-art.mjs";
 import { WORLD_LANDMARKS } from "./world-map.mjs";
 
 // All artwork below is original, hand-authored pixel art (16x16 transparent sprites).
@@ -195,6 +196,7 @@ export function createPixelGardenRenderer(canvas) {
   const wildlifeArt = createWildlifeSpriteAtlas(document);
   const avatarArt = createAvatarSpriteAtlas(document);
   const hiresArt = createHighResolutionAtlas();
+  const rasterArt = createRasterAvatarAtlas();
   const companions = createCompanionSimulation(map);
   const ecology = createWildlifeEcology(map);
   let lastSimulationTime = null;
@@ -310,20 +312,32 @@ export function createPixelGardenRenderer(canvas) {
   function beginCompanionDrag(id){return companions.beginDrag(id);}
   function dragCompanion(id,x,y){return companions.dragTo(id,x,y);}
   function endCompanionDrag(id,accepted=false,point=null){return companions.endDrag(id,accepted,point);}
-  function drawAvatarSprite(avatar,garden,selected=false,{reducedMotion=false,time=0}={}){
+  function drawAvatarSprite(avatar,garden,selected=false,{reducedMotion=false,time=0,reaction=null}={}){
     const position=worldToScreen(avatar.x,avatar.y),tile=WORLD_SPEC.tileSize*camera.zoom;
-    // High-resolution B illustration is a separate 320x432 source asset.
-    const w=tile*2.08,h=w*432/320;
-    if(position.x<-w||position.y<-h||position.x>width+w||position.y>height+h)return;
     const walking=Boolean(avatar.moving);
     const frame=reducedMotion?0:walking?avatar.frame||0:Math.floor(time*1.8)%6;
-    const art=hiresArt.avatar(garden.avatar?.equipped,avatar.direction,walking?"walk":"idle",frame)
-      ||avatarArt.frame(garden.avatar?.equipped,avatar.direction,frame,walking?"walk":"idle");
+    const pose=walking?"walk":reaction==="surprised"?"surprised":"idle";
+    const raster=rasterArt.avatar(garden.avatar?.equipped,avatar.direction,pose);
+    // Use actual user-approved B reference artwork whenever a corresponding
+    // raster pose exists; remaining views retain the current SVG fallback.
+    const art=raster?.image ||
+      hiresArt.avatar(garden.avatar?.equipped,avatar.direction,pose,frame) ||
+      avatarArt.frame(garden.avatar?.equipped,avatar.direction,frame,walking?"walk":"idle");
+    const w=tile*2.08,h=w*(raster?.image?280/224:432/320);
+    if(position.x<-w||position.y<-h||position.x>width+w||position.y>height+h)return;
     ctx.save();
     ctx.fillStyle="rgba(22,38,28,.25)";
     ctx.beginPath();ctx.ellipse(position.x,position.y+tile*.02,w*.3,tile*.14,0,0,Math.PI*2);ctx.fill();
-    if(art?.src?.startsWith("data:image/svg+xml"))ctx.imageSmoothingEnabled=true;
-    ctx.drawImage(art,Math.round(position.x-w/2),Math.round(position.y-h*.91),Math.ceil(w),Math.ceil(h));
+    ctx.imageSmoothingEnabled=Boolean(raster)||Boolean(art?.src?.startsWith("data:image/svg+xml"));
+    if(raster?.flipX){
+      ctx.save();
+      ctx.translate(Math.round(position.x),0);
+      ctx.scale(-1,1);
+      ctx.drawImage(art,-Math.ceil(w)/2,Math.round(position.y-h*.97),Math.ceil(w),Math.ceil(h));
+      ctx.restore();
+    }else{
+      ctx.drawImage(art,Math.round(position.x-w/2),Math.round(position.y-h*.97),Math.ceil(w),Math.ceil(h));
+    }
     if(selected){
       ctx.strokeStyle="#ffeba2";ctx.lineWidth=2.5;
       ctx.beginPath();ctx.ellipse(position.x,position.y+tile*.04,tile*.72,tile*.21,0,0,Math.PI*2);ctx.stroke();
@@ -450,7 +464,7 @@ export function createPixelGardenRenderer(canvas) {
         continue;
       }
       if(actor.kind==="avatar"){
-        drawAvatarSprite(actor,garden,Boolean(options.avatarSelected),{reducedMotion,time});
+        drawAvatarSprite(actor,garden,Boolean(options.avatarSelected),{reducedMotion,time,reaction:options.avatarReaction});
         continue;
       }
       const def=findGardenItem(actor.itemId);
@@ -508,5 +522,5 @@ export function createPixelGardenRenderer(canvas) {
     getCompanionAt, getAvatarAt, getWildlifeAt, getLandmarkAt,
     beginCompanionDrag, dragCompanion, endCompanionDrag,
     getLifeStatus: () => ({friends:visibleFriends.length,wildlife:visibleWildlifeCount}),
-    map, terrainAtlas, flowerArt, friendArt, avatarArt, hiresArt, ecology };
+    map, terrainAtlas, flowerArt, friendArt, avatarArt, hiresArt, rasterArt, ecology };
 }
