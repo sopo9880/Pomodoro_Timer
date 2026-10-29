@@ -376,7 +376,8 @@ kbd{display:inline-block;padding:2px 5px;border:1px solid #b2ad86;border-radius:
  .game-app:not([data-active-screen="focus"]) .game-focus-hud .controls{margin:0;grid-template-columns:100px 33px 33px;align-items:center;}
  .game-app:not([data-active-screen="focus"]) .game-focus-hud .controls button{font-size:10px;padding:9px 3px;}
  .game-app:not([data-active-screen="focus"]) .game-focus-hud #miniTimerButton {display:none;}
- .game-app[data-active-screen="focus"] .game-focus-hud{margin-top:0;}
+ .game-app[data-active-screen="focus"] .game-focus-hud{order:1;margin-top:18px;}
+ .game-app[data-active-screen="focus"] .game-main{order:2;}
  .game-app[data-active-screen="focus"] .time-display{font-size:clamp(58px,12vw,85px);}
  .game-app[data-active-screen="focus"] .timer-ring{padding:17px 6px 20px;}
  .game-app:not([data-active-screen="focus"]){padding-bottom:calc(162px + env(safe-area-inset-bottom,0px));}
