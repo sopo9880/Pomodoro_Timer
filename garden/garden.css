@@ -137,3 +137,28 @@
   background:rgba(96,141,106,.13);color:#e3ebbf;
   font-size:10px;font-weight:850;
 }
+
+/* Phase 4C: four in-world collection tabs, custom avatar wardrobe and codex. */
+.garden-sidebar-tabs{grid-template-columns:repeat(4,minmax(0,1fr));gap:3px;padding:7px;}
+.garden-sidebar-tabs button{padding:9px 2px;font-size:10px;letter-spacing:-.04em;}
+.avatar-world-button{padding:7px 10px;border:1px solid #c4ba92;border-radius:6px;background:#365b45;color:#f9e8bc;font-weight:900;font-size:10px;white-space:nowrap;}
+.avatar-world-button[aria-pressed="true"]{background:#f1cd82;color:#294b38;border-color:#f9e4aa;}
+.avatar-closet-head{display:flex;align-items:center;gap:10px;margin:4px 0 11px;background:#e7d8b4;border:1px solid #d3ba8a;padding:10px;border-radius:9px;}
+.avatar-closet-head canvas{width:78px;height:92px;background:#9fbd9b;image-rendering:pixelated;border:2px solid #6b9675;border-radius:7px;flex:none;}
+.avatar-closet-head>div{display:grid;gap:4px;min-width:0;}
+.avatar-closet-head strong{font-size:14px;color:#3c6147;}
+.avatar-closet-head span{font-weight:900;color:#876a43;font-size:11px;}
+.avatar-closet-head small{color:#8f8a6e;font-size:10px;}
+.avatar-catalog{display:grid;gap:7px;}
+.avatar-shop-card{display:grid;gap:7px;padding:9px;border:1px solid #d5bf91;border-radius:8px;background:#fff8e6;}
+.avatar-shop-card .avatar-item-title{display:flex;justify-content:space-between;gap:5px;align-items:center;}
+.avatar-item-title strong{font-size:11px;color:#355f48;}
+.avatar-item-title span{font-size:10px;color:#a0804b;font-weight:800;white-space:nowrap;}
+.avatar-shop-card button{background:#4d7a57;color:#fff8dd;border:1px solid #356745;border-radius:5px;padding:7px 9px;font-size:10px;font-weight:900;}
+.avatar-shop-card button:disabled{background:#d8c7a2;color:#938973;border-color:#c3b58f;cursor:default;}
+.codex-intro{font-size:11px;line-height:1.7;color:#7c826a;margin:8px 3px 12px;}
+.codex-category{margin-bottom:10px;border:1px solid #d0b991;background:#fff5dd;border-radius:8px;overflow:hidden;}
+.codex-category summary{cursor:pointer;padding:9px 10px;background:#e8d5ab;color:#41604b;font-size:11px;font-weight:900;}
+.codex-items{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:5px;padding:8px;}
+.codex-item{padding:7px 6px;background:#f5e5c5;border:1px solid #e4cea6;border-radius:5px;font-size:9px;line-height:1.5;color:#52775c;}
+.codex-item.undiscovered{color:#9b957e;filter:grayscale(1);}
