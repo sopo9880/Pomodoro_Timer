@@ -21,10 +21,11 @@ test("upgrades v1 garden without losing decorations and rewards", () => {
   assert.ok(migrated.inventory.some((x) => x.itemId === "daisy-seed"));
 });
 
-test("catalog has decorations, plants and exactly three original companions", () => {
+test("catalog preserves original three companions and extends the collection", () => {
   assert.ok(GARDEN_ITEMS.some((item) => item.kind === "decor"));
   assert.ok(GARDEN_ITEMS.some((item) => item.kind === "plant"));
-  assert.deepEqual(GARDEN_COMPANIONS.map((item) => item.speciesId), ["sprout", "mushroom", "cat"]);
+  assert.deepEqual(GARDEN_COMPANIONS.slice(0, 3).map((item) => item.speciesId), ["sprout", "mushroom", "cat"]);
+  assert.deepEqual(GARDEN_COMPANIONS.slice(3).map((item) => item.speciesId), ["sparrow", "turtle", "fox"]);
 });
 
 test("purchasing spends sunshine exactly once and increases inventory", () => {

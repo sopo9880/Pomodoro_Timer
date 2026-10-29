@@ -92,3 +92,16 @@ Phase 4A builds six fully connected thematic tile-map regions **without moving t
 - Added topology, sprite cache, minimap, legacy-save compatibility, and renderer tests.
 
 See [docs/phase4-plan.md](docs/phase4-plan.md) for the release gate and remaining 4B/4C work. **Phase 4A is PR-only; do not publish a release until the entire Phase 4 is finished.**
+
+
+## 🐾 Phase 4B — companions, flowers and local wildlife (development only)
+
+Phase 4B extends the connected world without changing `bloomodoro-state-v3`, `GARDEN_SCHEMA_VERSION = 2`, plant planting timestamps or accumulated focus rewards.
+
+- **Six collectable original companions:** Moa (sprout), Mori (mushroom), Naru (cat), Lulu (sparrow), Toto (turtle), Hani (fox). Three new companions become recruitable at 12/20/35 cumulative focus hours. Their 32px sprite sheets include 4-facing walk, idle and personal activities. Transient companion agents navigate grid paths around ponds and decorations; animation does **not** change stored companion positions.
+- **Nine focus-grown flower types:** original Daisy, Rose and Tulip growth thresholds unchanged; new Clover (30m), Lavender (45m), Hydrangea (120m), Sunflower (150m), Lotus (160m) and Starflower (200m). Four existing growth stages are visualized by original 32px animated pixel assets. New seeds are unlocked by cumulative focus and grow only through **newly credited active focus** after planting.
+- **Fourteen original ambient wildlife species:** populated by zone, season, rain/snow and day/night. The ecology is local/offline, visual-only and capped at 20 simultaneous visible inhabitants; no simulated focus credits, hidden rewards or extra storage writes.
+- **Game interactions:** clicking a visible companion while not focusing shows a short, gentle greeting. The existing garden inventory and companion cards render the new species and their pixel-art thumbnails. Reduced-motion mode shows stationary original sprites.
+- **PWA:** all new modules are cached for offline use, and GitHub PR CI runs Node built-in tests and syntax validation.
+
+**Release gate:** 4B is PR-only. Phase 4C (encyclopedia, story interactions, data-recovery/multitab/offline QA and final polish) is **not** included. Formal publication remains deferred until the entire Phase 4 is approved.

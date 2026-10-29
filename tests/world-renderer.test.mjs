@@ -10,7 +10,7 @@ function fakeCanvas(doc, width=960, height=540) {
   const counts = { drawImage: 0, fillRect: 0 };
   const ctx = {
     setTransform() {}, clearRect() {}, save() {}, restore() {},
-    translate() {}, rotate() {}, beginPath() {}, ellipse() {},
+    translate() {}, rotate() {}, scale() {}, beginPath() {}, ellipse() {},
     fill() {}, stroke() {}, lineTo() {}, moveTo() {},
     strokeRect() {}, fillText() {},
     measureText(text) { return { width: text.length * 9 }; },

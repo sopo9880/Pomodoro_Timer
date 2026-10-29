@@ -33,11 +33,20 @@ export const GARDEN_ITEMS = Object.freeze([
   { id: "daisy-seed", name: "데이지 씨앗", kind: "plant", price: 2, sprite: "daisy", growSeconds: [0, 600, 1500, 3600], detail: "집중 60분에 완전히 피어나는 데이지" },
   { id: "rose-seed", name: "장미 씨앗", kind: "plant", price: 4, sprite: "rose", growSeconds: [0, 900, 2400, 5400], detail: "집중 90분에 피어나는 붉은 장미" },
   { id: "tulip-seed", name: "튤립 씨앗", kind: "plant", price: 3, sprite: "tulip", growSeconds: [0, 750, 1800, 4200], detail: "집중 70분에 피어나는 튤립" },
+  { id: "clover-seed", name: "네잎클로버 씨앗", kind: "plant", price: 2, sprite: "clover", growSeconds: [0, 300, 900, 1800], detail: "집중 30분에 자라는 네잎클로버" },
+  { id: "lavender-seed", name: "라벤더 씨앗", kind: "plant", price: 4, sprite: "lavender", growSeconds: [0, 420, 1320, 2700], detail: "집중 45분에 피어나는 라벤더", unlockAtSeconds: 7200 },
+  { id: "hydrangea-seed", name: "수국 씨앗", kind: "plant", price: 7, sprite: "hydrangea", growSeconds: [0, 900, 3600, 7200], detail: "집중 120분에 피어나는 풍성한 수국", unlockAtSeconds: 21600 },
+  { id: "sunflower-seed", name: "해바라기 씨앗", kind: "plant", price: 9, sprite: "sunflower", growSeconds: [0, 1200, 4200, 9000], detail: "집중 150분에 피어나는 커다란 해바라기", unlockAtSeconds: 43200 },
+  { id: "lotus-seed", name: "연꽃 씨앗", kind: "plant", price: 8, sprite: "lotus", growSeconds: [0, 1200, 4200, 9600], detail: "집중 160분에 피어나는 연못가 연꽃", unlockAtSeconds: 21600 },
+  { id: "starflower-seed", name: "별빛꽃 씨앗", kind: "plant", price: 12, sprite: "starflower", growSeconds: [0, 1500, 5100, 12000], detail: "집중 200분에 밤에도 빛나는 별빛꽃", unlockAtSeconds: 126000 },
 ]);
 export const GARDEN_COMPANIONS = Object.freeze([
   { speciesId: "sprout", name: "모아", description: "정원을 돌보는 새싹 친구", unlockAtSeconds: 0, sprite: "sprout" },
   { speciesId: "mushroom", name: "모리", description: "조용한 버섯 독서가", unlockAtSeconds: 2 * 3600, sprite: "mushroom" },
   { speciesId: "cat", name: "나루", description: "햇살을 좋아하는 고양이", unlockAtSeconds: 6 * 3600, sprite: "cat" },
+  { speciesId: "sparrow", name: "루루", description: "나뭇가지 위에서 노래하는 작은 참새", unlockAtSeconds: 12 * 3600, sprite: "sparrow" },
+  { speciesId: "turtle", name: "토토", description: "천천히 산책하는 연못 거북", unlockAtSeconds: 20 * 3600, sprite: "turtle" },
+  { speciesId: "fox", name: "하니", description: "별빛 언덕의 호기심 많은 여우", unlockAtSeconds: 35 * 3600, sprite: "fox" },
 ]);
 const STARTER_INVENTORY = Object.freeze([
   { itemId: "flower-bed", quantity: 2 },
@@ -104,7 +113,7 @@ export function normalizeGardenState(raw) {
     ? raw.inventory.filter((entry) => entry && findGardenItem(entry.itemId) && Number.isInteger(entry.quantity) && entry.quantity >= 0).slice(0, 1000).map(({ itemId, quantity }) => ({ itemId, quantity }))
     : base.inventory;
   const companions = Array.isArray(raw.companions)
-    ? raw.companions.filter((entry) => entry && typeof entry.id === "string" && findGardenCompanion(entry.speciesId)).slice(0, 3).map((entry) => ({
+    ? raw.companions.filter((entry) => entry && typeof entry.id === "string" && findGardenCompanion(entry.speciesId)).slice(0, GARDEN_COMPANIONS.length).map((entry) => ({
         id: entry.id, speciesId: entry.speciesId, affinity: nonNegative(entry.affinity), x: nonNegative(entry.x, 80), y: nonNegative(entry.y, 80),
       }))
     : base.companions;

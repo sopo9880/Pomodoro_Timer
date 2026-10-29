@@ -31,5 +31,10 @@ jobs:
           node --check garden/world-map.mjs
           node --check garden/tile-atlas.mjs
           node --check garden/minimap.mjs
+          node --check garden/companion-ai.mjs
+          node --check garden/companion-art.mjs
+          node --check garden/plant-art.mjs
+          node --check garden/ecology.mjs
+          node --check garden/wildlife-art.mjs
       - name: Run focus and garden unit tests
         run: node --test tests/*.test.mjs
