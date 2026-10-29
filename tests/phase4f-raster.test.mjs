@@ -52,7 +52,10 @@ test("4F: raster selection is explicit and never overwrites purchased clothing",
   assert.deepEqual(selectRasterAvatarAsset(original,"down","surprised"),
     {src:RASTER_AVATAR_ASSETS.surprised,flipX:false,pose:"surprised"});
   assert.equal(selectRasterAvatarAsset(original,"up","idle"),null);
-  assert.equal(selectRasterAvatarAsset(original,"right","idle"),null);
+  assert.deepEqual(selectRasterAvatarAsset(original,"left","idle"),
+    {src:RASTER_AVATAR_ASSETS.idle,flipX:true,pose:"idle"});
+  assert.deepEqual(selectRasterAvatarAsset(original,"right","idle"),
+    {src:RASTER_AVATAR_ASSETS.idle,flipX:false,pose:"idle"});
   assert.equal(selectRasterAvatarAsset({...original,hair:"hair-silver"},"down","walk"),null);
   assert.equal(selectRasterAvatarAsset({...original,outfit:"outfit-starlight"},"down","idle"),null);
   assert.equal(rasterAvatarPreviewUrl({...original,hat:"hat-flower"}),null);

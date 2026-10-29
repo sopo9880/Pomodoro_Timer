@@ -38,11 +38,10 @@ export function selectRasterAvatarAsset(equipped,direction="down",pose="idle"){
   if(pose==="walk"){
     return {src:RASTER_AVATAR_ASSETS.walk,flipX:facing==="left",pose:"walk"};
   }
-  if(facing==="down"){
-    return {src:RASTER_AVATAR_ASSETS.idle,flipX:false,pose:"idle"};
-  }
-  // Side-facing idle art does not exist. Returning null is intentional.
-  return null;
+  // Use the same approved B front pose as a temporary side-idle stand-in,
+  // rather than flashing to a completely different art style when a key lifts.
+  // The manifest marks side-specific idle sheets as unfinished.
+  return {src:RASTER_AVATAR_ASSETS.idle,flipX:facing==="left",pose:"idle"};
 }
 export function createRasterAvatarAtlas({
   ImageClass=globalThis.Image,
