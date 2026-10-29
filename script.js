@@ -171,6 +171,7 @@ function init() {
   restoreRunningTimer();
   gameShell = mountGameShell({
     getTimerState: () => ({ mode: state.mode, isRunning: state.isRunning }),
+    getDailyStats: () => state.dailyStats,
   });
   render();
   gardenInterface = mountGarden({
@@ -837,7 +838,7 @@ function renderMode() {
 }
 
 function renderControls() {
-  elements.startPauseButton.textContent = state.isRunning ? "일시정지" : "시작";
+  elements.startPauseButton.textContent = state.isRunning ? "Ⅱ 잠시 멈추기" : "▶ 시작하기";
   elements.autoAdvance.checked = state.autoAdvance;
   elements.soundEnabled.checked = state.soundEnabled;
   elements.vibrationEnabled.checked = state.vibrationEnabled;

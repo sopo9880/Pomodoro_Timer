@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { sanitizeWorldDisplayPreferences, resolveWorldDisplayPreferences } from "../ui/game-shell.mjs";
+import { sanitizeWorldDisplayPreferences, resolveWorldDisplayPreferences, buildWeekFocusSummary } from "../ui/game-shell.mjs";
 import { readFileSync } from "node:fs";
 
 test("invalid display preferences are sanitized, not passed to the renderer", () => {
@@ -41,4 +41,17 @@ test("PWA caches shell and original world art modules", () => {
   for (const path of ["ui/game-shell.mjs", "garden/pixel-world.mjs", "garden/garden.css", "styles.css"]) {
     assert.ok(sw.includes(path), "Missing offline asset " + path);
   }
+});
+
+
+test("journal summarizes the most recent seven LOCAL days with no old data leakage", () => {
+  const week = buildWeekFocusSummary({
+    "2026-10-28": { focusSeconds: 3600 },
+    "2026-10-29": { focusSeconds: 1800 },
+    "2026-10-19": { focusSeconds: 5400 },
+  }, new Date(2026, 9, 29, 12));
+  assert.equal(week.days.length, 7);
+  assert.equal(week.totalMinutes, 90);
+  assert.equal(week.days[6].day, "2026-10-29");
+  assert.equal(week.days[6].minutes, 30);
 });
