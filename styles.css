@@ -417,3 +417,14 @@ kbd{display:inline-block;padding:2px 5px;border:1px solid #b2ad86;border-radius:
 .week-bar{width:100%;background:linear-gradient(#8abc8b,#467f62);min-height:0;border-radius:4px 4px 0 0;box-shadow:inset -3px 0 0 rgba(19,77,48,.13);}
 .week-day.today .week-bar{background:linear-gradient(#f1d293,#c79051);}
 @media(max-width:560px){.journal-insights{padding:15px;}.week-chart{gap:3px;}.week-bar-track{height:90px;min-height:90px;}.journal-insights-heading h2{font-size:17px;}}
+
+/* Phase 4C local guest display; clearly marked as device-only. */
+.guest-identity{padding:5px 10px;border:1px solid #718d76;border-radius:7px;background:#2c4d3b;color:#bfe2ba;font-size:10px;font-weight:900;white-space:nowrap;}
+.topbar-gold small{font-size:9px;color:#ddbf83;letter-spacing:.05em;}
+.guest-profile-card{border:2px solid #a6bc97;border-radius:12px;padding:15px;background:#e4edcf;color:#375944;box-shadow:3px 4px 0 #142c23;}
+.guest-profile-card h2{margin:8px 0;font:900 21px Georgia,"Noto Serif KR",serif;}
+.guest-profile-card p,.guest-profile-card small{font-size:11px;line-height:1.8;color:#628269;display:block;}
+.guest-profile-card label{display:block;color:#48614f;font-size:11px;font-weight:900;margin:13px 0 5px;}
+.guest-profile-card input{width:100%;border:1px solid #9ab49a;border-radius:6px;background:#fffbee;color:#345841;padding:8px;}
+.guest-profile-card button{margin:8px 0 4px;background:#497b57;color:#fff5d8;border:1px solid #326546;padding:8px 11px;border-radius:5px;font-size:11px;font-weight:900;}
+@media(max-width:560px){.guest-identity{max-width:100px;overflow:hidden;text-overflow:ellipsis;padding:5px;font-size:9px;}.topbar-gold small{display:none;}}

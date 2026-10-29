@@ -1,5 +1,7 @@
 // Bloomodoro Pixel Garden — framework-independent shared Web / future Android domain.
 import { createWorldMap } from "./world-map.mjs";
+import { createAvatar, normalizeAvatar, createGuestProfile, normalizeGuestProfile,
+  createDiscoveryState, normalizeDiscovery, normalizeTimeWallet, timePointsEarnedBetween } from "./life-core.mjs";
 export const GARDEN_SCHEMA_VERSION = 2;
 export const WORLD_SPEC = Object.freeze({
   id: "bloomodoro-garden",
@@ -30,6 +32,18 @@ export const GARDEN_ITEMS = Object.freeze([
   { id: "little-tree", name: "사과나무", kind: "decor", price: 10, sprite: "little-tree", detail: "아기자기한 작은 과일나무", unlockAtSeconds: 6 * 3600 },
   { id: "wishing-well", name: "소원 우물", kind: "decor", price: 18, sprite: "wishing-well", detail: "숲속 서재의 오래된 이야기", unlockAtSeconds: 12 * 3600 },
   { id: "star-crystal", name: "별빛 수정", kind: "decor", price: 14, sprite: "star-crystal", detail: "밤하늘처럼 반짝이는 정원의 보물", unlockAtSeconds: 35 * 3600 },
+  { id: "stone-path", name: "작은 디딤돌", kind: "decor", price: 1, sprite: "stone-path", detail: "정원 바닥에 놓는 둥근 돌" },
+  { id: "campfire", name: "작은 모닥불", kind: "decor", price: 8, sprite: "campfire", detail: "쉬는 시간에 따뜻하게 빛나는 모닥불" },
+  { id: "tea-table", name: "티타임 테이블", kind: "decor", price: 7, sprite: "tea-table", detail: "친구들과 차를 마시는 아늑한 자리" },
+  { id: "mailbox", name: "숲속 우편함", kind: "decor", price: 4, sprite: "mailbox", detail: "작은 이야기 편지를 기다리는 우편함" },
+  { id: "mushroom-stool", name: "버섯 의자", kind: "decor", price: 5, sprite: "mushroom-stool", detail: "버섯 모양의 귀여운 작은 의자" },
+  { id: "flower-archway", name: "꽃 아치", kind: "decor", price: 11, sprite: "flower-archway", detail: "정원 입구를 장식하는 꽃 아치", unlockAtSeconds: 7200 },
+  { id: "garden-swing", name: "정원 그네", kind: "decor", price: 12, sprite: "garden-swing", detail: "작은 나무 그네", unlockAtSeconds: 21600 },
+  { id: "tiny-pond", name: "조약돌 물그릇", kind: "decor", price: 9, sprite: "tiny-pond", detail: "새들이 잠시 쉬어 가는 물그릇" },
+  { id: "birdbath", name: "새들의 목욕대", kind: "decor", price: 8, sprite: "birdbath", detail: "햇살을 머금은 새 목욕대" },
+  { id: "wind-chime", name: "바람 풍경", kind: "decor", price: 6, sprite: "wind-chime", detail: "숲바람이 불면 소리 날 듯한 풍경", unlockAtSeconds: 7200 },
+  { id: "wooden-lamp", name: "원목 산책등", kind: "decor", price: 7, sprite: "wooden-lamp", detail: "밤 산책을 도와주는 작은 등" },
+  { id: "star-bench", name: "별빛 벤치", kind: "decor", price: 17, sprite: "star-bench", detail: "별빛 언덕의 특별한 휴식 자리", unlockAtSeconds: 126000 },
   { id: "daisy-seed", name: "데이지 씨앗", kind: "plant", price: 2, sprite: "daisy", growSeconds: [0, 600, 1500, 3600], detail: "집중 60분에 완전히 피어나는 데이지" },
   { id: "rose-seed", name: "장미 씨앗", kind: "plant", price: 4, sprite: "rose", growSeconds: [0, 900, 2400, 5400], detail: "집중 90분에 피어나는 붉은 장미" },
   { id: "tulip-seed", name: "튤립 씨앗", kind: "plant", price: 3, sprite: "tulip", growSeconds: [0, 750, 1800, 4200], detail: "집중 70분에 피어나는 튤립" },
@@ -94,7 +108,10 @@ export function createGardenState() {
     schemaVersion: GARDEN_SCHEMA_VERSION,
     worldId: WORLD_SPEC.id,
     progress: { focusSeconds: 0, sunshineEarned: 0, petalsEarned: 0 },
-    wallet: { sunshine: 0, petals: 0 },
+    wallet: { sunshine: 0, petals: 0, timePoints: 0 },
+    guest: createGuestProfile(),
+    avatar: createAvatar(),
+    discovery: createDiscoveryState(),
     unlockedZones: ["central"],
     inventory: STARTER_INVENTORY.map((item) => ({ ...item })),
     placements: [],
@@ -127,7 +144,14 @@ export function normalizeGardenState(raw) {
   return {
     ...base,
     progress: { focusSeconds, sunshineEarned: earnedSunshine, petalsEarned: earnedPetals },
-    wallet: { sunshine: Math.floor(nonNegative(raw.wallet?.sunshine, earnedSunshine)), petals: Math.floor(nonNegative(raw.wallet?.petals, earnedPetals)) },
+    wallet: {
+      sunshine: Math.floor(nonNegative(raw.wallet?.sunshine, earnedSunshine)),
+      petals: Math.floor(nonNegative(raw.wallet?.petals, earnedPetals)),
+      timePoints: normalizeTimeWallet(raw.wallet, focusSeconds),
+    },
+    guest: normalizeGuestProfile(raw.guest),
+    avatar: normalizeAvatar(raw.avatar),
+    discovery: normalizeDiscovery(raw.discovery),
     unlockedZones: WORLD_SPEC.zones.filter((zone) => focusSeconds >= zone.unlockAtSeconds).map((zone) => zone.id),
     inventory,
     placements: normalizeObjects(raw.placements, "decor"),
@@ -142,10 +166,15 @@ export function creditGardenFocus(garden, deltaSeconds) {
   const next = previous + deltaSeconds;
   const sunshineDelta = Math.floor(next / 300) - Math.floor(previous / 300);
   const petalsDelta = Math.floor(next / 1500) - Math.floor(previous / 1500);
+  const timeDelta = timePointsEarnedBetween(previous,next);
   return {
     ...garden,
     progress: { focusSeconds: next, sunshineEarned: garden.progress.sunshineEarned + sunshineDelta, petalsEarned: garden.progress.petalsEarned + petalsDelta },
-    wallet: { sunshine: garden.wallet.sunshine + sunshineDelta, petals: garden.wallet.petals + petalsDelta },
+    wallet: {
+      sunshine: garden.wallet.sunshine + sunshineDelta,
+      petals: garden.wallet.petals + petalsDelta,
+      timePoints: (garden.wallet.timePoints || 0) + timeDelta,
+    },
     unlockedZones: WORLD_SPEC.zones.filter((zone) => next >= zone.unlockAtSeconds).map((zone) => zone.id),
     companions: garden.companions.map((companion) => ({
       ...companion, affinity: nonNegative(companion.affinity) + petalsDelta,
@@ -180,12 +209,14 @@ export function purchaseGardenItem(garden, itemId) {
   const item = findGardenItem(itemId);
   if (!item) throw new Error("존재하지 않는 아이템입니다.");
   if (garden.progress.focusSeconds < (item.unlockAtSeconds || 0)) throw new Error("집중 시간을 쌓으면 구매할 수 있는 아이템입니다.");
-  if (garden.wallet.sunshine < item.price) throw new Error("햇살이 부족합니다.");
+  // Existing garden prices retain their former 5-minutes-per-sunshine value.
+  const cost = item.price * 5;
+  if ((garden.wallet.timePoints || 0) < cost) throw new Error("시간 포인트가 부족합니다.");
   const inventory = garden.inventory.map((entry) => ({ ...entry }));
   const owned = inventory.find((entry) => entry.itemId === itemId);
   if (owned) owned.quantity += 1;
   else inventory.push({ itemId, quantity: 1 });
-  return { ...garden, wallet: { ...garden.wallet, sunshine: garden.wallet.sunshine - item.price }, inventory };
+  return { ...garden, wallet: { ...garden.wallet, timePoints: garden.wallet.timePoints - cost }, inventory };
 }
 function checkUniqueId(garden, id) {
   if (typeof id !== "string" || !id || garden.placements.some((x) => x.id === id) || garden.plants.some((x) => x.id === id)) throw new Error("중복되거나 잘못된 아이템 ID입니다.");

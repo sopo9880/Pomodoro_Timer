@@ -97,8 +97,10 @@ function newState(companion, clock) {
     id:companion.id, speciesId:companion.speciesId,
     x:valid(companion.x)?companion.x:80,
     y:valid(companion.y)?companion.y:80,
+    savedX:valid(companion.x)?companion.x:80,
+    savedY:valid(companion.y)?companion.y:80,
     direction:"down", activity:"idle",
-    route:[], decision:0,
+    route:[], decision:0, held:false,grabOrigin:null,reaction:null,reactionUntil:0,
     nextActionAt:clock+1.5, pace:profile.pace,
   };
 }
@@ -111,7 +113,16 @@ export function createCompanionSimulation(map) {
     for(const companion of garden.companions || []){
       if(!companion?.id || !COMPANION_PERSONALITIES[companion.speciesId])continue;
       desired.add(companion.id);
-      if(!agents.has(companion.id)) agents.set(companion.id,newState(companion,clock));
+      if(!agents.has(companion.id))agents.set(companion.id,newState(companion,clock));
+      else {
+        const agent=agents.get(companion.id);
+        if(!agent.held&&(agent.savedX!==companion.x||agent.savedY!==companion.y)){
+          agent.x=companion.x;agent.y=companion.y;
+          agent.savedX=companion.x;agent.savedY=companion.y;
+          agent.route=[];agent.activity="idle";
+          agent.nextActionAt=clock+1.5;
+        }
+      }
     }
     for(const id of agents.keys())if(!desired.has(id))agents.delete(id);
   }
@@ -148,6 +159,9 @@ export function createCompanionSimulation(map) {
     }
     clock+=dt;
     for(const agent of agents.values()){
+      if(agent.held)continue;
+      if(agent.reaction&&clock<agent.reactionUntil)continue;
+      if(agent.reaction&&clock>=agent.reactionUntil){agent.reaction=null;agent.nextActionAt=clock+1;}
       if(!agent.route.length && clock>=agent.nextActionAt)selectAction(agent,garden,environment);
       if(agent.route.length && dt>0){
         const destination=agent.route[0],distance=Math.hypot(destination.x-agent.x,destination.y-agent.y);
@@ -171,8 +185,12 @@ export function createCompanionSimulation(map) {
   function snapshot(){
     return [...agents.values()].map(agent=>({
       id:agent.id,speciesId:agent.speciesId,
-      x:agent.x,y:agent.y,activity:agent.activity,direction:agent.direction,
-      frame:Math.floor(clock*(agent.activity==="walk"?7:3))%4,
+      x:agent.x,y:agent.y,
+      activity:agent.held?"picked":agent.reaction?"react":agent.activity,
+      reaction:agent.held?(Math.floor(clock*7)%3===0?"surprised":"wiggle"):agent.reaction,
+      held:agent.held,
+      direction:agent.direction,
+      frame:Math.floor(clock*(agent.held?9:agent.activity==="walk"?7:3))%4,
       greeting:COMPANION_PERSONALITIES[agent.speciesId].greeting,
     }));
   }
@@ -180,5 +198,33 @@ export function createCompanionSimulation(map) {
     return snapshot().filter(agent=>Math.hypot(agent.x-x,agent.y-y)<=radius)
       .sort((a,b)=>Math.hypot(a.x-x,a.y-y)-Math.hypot(b.x-x,b.y-y))[0] || null;
   }
-  return {advance,snapshot,getAt,getCount:()=>agents.size};
+  function beginDrag(id){
+    const agent=agents.get(id);
+    if(!agent)return false;
+    if(agent.held)return true;
+    agent.grabOrigin={x:agent.x,y:agent.y};
+    agent.held=true;agent.route=[];agent.reaction="surprised";
+    agent.nextActionAt=clock+4;
+    return true;
+  }
+  function dragTo(id,x,y){
+    const agent=agents.get(id);
+    if(!agent?.held||!Number.isFinite(x)||!Number.isFinite(y))return false;
+    agent.x=Math.max(0,Math.min(map.width-.01,x));
+    agent.y=Math.max(0,Math.min(map.height-.01,y));
+    return true;
+  }
+  function endDrag(id,accepted=false,target=null){
+    const agent=agents.get(id);
+    if(!agent?.held)return false;
+    const destination=accepted&&target&&Number.isFinite(target.x)&&Number.isFinite(target.y)
+      ? target:agent.grabOrigin;
+    agent.x=destination.x;agent.y=destination.y;
+    agent.held=false;agent.grabOrigin=null;agent.route=[];
+    agent.reaction=accepted?"happy":"surprised";
+    agent.reactionUntil=clock+2;
+    agent.nextActionAt=clock+3.1;
+    return true;
+  }
+  return {advance,snapshot,getAt,beginDrag,dragTo,endDrag,getCount:()=>agents.size};
 }

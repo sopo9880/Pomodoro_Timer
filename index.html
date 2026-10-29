@@ -26,7 +26,8 @@
     </a>
     <div class="topbar-center"><span class="world-status-dot"></span><span id="worldClock">나의 작은 세상</span><span class="topbar-divider">·</span><span id="worldSeasonLabel">아늑한 정원</span></div>
     <div class="topbar-right">
-      <span class="topbar-gold" title="모은 햇살"><span aria-hidden="true">✦</span> <strong id="gardenSunshine">0</strong></span>
+      <span class="guest-identity" id="guestNickname" title="계정 없이 이 기기에 저장되는 게스트 모드">◇ 게스트</span>
+      <span class="topbar-gold" title="적립한 집중 시간 포인트 · 1분당 1포인트"><span aria-hidden="true">◷</span> <strong id="gardenSunshine">0</strong><small>TP</small></span>
       <span class="topbar-petals" title="모은 꽃잎"><span aria-hidden="true">✿</span> <strong id="gardenPetals">0</strong></span>
       <button type="button" class="topbar-settings screen-link icon-action" data-screen="settings" aria-label="설정 열기" title="설정">⚙</button>
     </div>
@@ -68,7 +69,7 @@
           </div>
           <div class="garden-map-panel">
             <div class="garden-canvas-frame">
-              <canvas id="gardenWorld" width="960" height="540" tabindex="0" aria-label="픽셀 정원. 드래그하여 이동하고 휠 또는 핀치로 확대합니다. 키보드 방향키로 이동할 수 있습니다."></canvas>
+              <canvas id="gardenWorld" width="960" height="540" tabindex="0" aria-label="픽셀 정원. 드래그하여 카메라 이동, 캐릭터는 드래그 드롭, 내 아바타 선택 시 WASD/화살표와 바닥 클릭으로 이동합니다."></canvas>
               <div class="world-map-overlay-top">
                 <div class="world-map-message"><span class="pixel-bullet">✿</span> <strong>어서 와요!</strong><span>여기는 당신의 작은 숲속 마을이에요.</span></div>
                 <div class="garden-camera-tools" role="group" aria-label="정원 확대·축소"><button type="button" id="gardenZoomOut" aria-label="축소">−</button><button type="button" id="gardenZoomIn" aria-label="확대">＋</button><button type="button" id="gardenCenter">◎</button></div>
@@ -89,6 +90,7 @@
           </div>
           <div class="world-action-bar">
             <div class="garden-life-line" id="gardenLifeStatus" aria-live="off">♡ 산책 중인 친구 1명 · 자연 생물 0마리</div>
+            <button type="button" id="avatarSelectButton" class="avatar-world-button" aria-pressed="false">♙ 내 캐릭터 조작</button>
             <div class="garden-feedback" id="gardenMessage" role="status" aria-live="polite">🌱 오늘도 작은 꽃 한 송이를 키워볼까요?</div>
             <div class="garden-edit-actions"><button type="button" id="gardenUndo" disabled>↶ 되돌리기</button><button type="button" id="gardenRedo" disabled>↷ 다시 하기</button><button type="button" id="gardenCancelPlacement" hidden>선택 취소</button></div>
           </div>
@@ -98,10 +100,22 @@
           <div class="dock-head"><div><span class="eyebrow">YOUR COLLECTION</span><h2>나의 보관함</h2></div><span class="dock-stars" aria-hidden="true">✦ ✧</span></div>
           <div class="garden-sidebar-tabs" role="tablist" aria-label="보관함 종류">
             <button type="button" role="tab" id="gardenTabInventory" aria-controls="gardenInventory" aria-selected="true">✿ 꾸미기</button>
-            <button type="button" role="tab" id="gardenTabCompanions" aria-controls="gardenCompanions" aria-selected="false">♡ 친구들</button>
+            <button type="button" role="tab" id="gardenTabCompanions" aria-controls="gardenCompanions" aria-selected="false">♡ 친구</button>
+            <button type="button" role="tab" id="gardenTabAvatar" aria-controls="gardenAvatar" aria-selected="false">♙ 옷장</button>
+            <button type="button" role="tab" id="gardenTabCodex" aria-controls="gardenCodex" aria-selected="false">▤ 도감</button>
           </div>
           <div class="garden-sidebar-scroll" id="gardenInventory" role="tabpanel" aria-labelledby="gardenTabInventory"></div>
           <div class="garden-sidebar-scroll" id="gardenCompanions" role="tabpanel" aria-labelledby="gardenTabCompanions" hidden></div>
+          <div class="garden-sidebar-scroll" id="gardenAvatar" role="tabpanel" aria-labelledby="gardenTabAvatar" hidden>
+            <div class="avatar-closet-head"><canvas id="avatarPreview" width="120" height="140" aria-label="현재 의상을 입은 사용자 캐릭터" role="img"></canvas>
+              <div><strong>나의 여행자</strong><span>◷ <b id="avatarWallet">0</b> 시간 포인트</span><small>집중 1분 = 1포인트</small></div>
+            </div>
+            <div class="avatar-catalog" id="avatarWearables"></div>
+          </div>
+          <div class="garden-sidebar-scroll" id="gardenCodex" role="tabpanel" aria-labelledby="gardenTabCodex" hidden>
+            <div class="codex-intro">정원에서 발견한 식물과 친구, 생물을 모아보세요. 발견하지 않은 항목은 비밀로 표시됩니다.</div>
+            <div id="gardenCodexEntries" class="garden-codex-entries"></div>
+          </div>
           <div class="dock-footer">
             <div class="garden-backup-tools"><button type="button" id="gardenExport">↓ 정원 백업</button><button type="button" id="gardenImportButton">↑ 복원</button><input type="file" id="gardenImportFile" accept=".json,application/json" hidden aria-label="정원 백업 파일"/></div>
             <p>♥ 정원을 꾸미는 건 쉬는 시간에 해보세요.</p>
@@ -302,7 +316,14 @@
             </div>
           </section>
         </div>
-        <aside class="settings-side-column"><div class="install-card"><div class="install-medallion">✿</div><span class="eyebrow">TAKE YOUR GARDEN WITH YOU</span><h2>나의 정원을<br/>어디서나</h2><strong id="installStatus">브라우저에서 바로 이용할 수 있어요</strong><p class="install-hint" id="installHint">홈 화면에 추가하면 앱처럼 사용할 수 있어요.</p><button class="action-button secondary install-button" id="installButton" type="button" hidden>홈 화면에 설치하기</button></div><p class="settings-safe-note">데이터는 이 기기에 보관됩니다. 정원은 별도로 JSON 백업할 수 있어요.</p></aside>
+        <aside class="settings-side-column"><div class="install-card"><div class="install-medallion">✿</div><span class="eyebrow">TAKE YOUR GARDEN WITH YOU</span><h2>나의 정원을<br/>어디서나</h2><strong id="installStatus">브라우저에서 바로 이용할 수 있어요</strong><p class="install-hint" id="installHint">홈 화면에 추가하면 앱처럼 사용할 수 있어요.</p><button class="action-button secondary install-button" id="installButton" type="button" hidden>홈 화면에 설치하기</button></div><div class="guest-profile-card">
+          <span class="eyebrow">LOCAL GUEST PROFILE</span><h2>게스트로 시작하기</h2>
+          <p>로그인 없이 바로 사용합니다. 모든 데이터는 현재 브라우저에 저장되므로 기기 이동 전 JSON 백업을 권장해요.</p>
+          <label for="guestDisplayName">게스트 이름</label><input id="guestDisplayName" maxlength="22" type="text" placeholder="정원 여행자" />
+          <button type="button" id="guestSaveButton">이름 저장</button>
+          <small>MongoDB 계정 연동은 향후 별도 확장 예정이며, 현재 서버 로그인은 제공하지 않습니다.</small>
+        </div>
+        <p class="settings-safe-note">데이터는 이 기기에 보관됩니다. 정원은 별도로 JSON 백업할 수 있어요.</p></aside>
       </div>
     </section>
   </main>

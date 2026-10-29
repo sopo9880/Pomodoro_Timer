@@ -60,3 +60,14 @@ After PR CI starts, report the Actions link and end the development turn. On the
 - Core catalog adds six new plants and three new companions, but the save format remains `GARDEN_SCHEMA_VERSION=2`. Existing item IDs, inventories, planted timestamps, user placement coordinates, accumulated focus and wallet amounts are preserved.
 - Node tests must verify all new plant thresholds, friend recruitment/legacy saves, obstacle navigation, species conditions, sprite-atlas caching, data persistence and visual test mocks.
 - Required later: browser visual validation on desktop/mobile and genuine multi-tab / offline validation in 4C. A release is not authorized by this PR.
+
+
+## Phase 4C feature implementation (pending PR CI and browser QA)
+
+- Keeps `bloomodoro-state-v3` and garden `GARDEN_SCHEMA_VERSION=2`; optional additive `avatar`, `guest`, `discovery` and `wallet.timePoints` fields normalize safely from prior data.
+- Time points are minted only on actual credited focus minute boundaries, never on wall-clock time or user gestures. Historical sunshine spending power converts at 5 TP/sunshine only when a pre-4C save has no `timePoints` field. Once created, the spendable balance remains authoritative, including zero; reopening does not mint points again. Old items/inventories, petals and total focus stay intact.
+- Player avatar has a 15-item wearable catalog (four slots), original art and direct user motion separate from autonomous companion AI. Companions support touch/mouse drag only, with temporary emotional animations, safe placement validation and persistence on accepted drops.
+- Codex holds wildlife and landmark first encounters, deduces owned plants/decorations/companions from actual save to prevent duplicate counters, and retains unearned discoveries as silhouettes.
+- Local guest identity requires no server and never promises remote login. MongoDB and cross-device sync remain out of Phase 4.
+- Phase 4 final release should happen **only once** after PR CI, merged deploy tests, existing-save and guest-backup restoration, and user approval. Browser/device functional validation remains the user's post-release responsibility per project rules; before release perform automated tech checks and manual visual QA where accessible.
+- Revisit multi-tab state conflicts and PWA offline storage behavior as explicit QA risks; PR CI unit tests alone do not prove real-browser consistency. Existing `v1.0.0` GitHub Release is preserved.

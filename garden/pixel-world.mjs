@@ -6,6 +6,8 @@ import { createCompanionSpriteAtlas } from "./companion-art.mjs";
 import { createPlantSpriteAtlas } from "./plant-art.mjs";
 import { createWildlifeEcology } from "./ecology.mjs";
 import { createWildlifeSpriteAtlas } from "./wildlife-art.mjs";
+import { createAvatarSpriteAtlas } from "./avatar-art.mjs";
+import { WORLD_LANDMARKS } from "./world-map.mjs";
 
 // All artwork below is original, hand-authored pixel art (16x16 transparent sprites).
 // Drawing is nearest-neighbor and the canvas renders only visible tiles, not the entire world.
@@ -135,6 +137,20 @@ const SPRITES = {
     "...BTTBBTTTB....","...BTTBBTTTB....","...BBBBBBBBBB...","................","................","................",
   ],
 };
+
+// Original block-painted 16px decorations for the extended Phase 4C catalog.
+function makeDecorSprite(blocks){
+  const pixels=Array.from({length:16},()=>Array(16).fill("."));
+  for(const [x,y,w,h,pigment] of blocks){
+    for(let py=y;py<Math.min(16,y+h);py++)for(let px=x;px<Math.min(16,x+w);px++){
+      if(py>=0&&px>=0)pixels[py][px]=pigment;
+    }
+  }
+  return pixels.map(row=>row.join(""));
+}
+const EXTENDED_DECOR={"stone-path":[[3,7,11,6,"S"],[4,8,8,3,"E"],[6,7,6,2,"C"],[2,11,12,2,"K"]],"campfire":[[2,10,12,3,"B"],[4,9,8,2,"H"],[6,4,4,8,"Y"],[7,2,3,7,"R"],[5,7,2,6,"O"],[10,7,2,6,"O"]],"tea-table":[[3,7,10,3,"H"],[2,9,12,2,"B"],[4,11,2,4,"B"],[10,11,2,4,"B"],[6,4,4,3,"C"],[7,3,2,2,"W"]],"mailbox":[[7,9,3,6,"B"],[4,5,9,6,"R"],[5,3,7,3,"H"],[4,10,9,2,"K"],[6,7,4,2,"W"]],"mushroom-stool":[[6,8,5,6,"C"],[3,5,11,5,"P"],[5,3,7,4,"R"],[5,6,3,2,"W"],[10,5,3,2,"W"],[6,14,5,2,"B"]],"flower-archway":[[3,6,3,10,"B"],[12,6,3,10,"B"],[4,4,10,3,"G"],[5,2,8,3,"L"],[3,5,3,3,"P"],[12,5,3,3,"P"],[7,1,4,4,"Y"]],"garden-swing":[[3,3,2,12,"B"],[12,3,2,12,"B"],[3,2,11,3,"H"],[6,5,1,7,"C"],[11,5,1,7,"C"],[6,11,6,3,"B"],[7,12,4,2,"T"]],"tiny-pond":[[2,9,12,5,"S"],[4,8,9,5,"U"],[4,10,6,2,"W"],[2,12,11,2,"K"],[6,7,4,2,"G"]],"birdbath":[[7,8,3,7,"S"],[3,6,11,4,"S"],[4,7,9,2,"U"],[5,5,3,2,"W"],[6,14,5,2,"S"],[11,3,3,4,"G"]],"wind-chime":[[7,2,2,12,"B"],[4,4,9,2,"H"],[5,6,2,6,"Y"],[8,6,2,8,"C"],[11,6,2,5,"Y"],[7,13,4,2,"W"]],"wooden-lamp":[[7,4,3,12,"B"],[5,3,7,6,"K"],[6,4,5,4,"Y"],[7,5,3,2,"W"],[4,2,9,2,"H"],[5,14,6,2,"B"]],"star-bench":[[3,7,11,4,"D"],[4,8,9,2,"E"],[3,11,2,5,"B"],[12,11,2,5,"B"],[6,3,4,5,"Y"],[7,2,2,7,"W"]]};
+for(const [name,blocks] of Object.entries(EXTENDED_DECOR))SPRITES[name]=makeDecorSprite(blocks);
+
 const imageCache = new Map();
 function imageForSprite(kind) {
   if (imageCache.has(kind)) return imageCache.get(kind);
@@ -176,11 +192,14 @@ export function createPixelGardenRenderer(canvas) {
   const friendArt = createCompanionSpriteAtlas(document);
   const flowerArt = createPlantSpriteAtlas(document);
   const wildlifeArt = createWildlifeSpriteAtlas(document);
+  const avatarArt = createAvatarSpriteAtlas(document);
   const companions = createCompanionSimulation(map);
   const ecology = createWildlifeEcology(map);
   let lastSimulationTime = null;
   let visibleFriends = [];
   let visibleWildlifeCount = 0;
+  let visibleWildlife = [];
+  let avatarVisual = null;
   let width = 1;
   let height = 1;
   function resize() {
@@ -269,6 +288,39 @@ export function createPixelGardenRenderer(canvas) {
     return visibleFriends.filter(c=>Math.hypot(c.x-x,c.y-y)<=radius)
       .sort((a,b)=>Math.hypot(a.x-x,a.y-y)-Math.hypot(b.x-x,b.y-y))[0] || null;
   }
+  function getAvatarAt(x,y,radius=1.2){
+    const avatar=avatarVisual;
+    return avatar&&Math.hypot(avatar.x-x,avatar.y-y)<radius ? avatar:null;
+  }
+  function getWildlifeAt(x,y,radius=.65){
+    return visibleWildlife.filter(a=>Math.hypot(a.x-x,a.y-y)<radius)
+      .sort((a,b)=>Math.hypot(a.x-x,a.y-y)-Math.hypot(b.x-x,b.y-y))[0]||null;
+  }
+  function getLandmarkAt(x,y){
+    return WORLD_LANDMARKS.filter(a=>Math.hypot(a.x-x,a.y-y)<Math.max(1.1,a.width*.42))
+      .sort((a,b)=>Math.hypot(a.x-x,a.y-y)-Math.hypot(b.x-x,b.y-y))[0]||null;
+  }
+  function beginCompanionDrag(id){return companions.beginDrag(id);}
+  function dragCompanion(id,x,y){return companions.dragTo(id,x,y);}
+  function endCompanionDrag(id,accepted=false,point=null){return companions.endDrag(id,accepted,point);}
+  function drawAvatarSprite(avatar,garden,selected=false){
+    const position=worldToScreen(avatar.x,avatar.y),tile=WORLD_SPEC.tileSize*camera.zoom;
+    const w=tile*1.35,h=tile*2.02;
+    if(position.x<-w||position.y<-h||position.x>width+w||position.y>height+h)return;
+    const image=avatarArt.frame(garden.avatar?.equipped,avatar.direction,avatar.frame||0);
+    ctx.save();
+    ctx.fillStyle="rgba(20,39,28,.21)";
+    ctx.beginPath();ctx.ellipse(position.x,position.y+h*.06,w*.33,h*.07,0,0,Math.PI*2);ctx.fill();
+    ctx.drawImage(image,Math.round(position.x-w/2),Math.round(position.y-h*.84),w,h);
+    if(selected){
+      ctx.strokeStyle="#fff1a0";ctx.lineWidth=2;
+      ctx.strokeRect(position.x-w*.55,position.y-h*.88,w*1.1,h*.98);
+      ctx.font="bold 10px system-ui";
+      ctx.textAlign="center";
+      ctx.fillStyle="#ffedb6";ctx.fillText("나",position.x,position.y-h*.97);
+    }
+    ctx.restore();
+  }
   function draw(garden, timer, options = {}) {
     if (!garden) return;
     resize();
@@ -339,11 +391,14 @@ export function createPixelGardenRenderer(canvas) {
       reducedMotion,
     });
     visibleWildlifeCount = wildlife.length;
+    visibleWildlife = wildlife;
+    avatarVisual = options.avatar || garden.avatar;
     const actors = [
       ...garden.placements.map(object=>({ ...object,kind:"decor" })),
       ...garden.plants.map(object=>({ ...object,kind:"plant" })),
       ...visibleFriends.map(object=>({ ...object,kind:"companion" })),
       ...wildlife.map(object=>({ ...object,kind:"wildlife" })),
+      ...(avatarVisual?[{...avatarVisual,id:"player-avatar",kind:"avatar"}]:[]),
     ].filter(actor=>actor.x>visible.left-3&&actor.x<visible.right+3&&
       actor.y>visible.top-3&&actor.y<visible.bottom+3)
      .sort((a,b)=>a.y-b.y);
@@ -354,7 +409,18 @@ export function createPixelGardenRenderer(canvas) {
       }
       if (actor.kind === "companion") {
         drawImageSprite(friendArt.frame(actor.speciesId,actor.direction,actor.activity,actor.frame),
-          actor.x,actor.y,1.9);
+          actor.x,actor.y,actor.held?2.25:1.9);
+        if(actor.held||actor.reaction){
+          const pos=worldToScreen(actor.x,actor.y);
+          ctx.save();ctx.fillStyle="#fff0bb";ctx.textAlign="center";ctx.font="bold 15px system-ui";
+          ctx.fillText(actor.held?(actor.reaction==="surprised"?"!?":"!!"):(actor.reaction==="happy"?"♥":"!"),
+            Math.round(pos.x),Math.round(pos.y-tile*1.1));
+          ctx.restore();
+        }
+        continue;
+      }
+      if(actor.kind==="avatar"){
+        drawAvatarSprite(actor,garden,Boolean(options.avatarSelected));
         continue;
       }
       const def=findGardenItem(actor.itemId);
@@ -405,7 +471,9 @@ export function createPixelGardenRenderer(canvas) {
       else drawSprite(options.ghost.sprite,options.ghost.x,options.ghost.y,1.5,options.ghost.rotation||0,.65);
     }
   }
-  return { camera, resize, worldToScreen, screenToWorld, getViewportWorldRect, setCamera, panPixels, zoomBy, draw, getCompanionAt,
+  return { camera, resize, worldToScreen, screenToWorld, getViewportWorldRect, setCamera, panPixels, zoomBy, draw,
+    getCompanionAt, getAvatarAt, getWildlifeAt, getLandmarkAt,
+    beginCompanionDrag, dragCompanion, endCompanionDrag,
     getLifeStatus: () => ({friends:visibleFriends.length,wildlife:visibleWildlifeCount}),
-    map, terrainAtlas, flowerArt, friendArt, ecology };
+    map, terrainAtlas, flowerArt, friendArt, avatarArt, ecology };
 }
