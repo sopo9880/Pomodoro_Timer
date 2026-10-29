@@ -137,6 +137,20 @@ const SPRITES = {
     "...BTTBBTTTB....","...BTTBBTTTB....","...BBBBBBBBBB...","................","................","................",
   ],
 };
+
+// Original block-painted 16px decorations for the extended Phase 4C catalog.
+function makeDecorSprite(blocks){
+  const pixels=Array.from({length:16},()=>Array(16).fill("."));
+  for(const [x,y,w,h,pigment] of blocks){
+    for(let py=y;py<Math.min(16,y+h);py++)for(let px=x;px<Math.min(16,x+w);px++){
+      if(py>=0&&px>=0)pixels[py][px]=pigment;
+    }
+  }
+  return pixels.map(row=>row.join(""));
+}
+const EXTENDED_DECOR={"stone-path":[[3,7,11,6,"S"],[4,8,8,3,"E"],[6,7,6,2,"C"],[2,11,12,2,"K"]],"campfire":[[2,10,12,3,"B"],[4,9,8,2,"H"],[6,4,4,8,"Y"],[7,2,3,7,"R"],[5,7,2,6,"O"],[10,7,2,6,"O"]],"tea-table":[[3,7,10,3,"H"],[2,9,12,2,"B"],[4,11,2,4,"B"],[10,11,2,4,"B"],[6,4,4,3,"C"],[7,3,2,2,"W"]],"mailbox":[[7,9,3,6,"B"],[4,5,9,6,"R"],[5,3,7,3,"H"],[4,10,9,2,"K"],[6,7,4,2,"W"]],"mushroom-stool":[[6,8,5,6,"C"],[3,5,11,5,"P"],[5,3,7,4,"R"],[5,6,3,2,"W"],[10,5,3,2,"W"],[6,14,5,2,"B"]],"flower-archway":[[3,6,3,10,"B"],[12,6,3,10,"B"],[4,4,10,3,"G"],[5,2,8,3,"L"],[3,5,3,3,"P"],[12,5,3,3,"P"],[7,1,4,4,"Y"]],"garden-swing":[[3,3,2,12,"B"],[12,3,2,12,"B"],[3,2,11,3,"H"],[6,5,1,7,"C"],[11,5,1,7,"C"],[6,11,6,3,"B"],[7,12,4,2,"T"]],"tiny-pond":[[2,9,12,5,"S"],[4,8,9,5,"U"],[4,10,6,2,"W"],[2,12,11,2,"K"],[6,7,4,2,"G"]],"birdbath":[[7,8,3,7,"S"],[3,6,11,4,"S"],[4,7,9,2,"U"],[5,5,3,2,"W"],[6,14,5,2,"S"],[11,3,3,4,"G"]],"wind-chime":[[7,2,2,12,"B"],[4,4,9,2,"H"],[5,6,2,6,"Y"],[8,6,2,8,"C"],[11,6,2,5,"Y"],[7,13,4,2,"W"]],"wooden-lamp":[[7,4,3,12,"B"],[5,3,7,6,"K"],[6,4,5,4,"Y"],[7,5,3,2,"W"],[4,2,9,2,"H"],[5,14,6,2,"B"]],"star-bench":[[3,7,11,4,"D"],[4,8,9,2,"E"],[3,11,2,5,"B"],[12,11,2,5,"B"],[6,3,4,5,"Y"],[7,2,2,7,"W"]]};
+for(const [name,blocks] of Object.entries(EXTENDED_DECOR))SPRITES[name]=makeDecorSprite(blocks);
+
 const imageCache = new Map();
 function imageForSprite(kind) {
   if (imageCache.has(kind)) return imageCache.get(kind);
