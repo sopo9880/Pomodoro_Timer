@@ -1,4 +1,8 @@
-const STORAGE_KEY = "bloomodoro-state-v2";
+import { normalizeSettings as normalizeSavedSettings, normalizeDailyStats, creditFocusInterval, creditCompletedSession, recoverCheckpoint, localDayKey } from "./core/focus-core.mjs";
+import { createGardenState, normalizeGardenState, creditGardenFocus } from "./garden/garden-core.mjs";
+
+const STORAGE_KEY = "bloomodoro-state-v3";
+const LEGACY_STORAGE_KEY = "bloomodoro-state-v2";
 
 const MODE_META = {
   focus: {
@@ -62,6 +66,9 @@ const state = {
   focusIntent: "",
   log: [],
   todayKey: getTodayKey(),
+  dailyStats: {},
+  sessionCreditedSeconds: 0,
+  garden: createGardenState(),
 };
 
 const DEFAULT_STATE = {
@@ -99,6 +106,7 @@ let serviceWorkerRegistration = null;
 let miniTimerWindow = null;
 let miniTimerElements = null;
 let lastMediaSessionStamp = "";
+let lastCheckpointSave = 0;
 
 const elements = {
   body: document.body,
@@ -261,7 +269,7 @@ function bindEvents() {
   });
 
   elements.focusIntent.addEventListener("input", () => {
-    state.focusIntent = elements.focusIntent.value.trim();
+    state.focusIntent = elements.focusIntent.value;
     renderFocusIntent();
     saveState();
   });
@@ -365,6 +373,11 @@ function handleTimerWorkerMessage(event) {
   }
 
   state.remainingSeconds = data.remainingSeconds;
+  if (state.mode === "focus" && Date.now() - lastCheckpointSave >= 5000) {
+    commitCurrentFocusProgress();
+    saveState();
+    lastCheckpointSave = Date.now();
+  }
   renderTimer();
   renderStats();
   updateMediaSessionMetadata();
@@ -513,6 +526,7 @@ function startTimer() {
 }
 
 function pauseTimer() {
+  if (state.mode === "focus") commitCurrentFocusProgress();
   if (state.isRunning && endTime) {
     state.remainingSeconds = getRemainingSeconds(endTime);
   }
@@ -559,6 +573,7 @@ function resetCycleProgress() {
   state.cycleFocusCount = 0;
   state.completedToday = 0;
   state.focusSecondsToday = 0;
+  state.dailyStats[getTodayKey()] = { focusSeconds: 0, completedSessions: 0 };
   resetCurrentSession("focus", state.settings.focus);
   addLog({
     title: "사이클 초기화",
@@ -606,6 +621,11 @@ function syncTimer() {
 
   const secondsLeft = getRemainingSeconds(endTime);
   state.remainingSeconds = secondsLeft;
+  if (state.mode === "focus" && (Date.now() - lastCheckpointSave >= 5000 || secondsLeft === 0)) {
+    commitCurrentFocusProgress(secondsLeft === 0);
+    saveState();
+    lastCheckpointSave = Date.now();
+  }
   renderTimer();
   renderStats();
   updateMediaSessionMetadata();
@@ -638,11 +658,16 @@ function handleCompletion() {
 function advanceMode(markComplete) {
   const previousMode = state.mode;
   const completedDuration = state.currentSessionDurationSeconds;
+  const completionTime = Number.isFinite(endTime) ? Math.min(Date.now(), endTime) : Date.now();
   const nextMode = getNextMode(previousMode, markComplete);
 
   if (previousMode === "focus") {
     commitCurrentFocusProgress(markComplete);
+    if (markComplete) state.dailyStats = creditCompletedSession(state.dailyStats, completionTime);
   }
+  stopTicking();
+  endTime = null;
+  state.isRunning = false;
 
   if (markComplete && previousMode === "focus") {
     state.cycleFocusCount = Math.min(state.settings.cycleLength, state.cycleFocusCount + 1);
@@ -702,6 +727,7 @@ function resetCurrentSession(mode, durationSeconds) {
   state.mode = mode;
   state.currentSessionDurationSeconds = durationSeconds;
   state.remainingSeconds = durationSeconds;
+  state.sessionCreditedSeconds = 0;
 }
 
 function getRemainingSeconds(targetEndTime, now = Date.now()) {
@@ -717,16 +743,19 @@ function getCurrentSessionElapsedSeconds(now = Date.now()) {
 }
 
 function commitCurrentFocusProgress(forceFullSession = false) {
-  if (state.mode !== "focus") {
-    return 0;
-  }
-
+  if (state.mode !== "focus") return 0;
   const elapsed = forceFullSession ? state.currentSessionDurationSeconds : getCurrentSessionElapsedSeconds();
-  if (elapsed > 0) {
-    state.focusSecondsToday += elapsed;
-  }
-
-  return elapsed;
+  const deltaSeconds = Math.max(0, elapsed - state.sessionCreditedSeconds);
+  if (deltaSeconds <= 0) return 0;
+  const finishAt = state.isRunning && Number.isFinite(endTime)
+    ? Math.min(endTime, Date.now())
+    : Date.now();
+  state.dailyStats = creditFocusInterval(state.dailyStats, finishAt - deltaSeconds * 1000, finishAt);
+  state.sessionCreditedSeconds = elapsed;
+  state.garden = creditGardenFocus(state.garden, deltaSeconds);
+  const today = state.dailyStats[getTodayKey()] || { focusSeconds: 0, completedSessions: 0 };
+  state.focusSecondsToday = today.focusSeconds;
+  return deltaSeconds;
 }
 
 function startTicking() {
@@ -879,7 +908,8 @@ function renderSettings() {
 }
 
 function renderStats() {
-  elements.completedToday.textContent = `${state.completedToday}회`;
+  const today = state.dailyStats[getTodayKey()] || { completedSessions: 0, focusSeconds: 0 };
+  elements.completedToday.textContent = `${today.completedSessions}회`;
   elements.focusMinutesToday.textContent = formatDurationLabel(getDisplayedFocusSeconds());
   elements.nextModeLabel.textContent = MODE_META[getNextMode(state.mode, true)].label;
   elements.longBreakCountdown.textContent = `${getLongBreakCountdown()}회`;
@@ -1012,7 +1042,11 @@ function addLog({ title, detail }) {
 }
 
 function getDisplayedFocusSeconds() {
-  return state.focusSecondsToday + (state.mode === "focus" ? getCurrentSessionElapsedSeconds() : 0);
+  const today = state.dailyStats[getTodayKey()] || { focusSeconds: 0 };
+  const pending = state.mode === "focus" && state.isRunning
+    ? Math.max(0, getCurrentSessionElapsedSeconds() - state.sessionCreditedSeconds)
+    : 0;
+  return Math.floor(today.focusSeconds + pending);
 }
 
 function getLongBreakCountdown() {
@@ -1385,62 +1419,34 @@ async function getNotificationRegistration() {
 }
 
 function restoreRunningTimer() {
-  if (!state.isRunning || !endTime) {
+  const checkpoint = recoverCheckpoint({
+    isRunning: state.isRunning,
+    endTime,
+    remaining: state.remainingSeconds,
+    duration: state.currentSessionDurationSeconds,
+  });
+  if (checkpoint.kind === "paused") {
     state.isRunning = false;
     endTime = null;
     return;
   }
-
-  const now = Date.now();
-  if (endTime > now) {
-    state.remainingSeconds = getRemainingSeconds(endTime, now);
+  if (checkpoint.kind === "running") {
+    state.remainingSeconds = checkpoint.remainingSeconds;
     startTicking();
     return;
   }
-
-  let overflowSeconds = Math.max(0, Math.floor((now - endTime) / 1000));
-  let recoveredSessions = 0;
-
-  while (state.isRunning) {
-    const completedMode = state.mode;
-    const nextMode = getNextMode(completedMode, true);
-
-    if (completedMode === "focus") {
-      commitCurrentFocusProgress(true);
-      state.cycleFocusCount = Math.min(state.settings.cycleLength, state.cycleFocusCount + 1);
-      state.completedToday += 1;
-    }
-
-    if (completedMode === "longBreak") {
-      state.cycleFocusCount = 0;
-    }
-
-    recoveredSessions += 1;
-    resetCurrentSession(nextMode, getDurationSeconds(nextMode));
-
-    if (!state.autoAdvance) {
-      state.isRunning = false;
-      endTime = null;
-      break;
-    }
-
-    if (overflowSeconds < state.currentSessionDurationSeconds) {
-      state.remainingSeconds = Math.max(0, state.currentSessionDurationSeconds - overflowSeconds);
-      endTime = now + state.remainingSeconds * 1000;
-      startTicking();
-      break;
-    }
-
-    overflowSeconds -= state.currentSessionDurationSeconds;
-  }
-
-  if (recoveredSessions > 0) {
-    addLog({
-      title: "백그라운드 복구",
-      detail: `비활성 상태였던 동안 ${recoveredSessions}개 세션을 반영했고 현재 ${MODE_META[state.mode].label} 상태예요.`,
-    });
-  }
-
+  // At most the interrupted session is completed. No unattended reward farming.
+  state.remainingSeconds = 0;
+  if (state.mode === "focus") commitCurrentFocusProgress(true);
+  const previousAutoAdvance = state.autoAdvance;
+  state.autoAdvance = false;
+  advanceMode(true);
+  state.autoAdvance = previousAutoAdvance;
+  addLog({
+    title: "타이머 복구",
+    detail: "종료된 세션을 한 번 반영했어요. 다음 세션은 직접 시작해 주세요.",
+  });
+  render();
   saveState();
 }
 
@@ -1584,7 +1590,22 @@ function supportsMiniTimer() {
 
 function saveState() {
   const persistedState = {
+    schemaVersion: 3,
     settings: state.settings,
+    mode: state.mode,
+    remainingSeconds: state.remainingSeconds,
+    currentSessionDurationSeconds: state.currentSessionDurationSeconds,
+    isRunning: state.isRunning,
+    endTime: state.isRunning ? endTime : null,
+    sessionCreditedSeconds: state.sessionCreditedSeconds,
+    cycleFocusCount: state.cycleFocusCount,
+    completedToday: state.completedToday,
+    focusSecondsToday: state.focusSecondsToday,
+    todayKey: getTodayKey(),
+    dailyStats: state.dailyStats,
+    garden: state.garden,
+    focusIntent: state.focusIntent,
+    log: state.log,
     autoAdvance: state.autoAdvance,
     soundEnabled: state.soundEnabled,
     vibrationEnabled: state.vibrationEnabled,
@@ -1598,113 +1619,69 @@ function saveState() {
     vibrationPattern: state.vibrationPattern,
     selectedPreset: state.selectedPreset,
   };
-
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(persistedState));
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(persistedState));
+  } catch (error) {
+    console.warn("Bloomodoro state could not be saved", error);
+  }
 }
 
 function loadState() {
-  endTime = null;
-  stopBackgroundAudio();
-
-  state.settings = { ...DEFAULT_STATE.settings };
-  state.mode = DEFAULT_STATE.mode;
-  state.remainingSeconds = DEFAULT_STATE.remainingSeconds;
-  state.currentSessionDurationSeconds = DEFAULT_STATE.currentSessionDurationSeconds;
-  state.isRunning = DEFAULT_STATE.isRunning;
-  state.cycleFocusCount = DEFAULT_STATE.cycleFocusCount;
-  state.completedToday = DEFAULT_STATE.completedToday;
-  state.focusSecondsToday = DEFAULT_STATE.focusSecondsToday;
-  state.autoAdvance = DEFAULT_STATE.autoAdvance;
-  state.soundEnabled = DEFAULT_STATE.soundEnabled;
-  state.vibrationEnabled = DEFAULT_STATE.vibrationEnabled;
-  state.backgroundAudioEnabled = DEFAULT_STATE.backgroundAudioEnabled;
-  state.backgroundAudioLabelMode = DEFAULT_STATE.backgroundAudioLabelMode;
-  state.backgroundAudioUpdateInterval = DEFAULT_STATE.backgroundAudioUpdateInterval;
-  state.notificationsEnabled = DEFAULT_STATE.notificationsEnabled;
-  state.transitionAlertsEnabled = DEFAULT_STATE.transitionAlertsEnabled;
-  state.soundTone = DEFAULT_STATE.soundTone;
-  state.soundVolume = DEFAULT_STATE.soundVolume;
-  state.vibrationPattern = DEFAULT_STATE.vibrationPattern;
-  state.selectedPreset = DEFAULT_STATE.selectedPreset;
-  state.focusIntent = DEFAULT_STATE.focusIntent;
-  state.log = [];
-  state.todayKey = getTodayKey();
-
-  const rawState = localStorage.getItem(STORAGE_KEY);
-  if (!rawState) {
-    return;
-  }
-
+  const rawState = localStorage.getItem(STORAGE_KEY) || localStorage.getItem(LEGACY_STORAGE_KEY);
+  if (!rawState) return;
   try {
     const persistedState = JSON.parse(rawState);
-    state.settings = normalizeSettings(persistedState.settings);
+    state.settings = normalizeSavedSettings(persistedState.settings);
     state.autoAdvance = Boolean(persistedState.autoAdvance ?? DEFAULT_STATE.autoAdvance);
     state.soundEnabled = Boolean(persistedState.soundEnabled ?? DEFAULT_STATE.soundEnabled);
     state.vibrationEnabled = Boolean(persistedState.vibrationEnabled ?? DEFAULT_STATE.vibrationEnabled);
-    state.backgroundAudioEnabled = Boolean(
-      persistedState.backgroundAudioEnabled ?? DEFAULT_STATE.backgroundAudioEnabled,
-    );
-    state.backgroundAudioLabelMode = ["countdown", "mode", "minimal"].includes(
-      persistedState.backgroundAudioLabelMode,
-    )
-      ? persistedState.backgroundAudioLabelMode
-      : DEFAULT_STATE.backgroundAudioLabelMode;
-    state.backgroundAudioUpdateInterval = getValidatedBackgroundAudioInterval(
-      persistedState.backgroundAudioUpdateInterval,
-    );
-    state.notificationsEnabled = Boolean(
-      persistedState.notificationsEnabled ?? DEFAULT_STATE.notificationsEnabled,
-    );
-    state.transitionAlertsEnabled = Boolean(
-      persistedState.transitionAlertsEnabled ?? DEFAULT_STATE.transitionAlertsEnabled,
-    );
-    state.soundTone = ["bright", "soft", "bell"].includes(persistedState.soundTone)
-      ? persistedState.soundTone
-      : DEFAULT_STATE.soundTone;
-    state.soundVolume = sanitizeNumber(
-      persistedState.soundVolume ?? DEFAULT_STATE.soundVolume,
-      10,
-      100,
-    );
+    state.backgroundAudioEnabled = Boolean(persistedState.backgroundAudioEnabled ?? DEFAULT_STATE.backgroundAudioEnabled);
+    state.backgroundAudioLabelMode = ["countdown", "mode", "minimal"].includes(persistedState.backgroundAudioLabelMode)
+      ? persistedState.backgroundAudioLabelMode : DEFAULT_STATE.backgroundAudioLabelMode;
+    state.backgroundAudioUpdateInterval = getValidatedBackgroundAudioInterval(persistedState.backgroundAudioUpdateInterval);
+    state.notificationsEnabled = Boolean(persistedState.notificationsEnabled ?? DEFAULT_STATE.notificationsEnabled);
+    state.transitionAlertsEnabled = Boolean(persistedState.transitionAlertsEnabled ?? DEFAULT_STATE.transitionAlertsEnabled);
+    state.soundTone = ["bright", "soft", "bell"].includes(persistedState.soundTone) ? persistedState.soundTone : DEFAULT_STATE.soundTone;
+    state.soundVolume = sanitizeNumber(persistedState.soundVolume ?? DEFAULT_STATE.soundVolume, 10, 100);
     state.vibrationPattern = ["gentle", "standard", "urgent"].includes(persistedState.vibrationPattern)
-      ? persistedState.vibrationPattern
-      : DEFAULT_STATE.vibrationPattern;
-    state.selectedPreset = getPresetMatch() || persistedState.selectedPreset || DEFAULT_STATE.selectedPreset;
+      ? persistedState.vibrationPattern : DEFAULT_STATE.vibrationPattern;
+    state.selectedPreset = getPresetMatch() || DEFAULT_STATE.selectedPreset;
+    state.focusIntent = typeof persistedState.focusIntent === "string" ? persistedState.focusIntent : "";
+    state.log = Array.isArray(persistedState.log) ? persistedState.log.slice(0, 8) : [];
+    state.mode = MODE_META[persistedState.mode] ? persistedState.mode : "focus";
+    state.currentSessionDurationSeconds = Number.isFinite(persistedState.currentSessionDurationSeconds)
+      ? persistedState.currentSessionDurationSeconds : state.settings[state.mode];
+    state.remainingSeconds = Number.isFinite(persistedState.remainingSeconds)
+      ? Math.max(0, persistedState.remainingSeconds) : state.currentSessionDurationSeconds;
+    state.sessionCreditedSeconds = Number.isFinite(persistedState.sessionCreditedSeconds)
+      ? Math.max(0, persistedState.sessionCreditedSeconds) : 0;
+    state.cycleFocusCount = sanitizeNumber(persistedState.cycleFocusCount ?? 0, 0, state.settings.cycleLength);
+    state.dailyStats = normalizeDailyStats(persistedState.dailyStats);
+    if (!persistedState.dailyStats && persistedState.todayKey && Number.isFinite(persistedState.focusSecondsToday)) {
+      state.dailyStats[persistedState.todayKey] = {
+        focusSeconds: persistedState.focusSecondsToday,
+        completedSessions: persistedState.completedToday || 0,
+      };
+    }
+    state.garden = normalizeGardenState(persistedState.garden);
+    state.todayKey = getTodayKey();
+    state.focusSecondsToday = state.dailyStats[state.todayKey]?.focusSeconds || 0;
+    state.completedToday = state.dailyStats[state.todayKey]?.completedSessions || 0;
+    state.isRunning = Boolean(persistedState.isRunning);
+    endTime = state.isRunning && Number.isFinite(persistedState.endTime) ? persistedState.endTime : null;
+    if (persistedState.schemaVersion !== 3) saveState();
   } catch (error) {
-    localStorage.removeItem(STORAGE_KEY);
+    // Preserve the original storage for manual recovery; never delete a damaged or newer save.
+    console.warn("Bloomodoro saved state could not be loaded", error);
   }
 }
 
 function normalizeSettings(rawSettings) {
-  const defaults = { ...PRESETS.classic };
-  if (!rawSettings || typeof rawSettings !== "object") {
-    return defaults;
-  }
-
-  const focus =
-    rawSettings.focus > 90 ? rawSettings.focus : sanitizeNumber(rawSettings.focus ?? 25, 1, 90) * 60;
-  const shortBreak =
-    rawSettings.shortBreak > 90
-      ? rawSettings.shortBreak
-      : sanitizeNumber(rawSettings.shortBreak ?? 5, 1, 30) * 60;
-  const longBreak =
-    rawSettings.longBreak > 90
-      ? rawSettings.longBreak
-      : sanitizeNumber(rawSettings.longBreak ?? 15, 1, 60) * 60;
-
-  return {
-    focus: sanitizeNumber(focus, 1, 90 * 60),
-    shortBreak: sanitizeNumber(shortBreak, 1, 30 * 60),
-    longBreak: sanitizeNumber(longBreak, 5, 60 * 60),
-    cycleLength: sanitizeNumber(rawSettings.cycleLength ?? 4, 2, 8),
-  };
+  return normalizeSavedSettings(rawSettings, PRESETS.classic);
 }
 
 function getTodayKey() {
-  const now = new Date();
-  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(
-    now.getDate(),
-  ).padStart(2, "0")}`;
+  return localDayKey();
 }
 
 function isStandaloneMode() {

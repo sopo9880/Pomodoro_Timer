@@ -1,9 +1,11 @@
-const CACHE_NAME = "bloomodoro-cache-v9";
+const CACHE_NAME = "bloomodoro-cache-v10";
 const PRECACHE_URLS = [
   "./",
   "./index.html",
   "./styles.css",
   "./script.js",
+  "./core/focus-core.mjs",
+  "./garden/garden-core.mjs",
   "./keepalive.mp3",
   "./timer-worker.js",
   "./manifest.webmanifest",
