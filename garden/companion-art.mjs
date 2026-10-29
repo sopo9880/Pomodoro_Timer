@@ -34,13 +34,14 @@ function drawFace(ctx,direction,frame,colors,offset=0){
 }
 function drawFriend(ctx,species,direction,activity,frame){
   const c=PALETTES[species] || PALETTES.sprout;
-  const walk=activity==="walk",nap=activity==="nap"||activity==="rest";
+  const walk=activity==="walk",held=activity==="picked",react=activity==="react",
+    nap=activity==="nap"||activity==="rest";
   const flip=direction==="left";
   const nudge=walk?(frame===1?-1:frame===3?1:0):nap?2:0;
   ctx.save();
   if(flip){ctx.translate(32,0);ctx.scale(-1,1);}
   const facing=flip?"right":direction;
-  const bounce=walk&&frame%2===0?-1:activity==="hop"&&frame%2===0?-2:0;
+  const bounce=held?(frame%2===0?-3:2):walk&&frame%2===0?-1:activity==="hop"&&frame%2===0?-2:0;
   // Directional legs, tail, shadow
   pixel(ctx,9,28,14,2,"rgba(28,46,37,.27)");
   pixel(ctx,10+(walk&&frame%2?2:0),24+nudge,4,5,c.dark);
@@ -101,7 +102,18 @@ function drawFriend(ctx,species,direction,activity,frame){
   }
   drawFace(ctx,facing,frame,c,bounce);
   // Short activities: each partner displays its own simple tell.
-  if(activity==="read"){
+  if(held){
+    // Each companion wiggles its limbs, while its face looks surprised.
+    pixel(ctx,4,frame%2===0?11:14,5,8,c.body);
+    pixel(ctx,25,frame%2===0?14:10,5,8,c.body);
+    pixel(ctx,12,11+bounce,3,4,c.outline);
+    pixel(ctx,20,11+bounce,3,4,c.outline);
+    pixel(ctx,16,17+bounce,3,3,c.outline);
+    pixel(ctx,27,3+bounce,2,6,c.cheek);
+  }else if(react){
+    pixel(ctx,26,4+bounce,4,5,c.cheek);
+    pixel(ctx,25,5+bounce,6,2,c.light);
+  }else if(activity==="read"){
     pixel(ctx,10,21+bounce,13,6,"#f2e4c4");
     pixel(ctx,10,21+bounce,6,6,"#8aa48d");
     pixel(ctx,16,21+bounce,1,6,c.outline);
