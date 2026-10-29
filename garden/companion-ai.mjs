@@ -190,7 +190,7 @@ export function createCompanionSimulation(map) {
       reaction:agent.held?(Math.floor(clock*7)%3===0?"surprised":"wiggle"):agent.reaction,
       held:agent.held,
       direction:agent.direction,
-      frame:Math.floor(clock*(agent.held?9:agent.activity==="walk"?7:3))%4,
+      frame:Math.floor(clock*(agent.held?9:agent.activity==="walk"?7:3))%6,
       greeting:COMPANION_PERSONALITIES[agent.speciesId].greeting,
     }));
   }

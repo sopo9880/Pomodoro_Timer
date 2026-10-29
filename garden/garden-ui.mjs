@@ -900,7 +900,7 @@ export function mountGarden({ getGarden, setGarden, getTimerState, getEnvironmen
     const interval=reduceMotionQuery.matches?220:busy?16:72;
     if(timestamp-lastPaint>=interval){
       if(editingLocked()&&avatarMotion.isMoving())stopAvatarControl();
-      const elapsed=previousAvatarPaint?Math.min(.08,(timestamp-previousAvatarPaint)/1000):0;
+      const elapsed=previousAvatarPaint?Math.min(.22,(timestamp-previousAvatarPaint)/1000):0;
       previousAvatarPaint=timestamp;
       if(avatarMotion.isMoving()&&!editingLocked()){
         const step=avatarMotion.advance(elapsed,getGarden());

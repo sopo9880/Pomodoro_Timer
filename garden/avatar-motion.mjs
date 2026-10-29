@@ -12,7 +12,9 @@ export const AVATAR_WALK_SPEED = 5.1; // world tiles per second
 const DIRECTIONS = Object.freeze(["up","down","left","right"]);
 const vectors = Object.freeze({up:[0,-1],down:[0,1],left:[-1,0],right:[1,0]});
 const EPS = 1e-5;
-const clamp = value => Number.isFinite(value) ? Math.min(.08,Math.max(0,value)) : 0;
+// A modest dt limit prevents stalls from teleporting but keeps movement
+// equally fast at 15fps, 30fps, 60fps and reduced-motion display rates.
+const clamp = value => Number.isFinite(value) ? Math.min(.22,Math.max(0,value)) : 0;
 function face(dx,dy,fallback="down"){
   if(Math.abs(dx)>Math.abs(dy))return dx>0?"right":"left";
   if(Math.abs(dy)>EPS)return dy>0?"down":"up";
