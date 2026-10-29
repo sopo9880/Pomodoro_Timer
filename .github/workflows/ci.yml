@@ -39,5 +39,8 @@ jobs:
           node --check garden/life-core.mjs
           node --check garden/avatar-art.mjs
           node --check garden/avatar-motion.mjs
+          node --check garden/hires-avatar.mjs
+          node --check garden/hires-companions.mjs
+          node --check garden/hires-atlas.mjs
       - name: Run focus and garden unit tests
         run: node --test tests/*.test.mjs
