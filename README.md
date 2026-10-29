@@ -69,3 +69,12 @@ node server.js
 The **나의 픽셀 정원** section below the timer includes a continuous tile world rendered with original pixel sprites (no licensed external artwork), the starter Daisy plant, editable decorations, the sunshine shop, unlockable companion characters (Sprout / Mushroom / Cat), and real-focus-time plant growth. Mouse drag or touch to pan; wheel or pinch to zoom; choose inventory items to place; click an existing object to move, rotate or return it to the inventory. Keyboard users can focus the canvas and use arrows, +/- and Enter to place at the camera center. Region selector jumps to one of six connected zones. Garden editing is paused while a focus session is active to protect concentration.
 
 The garden data model is a versioned JSON object within `bloomodoro-state-v3`, with schema-v1 migration. Web/PWA remains the deployment target; Android APK and native notification integration have **not** been implemented. Run the lightweight unit tests with `node --test tests/*.test.mjs` (Node 22+). Visual garden assets use Canvas 2D for portability.
+
+
+## 🎮 The Little World — game-first UI (phase 3)
+
+Bloomodoro now opens on a full-screen pixel garden **instead of appending a garden panel below the old timer**. The game shell provides persistent focus HUD, a pixel-world exploration viewport, a compact backpack/companions dock, routed Focus / Journey / Settings screens, and a touch-friendly mobile bottom navigation. No previously existing timer, data or settings IDs were removed. All timer controls and saved states remain backward compatible with `bloomodoro-state-v3`.
+
+Garden scene choices — Spring/Summer/Autumn/Winter, clear/rain/snow, day/night — run offline as **presentation-only** settings in `bloomodoro-world-display-v1`. They do not request geolocation, use a weather API, or change focus rewards. Focus time adds companion affinity each cumulative 25 minutes without penalties for breaks.
+
+The pixel garden renderer draws only visible 32px tiles and caps weather particles; when the garden screen is hidden, animation stops. The UI respects reduced-motion settings. In Node 22+, verify with `node --test tests/*.test.mjs`. Android APK packaging is a separate future stage; web/PWA is the current supported output.

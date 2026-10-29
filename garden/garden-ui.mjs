@@ -7,7 +7,7 @@ import {
 import { createPixelGardenRenderer, drawGardenThumbnail } from "./pixel-world.mjs";
 
 // The UI has no direct access to the timer's private state. Its save callback owns persistence.
-export function mountGarden({ getGarden, setGarden, getTimerState }) {
+export function mountGarden({ getGarden, setGarden, getTimerState, getEnvironment = () => ({ season: 'spring', weather: 'clear', time: 'day' }) }) {
   const byId = (id) => document.getElementById(id);
   const canvas = byId("gardenWorld");
   if (!canvas) return { refresh() {} };
@@ -207,7 +207,8 @@ export function mountGarden({ getGarden, setGarden, getTimerState }) {
     const garden = getGarden();
     const fragment = document.createDocumentFragment();
     for (const friend of GARDEN_COMPANIONS) {
-      const owned = garden.companions.some((item) => item.speciesId === friend.speciesId);
+      const currentFriend = garden.companions.find((item) => item.speciesId === friend.speciesId);
+      const owned = Boolean(currentFriend);
       const unlocked = garden.progress.focusSeconds >= friend.unlockAtSeconds;
       const card = document.createElement("article");
       card.className = "garden-companion-card";
@@ -219,7 +220,9 @@ export function mountGarden({ getGarden, setGarden, getTimerState }) {
       const name = document.createElement("strong");
       name.textContent = friend.name;
       const description = document.createElement("small");
-      description.textContent = friend.description;
+      description.textContent = currentFriend
+        ? friend.description + ' · 친밀도 ' + Math.floor(currentFriend.affinity || 0)
+        : friend.description;
       details.append(name, description);
       const button = document.createElement("button");
       button.type = "button";
@@ -268,7 +271,7 @@ export function mountGarden({ getGarden, setGarden, getTimerState }) {
       paintCompanionCards();
       lastFingerprint = fingerprint;
     }
-    if (onScreen) renderer.draw(garden, getTimerState(), { selected, ghost, reduceMotion: reduceMotionQuery.matches, time: performance.now() });
+    if (onScreen) renderer.draw(garden, getTimerState(), { selected, ghost, reduceMotion: reduceMotionQuery.matches, time: performance.now(), environment: getEnvironment() });
   }
   for (const zone of WORLD_SPEC.zones) {
     const option = document.createElement("option");
@@ -520,7 +523,12 @@ export function mountGarden({ getGarden, setGarden, getTimerState }) {
     refresh();
   });
   document.addEventListener("visibilitychange", () => {
-    if (!document.hidden) startAnimation();
+    if (!document.hidden && onScreen) startAnimation();
+  });
+  window.addEventListener("bloomodoro:environmentchange", () => refresh());
+  window.addEventListener("bloomodoro:screenchange", (event) => {
+    onScreen = event.detail?.screen === "world" && !document.hidden;
+    if (onScreen) { renderer.resize(); refresh(); startAnimation(); }
   });
   function startAnimation() {
     if (animationFrame) return;
@@ -531,7 +539,7 @@ export function mountGarden({ getGarden, setGarden, getTimerState }) {
     if (document.hidden || !onScreen) return;
     const interval = reduceMotionQuery.matches ? 500 : 100;
     if (timestamp - lastPaint >= interval) {
-      renderer.draw(getGarden(), getTimerState(), { selected, ghost, reduceMotion: reduceMotionQuery.matches, time: timestamp });
+      renderer.draw(getGarden(), getTimerState(), { selected, ghost, reduceMotion: reduceMotionQuery.matches, time: timestamp, environment: getEnvironment() });
       lastPaint = timestamp;
     }
     animationFrame = requestAnimationFrame(tick);

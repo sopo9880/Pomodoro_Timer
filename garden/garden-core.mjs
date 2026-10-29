@@ -129,6 +129,9 @@ export function creditGardenFocus(garden, deltaSeconds) {
     progress: { focusSeconds: next, sunshineEarned: garden.progress.sunshineEarned + sunshineDelta, petalsEarned: garden.progress.petalsEarned + petalsDelta },
     wallet: { sunshine: garden.wallet.sunshine + sunshineDelta, petals: garden.wallet.petals + petalsDelta },
     unlockedZones: WORLD_SPEC.zones.filter((zone) => next >= zone.unlockAtSeconds).map((zone) => zone.id),
+    companions: garden.companions.map((companion) => ({
+      ...companion, affinity: nonNegative(companion.affinity) + petalsDelta,
+    })),
   };
 }
 export function getPlantGrowthStage(plant, accumulatedFocusSeconds) {
