@@ -1,5 +1,5 @@
 import {
-  WORLD_SPEC, GARDEN_ITEMS, GARDEN_COMPANIONS,
+  WORLD_SPEC, GARDEN_ITEMS, GARDEN_COMPANIONS, normalizeGardenState,
   findGardenItem, getGardenZone, getAvailableGardenQuantity, getPlantGrowthStage,
   purchaseGardenItem, placeDecoration, placePlant, moveGardenObject,
   removeGardenObject, recruitGardenCompanion,
@@ -48,6 +48,7 @@ export function mountGarden({ getGarden, setGarden, getTimerState }) {
   let previousPinchDistance = 0;
   let animationFrame = 0;
   let lastPaint = 0;
+  let onScreen = true;
   const reduceMotionQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
   const editingLocked = () => {
     const timer = getTimerState();
@@ -267,7 +268,7 @@ export function mountGarden({ getGarden, setGarden, getTimerState }) {
       paintCompanionCards();
       lastFingerprint = fingerprint;
     }
-    renderer.draw(garden, getTimerState(), { selected, ghost, reduceMotion: reduceMotionQuery.matches, time: performance.now() });
+    if (onScreen) renderer.draw(garden, getTimerState(), { selected, ghost, reduceMotion: reduceMotionQuery.matches, time: performance.now() });
   }
   for (const zone of WORLD_SPEC.zones) {
     const option = document.createElement("option");
@@ -319,6 +320,61 @@ export function mountGarden({ getGarden, setGarden, getTimerState }) {
   view.inventory.addEventListener("click", handleCatalogClick);
   view.companions.addEventListener("click", handleCatalogClick);
   view.cancel.addEventListener("click", () => setAction("inspect"));
+  byId("gardenExport").addEventListener("click", () => {
+    const backup = JSON.stringify({
+      format: "bloomodoro-garden",
+      schemaVersion: 1,
+      exportedAt: new Date().toISOString(),
+      garden: getGarden(),
+    }, null, 2);
+    const url = URL.createObjectURL(new Blob([backup], { type: "application/json" }));
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "bloomodoro-garden-" + new Date().toISOString().slice(0, 10) + ".json";
+    document.body.append(link);
+    link.click();
+    link.remove();
+    window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+    announce("정원 데이터를 JSON 파일로 내보냈어요.");
+  });
+  const gardenImportFile = byId("gardenImportFile");
+  byId("gardenImportButton").addEventListener("click", () => {
+    if (editingLocked()) {
+      announce("집중 중에는 정원을 가져올 수 없어요.");
+      return;
+    }
+    gardenImportFile.click();
+  });
+  gardenImportFile.addEventListener("change", async () => {
+    const file = gardenImportFile.files?.[0];
+    gardenImportFile.value = "";
+    if (!file) return;
+    if (editingLocked()) return;
+    if (file.size > 2 * 1024 * 1024) {
+      announce("2MB 이하의 정원 JSON 파일을 선택해 주세요.");
+      return;
+    }
+    try {
+      const backup = JSON.parse(await file.text());
+      if (backup?.format !== "bloomodoro-garden" || !backup.garden || backup.schemaVersion !== 1) {
+        throw new Error("Bloomodoro 정원 백업 파일이 아닙니다.");
+      }
+      const restored = normalizeGardenState(backup.garden);
+      if (!window.confirm("현재 정원 배치를 백업 파일의 데이터로 바꿀까요? 타이머 기록은 유지됩니다.")) return;
+      if (editingLocked()) return;
+      undoHistory.length = 0;
+      redoHistory.length = 0;
+      selected = null;
+      placingItemId = null;
+      currentTool = "inspect";
+      setGarden(restored);
+      lastFocusProgress = restored.progress.focusSeconds;
+      announce("정원 백업을 복원했어요.");
+      refresh(true);
+    } catch (error) {
+      announce("정원 백업을 읽지 못했어요: " + (error?.message || "파일 확인 필요"));
+    }
+  });
   view.move.addEventListener("click", () => {
     if (!selectedObject()) return;
     setAction("move");
@@ -472,13 +528,19 @@ export function mountGarden({ getGarden, setGarden, getTimerState }) {
   }
   function tick(timestamp) {
     animationFrame = 0;
-    if (document.hidden) return;
+    if (document.hidden || !onScreen) return;
     const interval = reduceMotionQuery.matches ? 500 : 100;
     if (timestamp - lastPaint >= interval) {
       renderer.draw(getGarden(), getTimerState(), { selected, ghost, reduceMotion: reduceMotionQuery.matches, time: timestamp });
       lastPaint = timestamp;
     }
     animationFrame = requestAnimationFrame(tick);
+  }
+  if ("IntersectionObserver" in window) {
+    new IntersectionObserver((entries) => {
+      onScreen = entries.some((entry) => entry.isIntersecting);
+      if (onScreen) startAnimation();
+    }, { rootMargin: "180px" }).observe(canvas);
   }
   if ("ResizeObserver" in window) new ResizeObserver(() => renderer.resize()).observe(canvas);
   else window.addEventListener("resize", () => renderer.resize());

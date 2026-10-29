@@ -95,3 +95,14 @@ test("companions recruit once after focus milestones and survive normalization",
 test("invalid future save versions are not silently overwritten", () => {
   assert.throws(() => normalizeGardenState({ schemaVersion: 99 }), /newer/);
 });
+
+
+test("exported garden JSON payload can be restored without losing objects", () => {
+  let garden = creditGardenFocus(createGardenState(), 1800);
+  garden = placeDecoration(garden, { id: "export-pot", itemId: "flower-pot", x: 86, y: 86 });
+  const backup = JSON.parse(JSON.stringify({ format: "bloomodoro-garden", schemaVersion: 1, garden }));
+  const restored = normalizeGardenState(backup.garden);
+  assert.equal(restored.placements[0].id, "export-pot");
+  assert.equal(restored.progress.focusSeconds, 1800);
+  assert.equal(restored.wallet.sunshine, garden.wallet.sunshine);
+});

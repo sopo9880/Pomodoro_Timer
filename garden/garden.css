@@ -236,3 +236,12 @@
   #gardenWorld { height: min(75vw, 420px); min-height: 280px; }
   .garden-map-hint { font-size: .65rem; }
 }
+
+.garden-backup-tools { display: flex; flex-wrap: wrap; gap: 9px; margin-top: 18px; }
+.garden-backup-tools button {
+  font: inherit; font-size: .78rem; color: #d9eccd; cursor: pointer;
+  padding: 9px 12px; border-radius: 11px; border: 1px solid rgba(177, 225, 169, .35);
+  background: rgba(88, 132, 97, .16);
+}
+.garden-backup-tools button:hover { background: rgba(88, 132, 97, .29); }
+.garden-backup-tools button:focus-visible { outline: 2px solid #ffe0a3; outline-offset: 2px; }
