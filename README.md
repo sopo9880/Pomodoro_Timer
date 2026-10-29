@@ -131,3 +131,24 @@ The artwork direction is **B — Polished JRPG**: original botanical fantasy cha
 - **Quality gates**: PR checks run all existing and new Node tests, syntax checks and offline smoke tests. A browser/mobile visual review is still required before calling the character art production-grade. The reference concept illustration is a quality target, not a promise of exact in-game raster similarity.
 
 **Phase 4D is not a formal GitHub Release.** Do not merge this PR or publish a new tag until the requested CI/merge/release stages.
+
+
+## Phase 4E — B visual overhaul (development PR; not yet a release)
+
+**Visual direction:** the selected **B — Polished JRPG** concept and uploaded character-sheet references. This changes **game rendering assets and the full interface**, not just the mockup. The first production vector-illustration pass is botanically themed and has transparent backgrounds, flowing illustrated hair, expressive amber eyes, embroidered apron/cape, floral accessories and satchel. **It is a re-illustration and not a pixel-identical extraction of the original concept artwork.** Distinct hand-painted frame sheets would be a later art-production task.
+
+- `garden/hires-avatar.mjs`: original local **320×432 SVG** protagonist, 4 facing directions, 3 motion variations, and color-/accessory-aware hair, outfit, hat and footwear. Existing 15 wearable IDs, ownership, prices and equip records remain authoritative; no saves are changed.
+- `garden/hires-companions.mjs`: original local **256×256 SVG** artworks for sprout, mushroom, cat, sparrow, turtle and fox, including look-direction and pick-up emotions, plus 14 distinct **256×256** illustrated environmental species. Original species IDs and gameplay are preserved.
+- `garden/hires-atlas.mjs`: **local data-URI SVG-to-Image cache** (96 decoded assets maximum by default), asynchronous safe fallback to original pixel sprite if the illustration has not loaded, no remote image requests or runtime build steps.
+- `garden/pixel-world.mjs`: draw the new illustrations onto the actual world with correct aspect ratios and anti-aliasing; tiles, grown plants and decorations retain current authored pixel look. Larger character hit areas stay accessible for mobile drag and navigation.
+- `garden/garden-ui.mjs` and `index.html`: illustrated main character portrait/wardrobe merchandise previews, six companion portraits, collectible wildlife illustrations, focus-camp avatar and B art handling via existing UI IDs.
+- `ui/b-theme.css`, `ui/flower-ornament.svg`, `icons/bloomodoro-b.svg`: scalable botanical parchment/gold/forest UI for world, focus, journal, settings, desktop/mobile navigation and PWA icon/theme. Theme CSS loads **after** existing style sheets so the old UI remains a technical fallback.
+- `sw.js`: version 17, all required source assets included in offline precache. Technical smoke tests cover all 20 wildlife+companion species, avatar directions/cosmetics, offline URI caching, existing saves, HTML controls and mobile theme.
+
+### Limitations / acceptance criteria
+
+- **AI concept illustration quality is a target, not a tested result.** Generated vector artwork is higher resolution and visually different from the previous low-resolution rectangle sprites, but no claim is made that it is a pixel-perfect copy. A full frame-by-frame hand-drawn game-art production pass would require further source art.
+- Actual color fidelity, facial details and small-screen legibility must be visually checked in the deployed browser; Node CI does not prove art quality. The user handles real-device functional validation after the formal release as prescribed by project policy.
+- No account/backend changes. No effect on focus rewards, time points, bought clothes, inventories, plants, companion positions or legacy backups. No APK/EXE built or released; existing `v1.0.0` GitHub Release remains unchanged.
+
+This phase opens a PR and runs GitHub checks. Only merge after successful checks in the separate '확인해' step; final formal release follows separate approval.

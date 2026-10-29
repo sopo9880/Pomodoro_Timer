@@ -7,6 +7,7 @@ import { createPlantSpriteAtlas } from "./plant-art.mjs";
 import { createWildlifeEcology } from "./ecology.mjs";
 import { createWildlifeSpriteAtlas } from "./wildlife-art.mjs";
 import { createAvatarSpriteAtlas } from "./avatar-art.mjs";
+import { createHighResolutionAtlas } from "./hires-atlas.mjs";
 import { WORLD_LANDMARKS } from "./world-map.mjs";
 
 // All artwork below is original, hand-authored pixel art (16x16 transparent sprites).
@@ -193,6 +194,7 @@ export function createPixelGardenRenderer(canvas) {
   const flowerArt = createPlantSpriteAtlas(document);
   const wildlifeArt = createWildlifeSpriteAtlas(document);
   const avatarArt = createAvatarSpriteAtlas(document);
+  const hiresArt = createHighResolutionAtlas();
   const companions = createCompanionSimulation(map);
   const ecology = createWildlifeEcology(map);
   let lastSimulationTime = null;
@@ -281,19 +283,21 @@ export function createPixelGardenRenderer(canvas) {
     ctx.beginPath();
     ctx.ellipse(0, size*.24, size*.27, size*.07, 0, 0, Math.PI*2);
     ctx.fill();
+    // Hi-res SVG is antialiased at display size; terrain remains pixel-crisp.
+    if(art?.src?.startsWith("data:image/svg+xml"))ctx.imageSmoothingEnabled=true;
     ctx.drawImage(art, -size / 2, -size * .73, size, size);
     ctx.restore();
   }
-  function getCompanionAt(x,y,radius=1.08) {
+  function getCompanionAt(x,y,radius=1.30) {
     // Actor positions mark the feet, but most of the sprite is ABOVE them.
     // Use a silhouette hit-box rather than a tiny circle at ground level.
     return visibleFriends.filter(c=>Math.abs(c.x-x)<radius&&
-      y<=c.y+.65&&y>=c.y-1.55)
+      y<=c.y+.65&&y>=c.y-2.05)
       .sort((a,b)=>Math.abs((a.y-.55)-y)-Math.abs((b.y-.55)-y))[0]||null;
   }
-  function getAvatarAt(x,y,radius=1.08){
+  function getAvatarAt(x,y,radius=1.3){
     const actor=avatarVisual;
-    return actor&&Math.abs(actor.x-x)<radius&&y<=actor.y+.68&&y>=actor.y-1.9?actor:null;
+    return actor&&Math.abs(actor.x-x)<radius&&y<=actor.y+.68&&y>=actor.y-2.80?actor:null;
   }
   function getWildlifeAt(x,y,radius=.65){
     return visibleWildlife.filter(a=>Math.hypot(a.x-x,a.y-y)<radius)
@@ -308,16 +312,18 @@ export function createPixelGardenRenderer(canvas) {
   function endCompanionDrag(id,accepted=false,point=null){return companions.endDrag(id,accepted,point);}
   function drawAvatarSprite(avatar,garden,selected=false,{reducedMotion=false,time=0}={}){
     const position=worldToScreen(avatar.x,avatar.y),tile=WORLD_SPEC.tileSize*camera.zoom;
-    // Keep the native 48x64 sprite ratio, at an expressive readable size.
-    const w=tile*1.57,h=w*64/48;
+    // High-resolution B illustration is a separate 320x432 source asset.
+    const w=tile*2.08,h=w*432/320;
     if(position.x<-w||position.y<-h||position.x>width+w||position.y>height+h)return;
     const walking=Boolean(avatar.moving);
     const frame=reducedMotion?0:walking?avatar.frame||0:Math.floor(time*1.8)%6;
-    const art=avatarArt.frame(garden.avatar?.equipped,avatar.direction,frame,walking?"walk":"idle");
+    const art=hiresArt.avatar(garden.avatar?.equipped,avatar.direction,walking?"walk":"idle",frame)
+      ||avatarArt.frame(garden.avatar?.equipped,avatar.direction,frame,walking?"walk":"idle");
     ctx.save();
     ctx.fillStyle="rgba(22,38,28,.25)";
     ctx.beginPath();ctx.ellipse(position.x,position.y+tile*.02,w*.3,tile*.14,0,0,Math.PI*2);ctx.fill();
-    ctx.drawImage(art,Math.round(position.x-w/2),Math.round(position.y-h*.88),Math.ceil(w),Math.ceil(h));
+    if(art?.src?.startsWith("data:image/svg+xml"))ctx.imageSmoothingEnabled=true;
+    ctx.drawImage(art,Math.round(position.x-w/2),Math.round(position.y-h*.91),Math.ceil(w),Math.ceil(h));
     if(selected){
       ctx.strokeStyle="#ffeba2";ctx.lineWidth=2.5;
       ctx.beginPath();ctx.ellipse(position.x,position.y+tile*.04,tile*.72,tile*.21,0,0,Math.PI*2);ctx.stroke();
@@ -424,13 +430,16 @@ export function createPixelGardenRenderer(canvas) {
      .sort((a,b)=>a.y-b.y);
     for (const actor of actors) {
       if (actor.kind === "wildlife") {
-        drawImageSprite(wildlifeArt.frame(actor.speciesId,actor.frame),actor.x,actor.y,.9);
+        drawImageSprite(hiresArt.wildlife(actor.speciesId,reducedMotion?0:actor.frame)
+          ||wildlifeArt.frame(actor.speciesId,actor.frame),actor.x,actor.y,1.13);
         continue;
       }
       if (actor.kind === "companion") {
-        drawImageSprite(friendArt.frame(actor.speciesId,actor.direction,actor.activity,
+        drawImageSprite(hiresArt.companion(actor.speciesId,actor.direction,actor.activity,
+            reducedMotion?0:actor.frame,actor.reaction)
+          ||friendArt.frame(actor.speciesId,actor.direction,actor.activity,
             reducedMotion?0:actor.frame,actor.reaction),
-          actor.x,actor.y,actor.held?2.25:2.02);
+          actor.x,actor.y,actor.held?2.55:2.27);
         if(actor.held||actor.reaction){
           const pos=worldToScreen(actor.x,actor.y);
           ctx.save();ctx.fillStyle="#fff0bb";ctx.textAlign="center";ctx.font="bold 15px system-ui";
@@ -499,5 +508,5 @@ export function createPixelGardenRenderer(canvas) {
     getCompanionAt, getAvatarAt, getWildlifeAt, getLandmarkAt,
     beginCompanionDrag, dragCompanion, endCompanionDrag,
     getLifeStatus: () => ({friends:visibleFriends.length,wildlife:visibleWildlifeCount}),
-    map, terrainAtlas, flowerArt, friendArt, avatarArt, ecology };
+    map, terrainAtlas, flowerArt, friendArt, avatarArt, hiresArt, ecology };
 }
