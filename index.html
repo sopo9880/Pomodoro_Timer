@@ -1,105 +1,124 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="ko">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="theme-color" content="#171018" />
-    <meta name="mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-    <meta name="apple-mobile-web-app-title" content="Bloomodoro" />
-    <title>Bloomodoro</title>
-    <link rel="manifest" href="manifest.webmanifest" />
-    <link rel="icon" href="icons/icon-192.png" />
-    <link rel="apple-touch-icon" href="icons/apple-touch-icon.png" />
-    <link rel="stylesheet" href="styles.css" />
-    <link rel="stylesheet" href="garden/garden.css" />
-  </head>
-  <body data-mode="focus">
-    <div class="app-shell">
-      <div class="ambient ambient-a"></div>
-      <div class="ambient ambient-b"></div>
-      <div class="ambient ambient-c"></div>
-
-      <main class="app">
-        <section class="hero-card glass">
-          <div class="hero-top">
-            <div class="hero-copy">
-              <p class="eyebrow">Elegant Focus Rhythm</p>
-              <h1>Bloomodoro</h1>
-              <p class="subtitle">
-                집중과 휴식이 자연스럽게 이어지는, 감각적인 포모도로 타이머
-              </p>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#1b302b" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Bloomodoro" />
+  <meta name="description" content="나만의 픽셀 정원과 함께하는 집중 시간. 꽃을 키우고 친구들을 만나세요." />
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="icon" href="icons/world-mark.svg" type="image/svg+xml" />
+  <link rel="icon" href="icons/icon-192.png" type="image/png" />
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png" />
+  <link rel="stylesheet" href="styles.css" />
+  <link rel="stylesheet" href="garden/garden.css" />
+  <title>Bloomodoro — My Little Pixel World</title>
+</head>
+<body data-mode="focus">
+<div class="game-app" id="gameApp">
+  <header class="game-topbar">
+    <a class="game-brand" href="#world" data-home="world" aria-label="Bloomodoro 정원 홈">
+      <span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M18 34V17h4v17" fill="#438e70"/><path d="M20 21C9 22 7 13 10 10c7-3 12 1 10 11Z" fill="#72c48a"/><path d="M21 18C20 7 28 5 32 9c1 7-5 11-11 9Z" fill="#ffd17e"/><path d="M11 34c0-6 19-6 19 0" fill="#d9ae83"/><path d="M18 34V19h4v15" fill="#3d7960"/><path d="M14 36h12" stroke="#5c6953" stroke-width="3"/></svg></span>
+      <span><strong>Bloomodoro</strong><small>MY LITTLE FOCUS WORLD</small></span>
+    </a>
+    <div class="topbar-center"><span class="world-status-dot"></span><span id="worldClock">나의 작은 세상</span><span class="topbar-divider">·</span><span id="worldSeasonLabel">아늑한 정원</span></div>
+    <div class="topbar-right">
+      <span class="topbar-gold" title="모은 햇살"><span aria-hidden="true">✦</span> <strong id="gardenSunshine">0</strong></span>
+      <span class="topbar-petals" title="모은 꽃잎"><span aria-hidden="true">✿</span> <strong id="gardenPetals">0</strong></span>
+      <button type="button" class="topbar-settings screen-link icon-action" data-screen="settings" aria-label="설정 열기" title="설정">⚙</button>
+    </div>
+  </header>
+  <nav class="game-sidebar" aria-label="Bloomodoro 메인 메뉴">
+    <div class="rail-top"><span class="rail-heading">DISCOVER</span>
+      <button type="button" class="rail-link screen-link active" data-screen="world" aria-current="page"><span class="rail-glyph" aria-hidden="true">❀</span><span>나의 정원</span></button>
+      <button type="button" class="rail-link screen-link" data-screen="focus"><span class="rail-glyph" aria-hidden="true">◷</span><span>집중하기</span></button>
+      <button type="button" class="rail-link screen-link" data-screen="journal"><span class="rail-glyph" aria-hidden="true">▤</span><span>나의 기록</span></button>
+    </div>
+    <div class="rail-bottom"><span class="rail-heading">MY SPACE</span>
+      <button type="button" class="rail-link screen-link" data-screen="settings"><span class="rail-glyph" aria-hidden="true">⚙</span><span>설정</span></button>
+      <span class="rail-note">매일의 작은 집중이<br/>나만의 정원을 만들어요.</span>
+      <span class="rail-version">PIXEL GARDEN · 2026</span>
+    </div>
+  </nav>
+  <main class="game-main" id="mainContent">
+    <section class="game-screen is-active" id="screenWorld" data-view="world" aria-labelledby="gardenHeading">
+      <div class="world-heading">
+        <div class="world-title-area">
+          <p class="eyebrow">✦ 01 / THE LITTLE WORLD</p>
+          <h1 id="gardenHeading">나의 작은 정원 <span class="title-flower">✿</span></h1>
+          <p class="world-subtitle">집중한 시간만큼 자라나는 나만의 픽셀 세계</p>
+        </div>
+        <div class="world-progress">
+          <div class="world-progress-item"><span>정원에서 보낸 시간</span><strong id="gardenFocusTotal">0분</strong></div>
+          <div class="world-progress-item"><span>발견한 지역</span><strong id="gardenZonesUnlocked">1 / 6구역</strong></div>
+        </div>
+      </div>
+      <div class="world-adventure">
+        <div class="world-stage-card" id="gardenSection" aria-labelledby="gardenHeading">
+          <div class="stage-toolbar">
+            <div class="stage-place-name"><span class="stage-sign-icon">⌂</span><div><small>NOW EXPLORING</small><strong>Bloom Garden</strong></div></div>
+            <div class="stage-environment-controls">
+              <label class="environment-control"><span>계절</span><select id="environmentSeason" aria-label="정원 계절"><option value="auto">자동</option><option value="spring">봄</option><option value="summer">여름</option><option value="autumn">가을</option><option value="winter">겨울</option></select></label>
+              <label class="environment-control"><span>날씨</span><select id="environmentWeather" aria-label="정원 날씨"><option value="clear">맑음</option><option value="rain">비</option><option value="snow">눈</option></select></label>
+              <label class="environment-control"><span>시간</span><select id="environmentTime" aria-label="정원 시간대"><option value="auto">자동</option><option value="day">낮</option><option value="night">밤</option></select></label>
             </div>
-
-            <div class="hero-side">
-              <div class="hero-badge">
-                <span>이번 흐름</span>
-                <strong id="focusIntentPreview">무엇에 몰입할까요?</strong>
+          </div>
+          <div class="garden-map-panel">
+            <div class="garden-canvas-frame">
+              <canvas id="gardenWorld" width="960" height="540" tabindex="0" aria-label="픽셀 정원. 드래그하여 이동하고 휠 또는 핀치로 확대합니다. 키보드 방향키로 이동할 수 있습니다."></canvas>
+              <div class="world-map-overlay-top">
+                <div class="world-map-message"><span class="pixel-bullet">✿</span> <strong>어서 와요!</strong><span>여기는 당신의 작은 숲속 마을이에요.</span></div>
+                <div class="garden-camera-tools" role="group" aria-label="정원 확대·축소"><button type="button" id="gardenZoomOut" aria-label="축소">−</button><button type="button" id="gardenZoomIn" aria-label="확대">＋</button><button type="button" id="gardenCenter">◎</button></div>
               </div>
-
-              <div class="install-card">
-                <span>Mobile App</span>
-                <strong id="installStatus">브라우저에서 바로 사용할 수 있어요</strong>
-                <p class="install-hint" id="installHint">
-                  홈 화면에 추가하면 더 앱처럼 편하게 쓸 수 있어요.
-                </p>
-                <button
-                  class="action-button secondary install-button"
-                  id="installButton"
-                  type="button"
-                  hidden
-                >
-                  앱 설치
-                </button>
+              <div class="world-map-overlay-bottom">
+                <div class="garden-map-hint" id="gardenCurrentAction">드래그로 산책 · 클릭해서 꾸미기</div>
+                <label class="garden-zone-label" for="gardenZoneSelect"><span aria-hidden="true">⌁</span><select id="gardenZoneSelect" aria-label="정원 지역 선택"></select></label>
               </div>
             </div>
           </div>
-
-          <div class="mode-switch" role="tablist" aria-label="타이머 모드">
-            <button class="mode-pill active" data-mode="focus" type="button">
-              집중
-            </button>
-            <button class="mode-pill" data-mode="shortBreak" type="button">
-              짧은 휴식
-            </button>
-            <button class="mode-pill" data-mode="longBreak" type="button">
-              긴 휴식
-            </button>
+          <div class="world-action-bar">
+            <div class="garden-feedback" id="gardenMessage" role="status" aria-live="polite">🌱 오늘도 작은 꽃 한 송이를 키워볼까요?</div>
+            <div class="garden-edit-actions"><button type="button" id="gardenUndo" disabled>↶ 되돌리기</button><button type="button" id="gardenRedo" disabled>↷ 다시 하기</button><button type="button" id="gardenCancelPlacement" hidden>선택 취소</button></div>
           </div>
-
-          <div class="timer-layout">
-            <section class="timer-panel">
-              <div class="timer-ring" id="timerRing">
-                <div class="timer-ring-inner">
-                  <p class="timer-mode-label" id="modeLabel">집중 시간</p>
-                  <div class="time-display" aria-live="polite">
-                    <span id="minutes">25</span>
-                    <span class="separator">:</span>
-                    <span id="seconds">00</span>
-                  </div>
-                  <p class="timer-hint" id="timerHint">
-                    한 번의 몰입이 하루의 결을 만듭니다.
-                  </p>
-                </div>
-              </div>
-
-              <div class="controls">
-                <button class="action-button primary" id="startPauseButton" type="button">
-                  시작
-                </button>
-                <button class="action-button secondary" id="resetButton" type="button">
-                  리셋
-                </button>
-                <button class="action-button ghost" id="skipButton" type="button">
-                  다음
-                </button>
-                <button class="action-button ghost" id="miniTimerButton" type="button" hidden>
-                  미니 타이머
-                </button>
-              </div>
-
-              <div class="toggle-row">
+          <div class="garden-selection" id="gardenSelection" hidden><div><strong id="gardenSelectionTitle">선택한 아이템</strong><p id="gardenSelectionDetail">원하는 곳에 놓아보세요.</p></div><div class="garden-edit-actions"><button type="button" id="gardenMove">이동</button><button type="button" id="gardenRotate">↻ 회전</button><button type="button" id="gardenRemove">보관</button></div></div>
+        </div>
+        <aside class="world-right-dock" aria-label="정원 아이템과 동료">
+          <div class="dock-head"><div><span class="eyebrow">YOUR COLLECTION</span><h2>나의 보관함</h2></div><span class="dock-stars" aria-hidden="true">✦ ✧</span></div>
+          <div class="garden-sidebar-tabs" role="tablist" aria-label="보관함 종류">
+            <button type="button" role="tab" id="gardenTabInventory" aria-controls="gardenInventory" aria-selected="true">✿ 꾸미기</button>
+            <button type="button" role="tab" id="gardenTabCompanions" aria-controls="gardenCompanions" aria-selected="false">♡ 친구들</button>
+          </div>
+          <div class="garden-sidebar-scroll" id="gardenInventory" role="tabpanel" aria-labelledby="gardenTabInventory"></div>
+          <div class="garden-sidebar-scroll" id="gardenCompanions" role="tabpanel" aria-labelledby="gardenTabCompanions" hidden></div>
+          <div class="dock-footer">
+            <div class="garden-backup-tools"><button type="button" id="gardenExport">↓ 정원 백업</button><button type="button" id="gardenImportButton">↑ 복원</button><input type="file" id="gardenImportFile" accept=".json,application/json" hidden aria-label="정원 백업 파일"/></div>
+            <p>♥ 정원을 꾸미는 건 쉬는 시간에 해보세요.</p>
+          </div>
+        </aside>
+      </div>
+    </section>
+    <section class="game-screen" id="screenFocus" data-view="focus" aria-labelledby="focusScreenHeading" hidden>
+      <header class="subscreen-heading"><p class="eyebrow">✦ 02 / FOCUS CAMP</p><h1 id="focusScreenHeading">숲속 집중 캠프</h1><p>천천히, 하지만 꾸준히. 오늘의 작은 성취를 쌓아가요.</p></header>
+      <div class="focus-camp-art" aria-hidden="true"><div class="camp-sun"></div><div class="camp-hill camp-hill-back"></div><div class="camp-hill camp-hill-front"></div><div class="camp-sprout">✿</div><div class="camp-house">⌂</div><div class="camp-art-quote"><span>YOUR LITTLE JOURNEY</span><strong>GROW AT YOUR OWN PACE.</strong></div></div>
+      <div class="focus-page-cards">
+        <article class="focus-quest"><span class="eyebrow">TODAY'S LITTLE QUEST</span><h2>오늘도 하나씩, 차근차근.</h2><p>시작 버튼을 누르는 순간 새로운 작은 이야기가 시작됩니다. 집중 시간은 정원과 친구들의 성장에 반영돼요.</p><button class="screen-link jump-world" type="button" data-screen="world">❀ 정원으로 돌아가기</button></article>
+        <article class="focus-quest"><span class="eyebrow">YOUR RHYTHM</span><h2>나만의 속도로 계속하기</h2><p>집중, 짧은 휴식, 긴 휴식을 선택할 수 있어요. 타이머는 화면을 옮겨도 계속 작동합니다.</p><p class="mini-focus-note">휴식 중에는 언제든지 정원을 자유롭게 꾸밀 수 있습니다.</p></article>
+      </div>
+    </section>
+    <section class="game-screen" id="screenJournal" data-view="journal" aria-labelledby="journalHeading" hidden>
+      <header class="subscreen-heading"><p class="eyebrow">✦ 03 / MY JOURNEY</p><h1 id="journalHeading">나의 발자국</h1><p>하루하루 쌓여가는 노력의 기록을 모아봤어요.</p></header>
+      <div class="journal-banner"><span class="journal-sparkles">✧ ✦ ✧</span><h2>오늘의 작은 성취도 소중하니까</h2><p>타이머를 완료할 때마다 여기에 하루의 이야기가 기록됩니다.</p></div>
+      <div class="journal-insights"><div class="journal-insights-heading"><div><span class="eyebrow">LAST 7 DAYS</span><h2>이번 주의 작은 발걸음</h2></div><div class="journal-week-sum"><span>이번 주 누적 집중</span><strong id="journalWeekTotal">0분</strong></div></div><div class="week-chart" id="journalWeekBars" aria-label="최근 7일간 집중 시간 차트"></div></div>
+      <div class="journal-sheet"><div class="sheet-heading"><span class="eyebrow">ACTIVITY LOG</span><h2>최근 세션 기록</h2></div><ul class="event-log" id="eventLog"><li class="event-log-empty">첫 세션을 시작하면 여기에 흐름이 기록됩니다.</li></ul><div class="shortcut-row"><span><kbd>Space</kbd> 시작/정지</span><span><kbd>R</kbd> 초기화</span><span><kbd>N</kbd> 다음 세션</span></div></div>
+    </section>
+    <section class="game-screen" id="screenSettings" data-view="settings" aria-labelledby="settingsHeading" hidden>
+      <header class="subscreen-heading"><p class="eyebrow">✦ 04 / GAME OPTIONS</p><h1 id="settingsHeading">환경 설정</h1><p>나에게 잘 맞는 집중 리듬과 알림을 골라보세요.</p></header>
+      <div class="settings-page-layout">
+        <div class="settings-main-column">
+          <section class="settings-preferences"><div class="section-heading"><p class="eyebrow">FOCUS OPTIONS</p><h2>집중 방식</h2></div><div class="toggle-row">
                 <label class="toggle">
                   <input id="autoAdvance" type="checkbox" checked />
                   <span class="toggle-track"></span>
@@ -128,60 +147,11 @@
                   <input id="transitionAlertsEnabled" type="checkbox" checked />
                   <span class="toggle-track"></span>
                   <em>다음 세션 안내</em>
-                </label>
-              </div>
-            </section>
-
-            <aside class="stats-panel">
-              <div class="stat-grid">
-                <article class="stat-card">
-                  <span>완료한 집중</span>
-                  <strong id="completedToday">0회</strong>
-                </article>
-                <article class="stat-card">
-                  <span>집중한 시간</span>
-                  <strong id="focusMinutesToday">0분</strong>
-                </article>
-                <article class="stat-card">
-                  <span>다음 전환</span>
-                  <strong id="nextModeLabel">짧은 휴식</strong>
-                </article>
-                <article class="stat-card">
-                  <span>긴 휴식까지</span>
-                  <strong id="longBreakCountdown">4회</strong>
-                </article>
-              </div>
-
-              <div class="cycle-card">
-                <div class="section-heading compact">
-                  <p class="eyebrow">Cycle</p>
-                  <h2>사이클 진행</h2>
-                </div>
-                <p class="cycle-copy" id="cycleCaption">4회 집중 후 긴 휴식</p>
-                <div class="session-dots" id="sessionDots" aria-label="사이클 진행 표시"></div>
-                <button class="inline-text-button" id="resetCycleButton" type="button">
-                  현재 사이클 초기화
-                </button>
-              </div>
-
-              <div class="focus-card">
-                <label for="focusIntent">이번 세션 목표</label>
-                <input
-                  id="focusIntent"
-                  type="text"
-                  maxlength="60"
-                  placeholder="예: 발표 자료 1차 완성"
-                />
-              </div>
-            </aside>
-          </div>
-        </section>
-
-        <section class="lower-grid">
-          <section class="settings-card glass">
+                </label></div></section>
+          <section class="settings-card playbook-settings">
             <div class="section-heading">
-              <p class="eyebrow">Preset & Tuning</p>
-              <h2>나만의 리듬</h2>
+              <p class="eyebrow">CONFIGURATION / 타이머</p>
+              <h2>플레이 설정</h2>
             </div>
 
             <div class="preset-row">
@@ -322,96 +292,23 @@
               </section>
             </div>
           </section>
-
-          <section class="timeline-card glass">
-            <div class="section-heading">
-              <p class="eyebrow">Today Flow</p>
-              <h2>세션 기록</h2>
-            </div>
-
-            <ul class="event-log" id="eventLog">
-              <li class="event-log-empty">첫 세션을 시작하면 여기에 흐름이 기록됩니다.</li>
-            </ul>
-
-            <div class="shortcut-row">
-              <span><kbd>Space</kbd> 시작 / 일시정지</span>
-              <span><kbd>R</kbd> 리셋</span>
-              <span><kbd>N</kbd> 다음 세션</span>
-            </div>
-          </section>
-        </section>
-
-        <section class="garden-section glass" id="gardenSection" aria-labelledby="gardenHeading">
-          <div class="garden-heading">
-            <div>
-              <p class="eyebrow">PIXEL GARDEN · MY LITTLE WORLD</p>
-              <h2 id="gardenHeading">작은 친구들의 정원 🌿</h2>
-              <p class="garden-lede">집중하는 시간만큼 꽃이 피어나요. 정원을 꾸미고 새로운 친구를 만나보세요.</p>
-            </div>
-            <a class="garden-back-link" href="#startPauseButton">타이머로 돌아가기 ↑</a>
-          </div>
-          <div class="garden-stat-strip" aria-label="정원 진행 상태">
-            <div><span>누적 집중</span><strong id="gardenFocusTotal">0분</strong></div>
-            <div><span>☀️ 햇살</span><strong id="gardenSunshine">0</strong></div>
-            <div><span>🌸 꽃잎</span><strong id="gardenPetals">0</strong></div>
-            <div><span>해금 지역</span><strong id="gardenZonesUnlocked">1 / 6구역</strong></div>
-          </div>
-          <div class="garden-layout">
-            <div class="garden-map-panel">
-              <div class="garden-toolbar">
-                <label class="garden-zone-label" for="gardenZoneSelect">둘러볼 곳
-                  <select id="gardenZoneSelect" aria-label="정원 지역 선택"></select>
-                </label>
-                <div class="garden-camera-tools" role="group" aria-label="정원 카메라">
-                  <button type="button" id="gardenZoomOut" aria-label="축소">−</button>
-                  <button type="button" id="gardenZoomIn" aria-label="확대">＋</button>
-                  <button type="button" id="gardenCenter">중앙으로</button>
-                </div>
-              </div>
-              <div class="garden-canvas-frame">
-                <canvas id="gardenWorld" width="960" height="540" tabindex="0"
-                  aria-label="픽셀 정원. 마우스나 손가락으로 이동하고, 휠·핀치로 확대하세요. 키보드 방향키로 이동할 수도 있습니다."></canvas>
-                <div class="garden-map-hint" id="gardenCurrentAction">드래그하여 이동 · 오브젝트를 눌러 편집</div>
-              </div>
-              <div class="garden-feedback" id="gardenMessage" role="status" aria-live="polite">
-                🌱 기본 화단과 데이지가 준비됐어요. 인벤토리에서 물건을 선택해 배치해 보세요.
-              </div>
-              <div class="garden-edit-actions">
-                <button type="button" id="gardenUndo" disabled>↶ 실행 취소</button>
-                <button type="button" id="gardenRedo" disabled>↷ 다시 실행</button>
-                <button type="button" id="gardenCancelPlacement" hidden>배치 취소</button>
-              </div>
-              <div class="garden-selection" id="gardenSelection" hidden>
-                <div>
-                  <strong id="gardenSelectionTitle">선택한 아이템</strong>
-                  <p id="gardenSelectionDetail">배치 위치를 조절할 수 있어요.</p>
-                </div>
-                <div class="garden-edit-actions">
-                  <button type="button" id="gardenMove">이동</button>
-                  <button type="button" id="gardenRotate">90° 회전</button>
-                  <button type="button" id="gardenRemove">회수</button>
-                </div>
-              </div>
-              <div class="garden-backup-tools">
-                <button type="button" id="gardenExport">정원 JSON 백업</button>
-                <button type="button" id="gardenImportButton">정원 백업 불러오기</button>
-                <input type="file" id="gardenImportFile" accept=".json,application/json" hidden aria-label="정원 데이터 백업 파일" />
-              </div>
-              <p class="garden-note">집중 중에는 정원을 조용히 감상할 수 있고, 휴식·일시정지 중에는 편집할 수 있어요. 수집품은 사라지지 않아요.</p>
-            </div>
-            <aside class="garden-sidebar" aria-label="정원 아이템과 동료">
-              <div class="garden-sidebar-tabs" role="tablist" aria-label="정원 수집 메뉴">
-                <button type="button" role="tab" id="gardenTabInventory" aria-controls="gardenInventory" aria-selected="true">꾸미기 보관함</button>
-                <button type="button" role="tab" id="gardenTabCompanions" aria-controls="gardenCompanions" aria-selected="false">동료 친구들</button>
-              </div>
-              <div class="garden-sidebar-scroll" id="gardenInventory" role="tabpanel" aria-labelledby="gardenTabInventory"></div>
-              <div class="garden-sidebar-scroll" id="gardenCompanions" role="tabpanel" aria-labelledby="gardenTabCompanions" hidden></div>
-            </aside>
-          </div>
-        </section>
-      </main>
-    </div>
-
-    <script type="module" src="script.js"></script>
-  </body>
+        </div>
+        <aside class="settings-side-column"><div class="install-card"><div class="install-medallion">✿</div><span class="eyebrow">TAKE YOUR GARDEN WITH YOU</span><h2>나의 정원을<br/>어디서나</h2><strong id="installStatus">브라우저에서 바로 이용할 수 있어요</strong><p class="install-hint" id="installHint">홈 화면에 추가하면 앱처럼 사용할 수 있어요.</p><button class="action-button secondary install-button" id="installButton" type="button" hidden>홈 화면에 설치하기</button></div><p class="settings-safe-note">데이터는 이 기기에 보관됩니다. 정원은 별도로 JSON 백업할 수 있어요.</p></aside>
+      </div>
+    </section>
+  </main>
+  <aside class="game-focus-hud" aria-label="집중 타이머" id="focusHud">
+    <div class="hud-head"><span class="hud-eye">◉ LIVE FOCUS</span><span class="hud-status" id="hudStatusLabel">READY TO GROW</span></div>
+    <div class="hud-illustration"><span class="hud-art-sun" aria-hidden="true">✦</span><span class="hud-art-flower" aria-hidden="true">❀</span><span class="hud-art-hill" aria-hidden="true"></span><span class="hud-art-caption">small steps, big blooms.</span></div>
+    <div class="mode-switch" role="tablist" aria-label="타이머 모드"><button class="mode-pill active" data-mode="focus" type="button" aria-selected="true">집중</button><button class="mode-pill" data-mode="shortBreak" type="button">짧은 쉼</button><button class="mode-pill" data-mode="longBreak" type="button">긴 쉼</button></div>
+    <div class="timer-panel"><div class="timer-ring" id="timerRing"><div class="timer-ring-inner"><p class="timer-mode-label" id="modeLabel">집중 시간</p><div class="time-display" role="timer" aria-live="off"><span id="minutes">25</span><span class="separator">:</span><span id="seconds">00</span></div><p class="timer-hint" id="timerHint">조금씩 자라나는 오늘을 위해.</p></div></div></div>
+    <div class="controls"><button class="action-button primary" id="startPauseButton" type="button">▶ 시작하기</button><button class="action-button secondary" id="resetButton" type="button">↺</button><button class="action-button ghost" id="skipButton" type="button">⏭</button><button class="action-button ghost" id="miniTimerButton" type="button" hidden>미니</button></div>
+    <div class="focus-card"><label for="focusIntent">✎ 오늘의 작은 목표</label><input id="focusIntent" type="text" maxlength="60" placeholder="어떤 일에 집중할까요?"/><div class="focus-preview">✦ <span id="focusIntentPreview">무엇에 몰입할까요?</span></div></div>
+    <div class="hud-daily-progress"><div class="hud-progress-head"><span>DAILY GROWTH</span><span>✿</span></div><div class="stat-grid"><article class="stat-card"><span>오늘 집중</span><strong id="focusMinutesToday">0분</strong></article><article class="stat-card"><span>완료 세션</span><strong id="completedToday">0회</strong></article></div><div class="cycle-card"><div class="cycle-head"><span>사이클 진행</span><small id="cycleCaption">4회 집중 후 긴 휴식</small></div><div class="session-dots" id="sessionDots" aria-label="사이클 진행 표시"></div><div class="cycle-meta"><span>다음: <strong id="nextModeLabel">짧은 휴식</strong></span><span>긴 휴식까지 <strong id="longBreakCountdown">4회</strong></span></div><button class="inline-text-button" id="resetCycleButton" type="button">사이클 초기화</button></div></div>
+    <div class="hud-bottom">❀ 오늘의 집중이 내일의 풍경이 돼요.</div>
+  </aside>
+  <nav class="game-mobile-nav" aria-label="모바일 메뉴"><button type="button" class="screen-link active" data-screen="world"><span>❀</span>정원</button><button type="button" class="screen-link" data-screen="focus"><span>◷</span>집중</button><button type="button" class="screen-link" data-screen="journal"><span>▤</span>기록</button><button type="button" class="screen-link" data-screen="settings"><span>⚙</span>설정</button></nav>
+</div>
+<script type="module" src="script.js"></script>
+</body>
 </html>

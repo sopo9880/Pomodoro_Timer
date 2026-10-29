@@ -1,6 +1,7 @@
 import { normalizeSettings as normalizeSavedSettings, normalizeDailyStats, creditFocusInterval, creditCompletedSession, recoverCheckpoint, localDayKey } from "./core/focus-core.mjs";
 import { createGardenState, normalizeGardenState, creditGardenFocus } from "./garden/garden-core.mjs";
 import { mountGarden } from "./garden/garden-ui.mjs";
+import { mountGameShell } from "./ui/game-shell.mjs";
 
 const STORAGE_KEY = "bloomodoro-state-v3";
 const LEGACY_STORAGE_KEY = "bloomodoro-state-v2";
@@ -109,6 +110,7 @@ let miniTimerElements = null;
 let lastMediaSessionStamp = "";
 let lastCheckpointSave = 0;
 let gardenInterface = null;
+let gameShell = null;
 
 const elements = {
   body: document.body,
@@ -167,11 +169,16 @@ function init() {
   bindInstallEvents();
   registerServiceWorker();
   restoreRunningTimer();
+  gameShell = mountGameShell({
+    getTimerState: () => ({ mode: state.mode, isRunning: state.isRunning }),
+    getDailyStats: () => state.dailyStats,
+  });
   render();
   gardenInterface = mountGarden({
     getGarden: () => state.garden,
     setGarden: (nextGarden) => { state.garden = nextGarden; saveState(); },
     getTimerState: () => ({ mode: state.mode, isRunning: state.isRunning }),
+    getEnvironment: () => gameShell.getEnvironment(),
   });
 }
 
@@ -307,7 +314,10 @@ function bindEvents() {
   document.addEventListener("keydown", (event) => {
     const isTyping =
       document.activeElement instanceof HTMLInputElement ||
-      document.activeElement instanceof HTMLTextAreaElement;
+      document.activeElement instanceof HTMLTextAreaElement ||
+      document.activeElement instanceof HTMLSelectElement ||
+      document.activeElement instanceof HTMLButtonElement ||
+      document.activeElement?.isContentEditable;
 
     if (event.code === "Space" && !isTyping) {
       event.preventDefault();
@@ -811,7 +821,8 @@ function renderTimer() {
   elements.seconds.textContent = String(seconds).padStart(2, "0");
   elements.timerRing.style.setProperty("--progress", `${Math.max(0, Math.min(100, progress))}%`);
   elements.timerRing.classList.toggle("running", state.isRunning);
-  document.title = `${elements.minutes.textContent}:${elements.seconds.textContent} · ${MODE_META[state.mode].label}`;
+  document.title = `${elements.minutes.textContent}:${elements.seconds.textContent} · ${MODE_META[state.mode].label} · Bloomodoro`;
+  gameShell?.refresh();
 }
 
 function renderMode() {
@@ -827,7 +838,7 @@ function renderMode() {
 }
 
 function renderControls() {
-  elements.startPauseButton.textContent = state.isRunning ? "일시정지" : "시작";
+  elements.startPauseButton.textContent = state.isRunning ? "Ⅱ 잠시 멈추기" : "▶ 시작하기";
   elements.autoAdvance.checked = state.autoAdvance;
   elements.soundEnabled.checked = state.soundEnabled;
   elements.vibrationEnabled.checked = state.vibrationEnabled;

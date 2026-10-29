@@ -2,16 +2,25 @@
   "id": "./",
   "name": "Bloomodoro",
   "short_name": "Bloomodoro",
-  "description": "집중과 휴식의 흐름을 예쁘게 이어주는 설치형 포모도로 타이머",
+  "description": "집중할수록 꽃이 피어나는 나만의 픽셀 정원 타이머",
   "lang": "ko",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
   "orientation": "portrait",
-  "background_color": "#171018",
-  "theme_color": "#171018",
-  "categories": ["productivity", "utilities"],
+  "background_color": "#1b302b",
+  "theme_color": "#1b302b",
+  "categories": [
+    "productivity",
+    "utilities"
+  ],
   "icons": [
+    {
+      "src": "icons/world-mark.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
     {
       "src": "icons/icon-192.png",
       "sizes": "192x192",

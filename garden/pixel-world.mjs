@@ -86,6 +86,42 @@ const SPRITES = {
     "....BBBBBBBB....","....BTTTTTTB....","....BTKKTTTB....","....BTKKTTTB....","....BTTTTTTB....",
     "....BBBBBBBB....",".......BB.......",".......BB.......","......BBBB......","................","................",
   ],
+  "moss-boulder": [
+    "................","................","................","................",
+    "................",".....KKKK.......","....KSSSSK......","...KSSESSSK.....",
+    "..KSSSSSSSSK....","..KSGLGGGSSK....","..KGGLGGSSSK....","...KSSSSSK......",
+    "....KKKKKK......","................","................","................",
+  ],
+  "picnic-cloth": [
+    "................","................","................","................",
+    "................","..RRRRRRRRRRRR..","..RWWRRWWRRWWR..","..RWWRRWWRRWWR..",
+    "..RRRRRRRRRRRR..","..RWWRRWWRRWWR..","..RWWRRWWRRWWR..","..RRRRRRRRRRRR..",
+    "................","................","................","................",
+  ],
+  "forest-lamp": [
+    "................","................","......GGGG......",".....GLLLLG.....",
+    "....GGGGGGGG....",".....KYYYYK.....",".....KYWYKK.....",".....KYYYYK.....",
+    ".....KKKKKK.....",".......BB.......",".......BB.......",".......BB.......",
+    "......BBBB......",".....BBBBBB.....","................","................",
+  ],
+  "little-tree": [
+    "................","......GGG.......","....GGLLLGG.....","...GGLLLLLGG....",
+    "..GLLGLLGLLG....","..GLLLLLLLGG....","..GLLRLLRLLG....","...GLLLLLLG.....",
+    "....GGGLLG......","......KBB.......","......KBB.......","......KBB.......",
+    "......BBBB......",".....BBBBBB.....","................","................",
+  ],
+  "wishing-well": [
+    "................","......BBBB......",".....BHHHHB.....","....BHHHHHHB....",
+    "...BBBBBBBBBB...","....BTTTTTTB....","....BUUUUUUB....","....BUUWWUUB....",
+    "....BUUUUUUB....","....BBBBBBBB....","....BHHHHHHB....","....BHHHHHHB....",
+    "....BBBBBBBB....","................","................","................",
+  ],
+  "star-crystal": [
+    "................",".......W........","......YWY.......",".....YWWYY......",
+    "....YYWWYYY.....",".....YWYWY......","......YWY.......",".......Y........",
+    ".....YWWY.......","....YWWWWY......",".....YYYY.......","......BB........",
+    "......BB........",".....BBBB.......","................","................",
+  ],
   cottage: [
     "................","................",".......BB.......","......BHHB......",".....BHHHHB.....",
     "....BBBBBBBB....","...BBTTTTTTBB...","...BTTTTTTTTB...","...BTWTTTWTB....","...BTTTTTTTTB...",
@@ -124,7 +160,7 @@ function noise(x, y, seed = 0) {
   h = Math.imul(h ^ (h >>> 13), 1274126177);
   return ((h ^ (h >>> 16)) >>> 0) / 4294967295;
 }
-function zoneColor(zoneId, alternation) {
+function zoneColor(zoneId, alternation, environment = {}) {
   const colors = {
     central: ["#6d966c", "#729b6e"],
     greenhouse: ["#87a46c", "#8eab75"],
@@ -133,7 +169,13 @@ function zoneColor(zoneId, alternation) {
     workshop: ["#9b9779", "#a6a084"],
     starlight: ["#6a7595", "#7580a0"],
   };
-  const pair = colors[zoneId] || ["#324e49", "#38564f"];
+  const seasonalPalette = {
+    spring: { central: ["#77a276","#7da97a"], greenhouse: ["#8dac73","#94b478"], forest:["#638b72","#699178"] },
+    summer: { central: ["#538960","#5b9267"], greenhouse: ["#6c965e","#74a165"], forest:["#3f7657","#477e5f"] },
+    autumn: { central: ["#b29b66","#bca66e"], greenhouse: ["#c39b61","#cda367"], forest:["#947858","#9d805f"] },
+    winter: { central: ["#b7c9b8","#bfcebd"], greenhouse: ["#c8d4c2","#d0dbc8"], forest:["#9cb7ac","#a5beb3"], pond:["#90b1b6","#9abac0"] },
+  };
+  const pair = seasonalPalette[environment.season]?.[zoneId] || colors[zoneId] || ["#324e49", "#38564f"];
   return pair[alternation ? 1 : 0];
 }
 export function createPixelGardenRenderer(canvas) {
@@ -199,7 +241,8 @@ export function createPixelGardenRenderer(canvas) {
     if (!garden) return;
     resize();
     const tile = WORLD_SPEC.tileSize * camera.zoom;
-    ctx.fillStyle = "#203b37";
+    const environment = options.environment || { season: "spring", weather: "clear", time: "day" };
+    ctx.fillStyle = environment.time === "night" ? "#192c39" : "#203b37";
     ctx.fillRect(0, 0, width, height);
     const minX = Math.max(0, Math.floor(camera.x - width / (2 * tile)) - 1);
     const minY = Math.max(0, Math.floor(camera.y - height / (2 * tile)) - 1);
@@ -211,7 +254,7 @@ export function createPixelGardenRenderer(canvas) {
         const unlocked = zone && garden.unlockedZones.includes(zone.id);
         const sx = Math.floor(width / 2 + (x - camera.x) * tile);
         const sy = Math.floor(height / 2 + (y - camera.y) * tile);
-        ctx.fillStyle = unlocked ? zoneColor(zone.id, noise(x, y) > .58) : zone ? "#40524e" : "#2c4641";
+        ctx.fillStyle = unlocked ? zoneColor(zone.id, noise(x, y) > .58, environment) : zone ? "#40524e" : "#2c4641";
         ctx.fillRect(sx, sy, Math.ceil(tile) + 1, Math.ceil(tile) + 1);
         if (unlocked && (Math.abs(x - 80) < 1.5 || Math.abs(y - 80) < 1.5)) {
           ctx.fillStyle = "#b4a98a";
@@ -219,7 +262,7 @@ export function createPixelGardenRenderer(canvas) {
           ctx.fillStyle = "#9a947a";
           if (noise(x, y, 3) > .7) ctx.fillRect(sx + tile * .3, sy + tile * .45, tile * .16, tile * .12);
         } else if (unlocked && noise(x, y, 7) > .86) {
-          ctx.fillStyle = zone.id === "starlight" ? "#cad6ca" : "#9fc58f";
+          ctx.fillStyle = environment.season === "winter" ? "#f2f8e6" : environment.season === "autumn" ? "#efc78a" : zone.id === "starlight" ? "#cad6ca" : "#9fc58f";
           const dot = Math.max(2, Math.round(tile / 7));
           ctx.fillRect(sx + Math.round(tile * .24), sy + Math.round(tile * .45), dot, dot);
           ctx.fillRect(sx + Math.round(tile * .6), sy + Math.round(tile * .3), dot, dot);
@@ -278,6 +321,30 @@ export function createPixelGardenRenderer(canvas) {
       const x = companion.x + Math.sin(time * .4 + index * 2.4) * wander;
       const y = companion.y + Math.cos(time * .29 + index * 1.4) * wander;
       drawSprite(companion.speciesId, x, y, 1.9);
+    }
+    if (environment.time === "night") {
+      ctx.fillStyle = "rgba(10,22,48,.27)";
+      ctx.fillRect(0, 0, width, height);
+      // Low-cost twinkling fireflies are deterministic per scene and intentionally sparse.
+      for (let i = 0; i < 22; i++) {
+        const x = noise(i, 7) * width, y = noise(i, 19) * height;
+        const pulse = reducedMotion ? .55 : .36 + Math.sin(time * 1.8 + i) * .22;
+        ctx.fillStyle = "rgba(254,239,169," + Math.max(.08, pulse) + ")";
+        ctx.fillRect(Math.round(x), Math.round(y), 3, 3);
+      }
+    }
+    if (environment.weather === "rain" || environment.weather === "snow") {
+      const snow = environment.weather === "snow";
+      ctx.strokeStyle = snow ? "rgba(249,248,238,.85)" : "rgba(182,228,228,.55)";
+      ctx.fillStyle = "rgba(247,249,241,.80)";
+      ctx.lineWidth = 1.4;
+      const speed = reducedMotion ? 0 : time * (snow ? 18 : 76);
+      for (let i = 0; i < (snow ? 38 : 54); i++) {
+        const x = (noise(i, 31) * width + speed * (snow ? .13 : .3)) % width;
+        const y = (noise(i, 37) * height + speed) % height;
+        if (snow) ctx.fillRect(Math.floor(x), Math.floor(y), 3, 3);
+        else { ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x - 4, y + 12); ctx.stroke(); }
+      }
     }
     if (options.ghost) drawSprite(options.ghost.sprite, options.ghost.x, options.ghost.y, 1.5, options.ghost.rotation || 0, .65);
   }

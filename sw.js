@@ -1,4 +1,4 @@
-const CACHE_NAME = "bloomodoro-cache-v11";
+const CACHE_NAME = "bloomodoro-cache-v12";
 const PRECACHE_URLS = [
   "./",
   "./index.html",
@@ -7,11 +7,13 @@ const PRECACHE_URLS = [
   "./core/focus-core.mjs",
   "./garden/garden-core.mjs",
   "./garden/garden-ui.mjs",
+  "./ui/game-shell.mjs",
   "./garden/pixel-world.mjs",
   "./garden/garden.css",
   "./keepalive.mp3",
   "./timer-worker.js",
   "./manifest.webmanifest",
+  "./icons/world-mark.svg",
   "./icons/icon-192.png",
   "./icons/icon-512.png",
   "./icons/icon-maskable-512.png",
