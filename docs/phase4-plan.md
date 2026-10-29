@@ -71,3 +71,29 @@ After PR CI starts, report the Actions link and end the development turn. On the
 - Local guest identity requires no server and never promises remote login. MongoDB and cross-device sync remain out of Phase 4.
 - Phase 4 final release should happen **only once** after PR CI, merged deploy tests, existing-save and guest-backup restoration, and user approval. Browser/device functional validation remains the user's post-release responsibility per project rules; before release perform automated tech checks and manual visual QA where accessible.
 - Revisit multi-tab state conflicts and PWA offline storage behavior as explicit QA risks; PR CI unit tests alone do not prove real-browser consistency. Existing `v1.0.0` GitHub Release is preserved.
+
+## Phase 4D — approved visual/interaction revision
+
+### Design acceptance criteria
+
+1. Original Polished JRPG direction (B) — botanically themed, elegant, detailed, soft premium colors; no reuse of non-original game character artwork. Player hair/cape/satchel/flowers, outfit shading, facial expression and accessories must read clearly at native scale.
+2. All six companions have distinct silhouette and emotional states when picked up, released safely, or invalidly dropped.
+3. Player held-key input is continuous; diagonal speed is normalized; animation and movement are independent of OS keyboard repeat and frame rate; walking/click target use current unlocked-zone collision rules.
+4. A mouse or touch pointer shows an accepted/rejected companion drop marker before release. The avatar click target, current selection, destination and invalid destination are visible.
+5. Keep the existing browser event routes and 4C state schema. When the input is not actively controlled, the ecosystem renderer uses a lower frame rate. Reduced motion must not change earned time or make avatar input slower.
+6. No save reset, no duplicate earned time points, no change to optional guest identity or wearable ownership. No new APK/EXE build in this phase.
+7. Keep both world camera pan and pinch zoom working alongside dragging companions. Test mobile taps and two-finger cancel. All keyboard actions should ignore typing into forms.
+
+### Technical changes
+
+- `garden/avatar-art.mjs`: original 48×64 premium botanical JRPG player sprite, 6-frame layered palette, all original wearable ID variants, and precise wardrobe preview.
+- `garden/companion-art.mjs`: original 48×48 expressive full roster, directional face and reactions.
+- `garden/avatar-motion.mjs`: held-key continuous movement with conservative substeps, sliding collision, normalized diagonals, explicit cancel and path override, stable 6-frame animation.
+- `garden/pixel-world.mjs`: draw sprites at correct proportions, larger physical hit zones, elliptical selection ring, goal and drop validity marks.
+- `garden/garden-ui.mjs`: combined pointer/keyboard control, immediate first motion, batched safe-save, camera follow deadzone, adaptive animation refresh.
+- `sw.js`: v16 asset cache; original manifest and storage key unchanged.
+- `tests/phase4d-*.`: collision, input, animation cache, save invariants, PWA smoke and HTML/wiring verification.
+
+### Release gate
+
+Keep original formal `v1.0.0` intact. After Phase 4D development CI, merge and deploy verification, assess the combined Phase 4A–4D baseline and prepare **one approved formal release**; do not publish another release or recompile APK/EXE here. Real-device verification is performed by the user after final release per project policy.

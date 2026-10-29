@@ -63,7 +63,8 @@ test("original sprite atlases cache all species and growth stages without networ
  const friends=createCompanionSpriteAtlas(doc);
  for(const species of ["sprout","mushroom","cat","sparrow","turtle","fox"]){
    const a=friends.frame(species,"left","walk",1);
-   assert.equal(a.width,32);
+   assert.equal(a.width,48);
+    assert.equal(a.height,48);
    assert.equal(friends.frame(species,"left","walk",1),a);
    assert.notEqual(friends.frame(species,"right","idle",0),a);
  }

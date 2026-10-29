@@ -117,3 +117,17 @@ Phase 4B extends the connected world without changing `bloomodoro-state-v3`, `GA
 - **Testing and release:** Node tests cover economic migration, lifetime-versus-spendable minutes, outfit ownership, movement/drag safety, discovery idempotency, old saves, and offline cache. **Phase 4C is not a formal release; after PR CI, merge/deploy checks and browser acceptance, release all of Phase 4 once from one final commit.**
 
 Not yet validated on real devices: visual polish, mobile touch nuance, concurrent tabs, and cloud synchronization. Do not count those as passed until independently tested.
+
+## 🎨 Phase 4D — Polished JRPG character and game-feel pass (PR only)
+
+The artwork direction is **B — Polished JRPG**: original botanical fantasy characters with warm cream, forest/sage green, leather-brown silhouettes, detailed layered clothing, expressive faces and shaded ornamental accents. The game sprites are hand-authored, deterministic local pixel canvases and **not** cropped from a large presentation illustration.
+
+- **Player**: the original `avatar-art.mjs` 32×48 placeholder is now a **48×64** layered sprite with 4 facing directions and 6 walking/idle frames. The same saved `hair-*`, `outfit-*`, `hat-*` and `shoes-*` IDs work; no repurchase, reset or schema migration.
+- **Six companions**: renewed **48×48** silhouettes for sprout, mushroom, cat, sparrow, turtle and fox, with unique botanical details, directional faces and picked-up/surprised/happy expressions. Existing recruitment, friendship, saved locations and purchases remain unchanged.
+- **Responsive input**: holding WASD/arrow keys now moves continuously, allowing diagonal movement at normalized speed. Click-to-move uses the existing obstacle-aware routes; key input cancels a current auto-route immediately. Movement tests cover collisions with water, locked areas and objects.
+- **Feedback**: improved avatar/companion body hit-boxes; high-frequency drawing while moving (frugal idle mode); soft player camera follow; highlighted selected player; visible drop-valid/drop-invalid and click-destination markers; tactile cursors and touch-safe pointer thresholds.
+- **Storage safety**: animation is transient, coordinates are batch-saved and flushed on key release or loss of focus; the timer, time points, guest profile, wearables, plant growth and garden v2 schema remain untouched.
+- **PWA**: cache updated to `bloomodoro-cache-v16` for offline updates.
+- **Quality gates**: PR checks run all existing and new Node tests, syntax checks and offline smoke tests. A browser/mobile visual review is still required before calling the character art production-grade. The reference concept illustration is a quality target, not a promise of exact in-game raster similarity.
+
+**Phase 4D is not a formal GitHub Release.** Do not merge this PR or publish a new tag until the requested CI/merge/release stages.

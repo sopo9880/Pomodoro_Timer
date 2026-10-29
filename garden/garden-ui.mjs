@@ -74,6 +74,11 @@ export function mountGarden({ getGarden, setGarden, getTimerState, getEnvironmen
   let activeTab = "inventory";
   let avatarSelected = false;
   let previousAvatarPaint = 0;
+  let lastAvatarSave = 0;
+  let cameraPanUntil = 0;
+  let dropPreview = null;
+  let moveTargetUntil = 0;
+  let moveFeedback = null;
   let lastFingerprint = "";
   let lastFocusProgress = getGarden().progress.focusSeconds;
   const undoHistory = [];
@@ -97,11 +102,39 @@ export function mountGarden({ getGarden, setGarden, getTimerState, getEnvironmen
   function snapshot(garden) {
     return JSON.parse(JSON.stringify(garden));
   }
+  function saveAvatarPosition(force = false) {
+    const current = getGarden();
+    const point = avatarMotion.visual();
+    if(!point || !current.avatar) return false;
+    const distance = Math.hypot(point.x-current.avatar.x, point.y-current.avatar.y);
+    if(distance < .015) return false;
+    // Batched saves during motion; always flush on key release, blur, hide,
+    // or before a different edit. Lifetime focus/currency is never changed.
+    if(!force && performance.now()-lastAvatarSave < 360) return false;
+    try {
+      const next = moveAvatar(current,renderer.map,
+        Math.round(point.x*1000)/1000,Math.round(point.y*1000)/1000,point.direction);
+      undoHistory.length=0;
+      redoHistory.length=0;
+      setGarden(next);
+      lastAvatarSave=performance.now();
+      return true;
+    }catch(error){
+      avatarMotion.sync(current.avatar,true);
+      announce(error?.message||"현재 위치를 저장하지 못했어요.");
+      return false;
+    }
+  }
+  function stopAvatarControl() {
+    saveAvatarPosition(true);
+    avatarMotion.cancel();
+  }
   function mutate(operation, successMessage, shouldTrack = true) {
     if (editingLocked()) {
       announce("집중 중에는 정원을 감상할 수 있어요. 편집은 일시정지 또는 휴식 시간에 가능합니다.");
       return false;
     }
+    saveAvatarPosition(true);
     const before = getGarden();
     try {
       const after = operation(before);
@@ -128,7 +161,7 @@ export function mountGarden({ getGarden, setGarden, getTimerState, getEnvironmen
   function restoreHistory(historyFrom, historyTo) {
     if (editingLocked() || !historyFrom.length) return;
     historyTo.push(snapshot(getGarden()));
-    avatarMotion.cancel();
+    stopAvatarControl();
     const restored=historyFrom.pop();
     setGarden(restored);
     avatarMotion.sync(restored.avatar);
@@ -396,7 +429,9 @@ export function mountGarden({ getGarden, setGarden, getTimerState, getEnvironmen
     }
     if (onScreen) {
       renderer.draw(garden, getTimerState(), { selected, ghost, avatar:avatarMotion.visual(),
-        avatarSelected,reduceMotion: reduceMotionQuery.matches, time: performance.now(), environment: getEnvironment() });
+        avatarSelected,dropPreview,moveFeedback:performance.now()<moveTargetUntil?moveFeedback:null,
+        moveTarget:avatarSelected?avatarMotion.target():null,
+        reduceMotion: reduceMotionQuery.matches, time: performance.now(), environment: getEnvironment() });
       paintMinimap(garden, force);
       updateRegionName(garden);
     }
@@ -466,8 +501,8 @@ export function mountGarden({ getGarden, setGarden, getTimerState, getEnvironmen
   }
   view.avatarSelect.addEventListener("click",()=>{
     if(editingLocked())return;
+    stopAvatarControl();
     avatarSelected=!avatarSelected;
-    avatarMotion.cancel();
     if(avatarSelected)setAction("inspect");
     announce(avatarSelected?"내 캐릭터를 조작해 보세요. WASD 또는 방향키, 바닥 클릭 이동이 가능해요.":"캐릭터 직접 조작을 종료했어요.");
     canvas.focus({preventScroll:true});
@@ -605,6 +640,14 @@ export function mountGarden({ getGarden, setGarden, getTimerState, getEnvironmen
         announce(friend.greeting || (species?.name||"친구")+"가 반갑게 인사해요.");
         return;
       }
+      if(avatarSelected){
+        stopAvatarControl();
+        const path=avatarMotion.goTo(getGarden(),x,y);
+        moveTargetUntil=performance.now()+950;
+        moveFeedback={x,y,allowed:path};
+        announce(path?"선택한 곳까지 이동해요. 키보드로 즉시 방향을 바꿀 수도 있어요.":"갈 수 없는 곳이에요. 열린 산책로를 눌러 주세요.");
+        return;
+      }
       const creature=renderer.getWildlifeAt(x,y);
       if(creature){
         mutate(garden=>discover(garden,"wildlife",creature.speciesId),
@@ -625,12 +668,8 @@ export function mountGarden({ getGarden, setGarden, getTimerState, getEnvironmen
           landmark.name+" · "+stories[landmark.zoneId],false);
         return;
       }
-      if(avatarSelected){
-        const path=avatarMotion.goTo(getGarden(),x,y);
-        announce(path?"아바타가 목적지까지 산책할게요.":"그 위치로 이동할 수 없어요. 가까운 길을 선택해 주세요.");
-        return;
-      }
     }
+    if(avatarSelected && picked)stopAvatarControl();
     selectObject(picked);
   }
   canvas.addEventListener("pointerdown", (event) => {
@@ -644,15 +683,18 @@ export function mountGarden({ getGarden, setGarden, getTimerState, getEnvironmen
       previousPinchCenter = { x: (points[0].x + points[1].x) / 2, y: (points[0].y + points[1].y) / 2 };
       if(pointerGesture?.friendHeld)renderer.endCompanionDrag(pointerGesture.friendId,false);
       pointerGesture = null;
+      dropPreview=null;
+      canvas.dataset.interaction="";
       ghost = null;
       return;
     }
     const pos = targetPosition(event);
-    const clicked = currentTool === "inspect" && !editingLocked() ? pickObject(pos.x, pos.y) : null;
-    const friend = !clicked && currentTool === "inspect" && !editingLocked()
-      ? renderer.getCompanionAt(pos.x,pos.y):null;
-    const avatarHit = !clicked && !friend && !editingLocked() && currentTool==="inspect"
-      ?Boolean(renderer.getAvatarAt(pos.x,pos.y)):false;
+    // Hit-tests prioritize drawn characters above underlying decorations;
+    // picking a friend should never accidentally move a flower behind it.
+    const canInteract=currentTool==="inspect"&&!editingLocked();
+    const avatarHit=canInteract&&Boolean(renderer.getAvatarAt(pos.x,pos.y));
+    const friend=canInteract&&!avatarHit?renderer.getCompanionAt(pos.x,pos.y):null;
+    const clicked=!friend&&!avatarHit&&canInteract?pickObject(pos.x,pos.y):null;
     pointerGesture = {
       pointerId: event.pointerId, startX: event.clientX, startY: event.clientY,
       lastX: event.clientX, lastY: event.clientY, moved: false,
@@ -670,7 +712,15 @@ export function mountGarden({ getGarden, setGarden, getTimerState, getEnvironmen
       ghost = { sprite: findGardenItem(object.itemId)?.sprite || "seed", x: pos.x, y: pos.y, rotation: object.rotation || 0 };
     }
     const pointer = pointers.get(event.pointerId);
-    if (!pointer) return;
+    if (!pointer) {
+      if(currentTool==="inspect"&&!editingLocked()){
+        const friend=renderer.getCompanionAt(pos.x,pos.y);
+        const avatar=renderer.getAvatarAt(pos.x,pos.y);
+        canvas.dataset.interaction=avatar?"avatar-hit":friend?"companion":
+          avatarSelected?"avatar":"";
+      }
+      return;
+    }
     pointer.x = event.clientX;
     pointer.y = event.clientY;
     if (pointers.size === 2) {
@@ -692,20 +742,32 @@ export function mountGarden({ getGarden, setGarden, getTimerState, getEnvironmen
     const dy = event.clientY - gesture.lastY;
     gesture.lastX = event.clientX;
     gesture.lastY = event.clientY;
-    if (Math.hypot(event.clientX - gesture.startX, event.clientY - gesture.startY) > 7) gesture.moved = true;
+    const threshold = event.pointerType==="touch" ? 9 : 4;
+    if(Math.hypot(event.clientX-gesture.startX,event.clientY-gesture.startY)>threshold)gesture.moved=true;
     if (!gesture.moved) return;
     if(gesture.friendId&&!editingLocked()){
       if(!gesture.friendHeld){
         gesture.friendHeld=renderer.beginCompanionDrag(gesture.friendId);
         if(gesture.friendHeld)announce("친구를 집었어요! 살살 내려놓아 주세요. ♡");
       }
-      if(gesture.friendHeld)renderer.dragCompanion(gesture.friendId,pos.x,pos.y);
+      if(gesture.friendHeld){
+        renderer.dragCompanion(gesture.friendId,pos.x,pos.y);
+        let allowed=false;
+        try {
+          moveCompanionDrop(getGarden(),renderer.map,gesture.friendId,pos.x,pos.y);
+          allowed=true;
+        }catch{ /* Preview never writes the garden, even on invalid tiles. */ }
+        dropPreview={x:pos.x,y:pos.y,allowed};
+        canvas.dataset.interaction=allowed?"can-drop":"no-drop";
+      }
     }else if (gesture.dragging && !editingLocked()) {
       selected = { kind: gesture.dragging.kind, id: gesture.dragging.id };
       const item = findGardenItem(selectedObject()?.itemId);
       ghost = { sprite: item?.sprite || "seed", x: pos.x, y: pos.y };
     } else if (currentTool === "inspect") {
       renderer.panPixels(dx, dy);
+      cameraPanUntil=performance.now()+1100;
+      canvas.dataset.interaction="pan";
     }
   });
   function finishPointer(event) {
@@ -715,6 +777,8 @@ export function mountGarden({ getGarden, setGarden, getTimerState, getEnvironmen
     if (pointers.size) {
       if(pointerGesture?.friendHeld)renderer.endCompanionDrag(pointerGesture.friendId,false);
       pointerGesture = null;
+      dropPreview=null;
+      canvas.dataset.interaction="";
       previousPinchCenter = null;
       previousPinchDistance = 0;
       return;
@@ -731,11 +795,13 @@ export function mountGarden({ getGarden, setGarden, getTimerState, getEnvironmen
           "친구가 무사히 착지했어요! ♥");
       }
       renderer.endCompanionDrag(gesture.friendId,accepted,accepted?point:null);
+      dropPreview=null;
+      canvas.dataset.interaction="";
     }else if(gesture?.avatarHit&&!gesture.moved&&!editingLocked()){
       avatarSelected=true;
       selected=null;
       setAction("inspect");
-      announce("내 캐릭터를 선택했어요. WASD·화살표·바닥 클릭으로 산책할 수 있어요.");
+      announce("내 캐릭터 선택! WASD/방향키를 누르고 있거나 바닥을 터치해 이동해 보세요.");
     }else if (gesture?.moved && gesture.dragging && !editingLocked()) {
       const target = gesture.dragging;
       mutate((garden) => moveGardenObject(garden, target.kind, target.id, point.x, point.y), "오브젝트를 이동했어요.");
@@ -744,6 +810,8 @@ export function mountGarden({ getGarden, setGarden, getTimerState, getEnvironmen
       applyPosition(point.x, point.y);
     }
     ghost = null;
+    dropPreview=null;
+    if(!pointers.size)canvas.dataset.interaction=avatarSelected?"avatar":"";
     refresh(true);
   }
   canvas.addEventListener("pointerup", finishPointer);
@@ -754,6 +822,8 @@ export function mountGarden({ getGarden, setGarden, getTimerState, getEnvironmen
     previousPinchCenter = null;
     previousPinchDistance = 0;
     ghost = null;
+    dropPreview=null;
+    canvas.dataset.interaction="";
   });
   canvas.addEventListener("contextmenu", (event) => event.preventDefault());
   canvas.addEventListener("wheel", (event) => {
@@ -774,73 +844,107 @@ export function mountGarden({ getGarden, setGarden, getTimerState, getEnvironmen
     else if (event.key === "-") renderer.zoomBy(1 / 1.12);
     else if (event.key === "Enter" && currentTool !== "inspect") applyPosition(renderer.camera.x, renderer.camera.y);
     else if (event.key === "Escape") {
+      stopAvatarControl();
       avatarSelected=false;
-      avatarMotion.cancel();
       setAction("inspect");
     }
     else return;
     refresh();
   });
+  const MOVE_KEYS = Object.freeze({
+    w:"up",W:"up",ArrowUp:"up",s:"down",S:"down",ArrowDown:"down",
+    a:"left",A:"left",ArrowLeft:"left",
+    d:"right",D:"right",ArrowRight:"right",
+  });
+  function isTyping(event){
+    return event.target instanceof HTMLInputElement ||
+      event.target instanceof HTMLTextAreaElement ||
+      event.target instanceof HTMLSelectElement ||
+      Boolean(event.target?.isContentEditable);
+  }
   document.addEventListener("keydown",(event)=>{
-    if(!avatarSelected||!onScreen||editingLocked()||event.altKey||event.ctrlKey||event.metaKey)return;
-    if(event.target instanceof HTMLInputElement||event.target instanceof HTMLTextAreaElement
-       ||event.target instanceof HTMLSelectElement||event.target?.isContentEditable)return;
-    const command={
-      w:[0,-1],W:[0,-1],ArrowUp:[0,-1],
-      s:[0,1],S:[0,1],ArrowDown:[0,1],
-      a:[-1,0],A:[-1,0],ArrowLeft:[-1,0],
-      d:[1,0],D:[1,0],ArrowRight:[1,0],
-    }[event.key];
-    if(!command)return;
+    if(!avatarSelected||!onScreen||editingLocked()||event.altKey||event.ctrlKey||event.metaKey||isTyping(event))return;
+    const direction=MOVE_KEYS[event.key];
+    if(!direction)return;
     event.preventDefault();
-    try{
-      const next=avatarMotion.step(getGarden(),command[0],command[1]);
-      undoHistory.length=0;redoHistory.length=0;
-      setGarden(next);
-      refresh(true);
-    }catch(error){
-      announce(error?.message||"그쪽으로 이동할 수 없어요.");
-    }
+    // OS key repeat no longer produces a discrete grid teleport. The first
+    // keydown gets a small immediate step for responsive tactile feedback.
+    const already=avatarMotion.isControlled();
+    avatarMotion.setHeld(direction,true);
+    if(!already)avatarMotion.advance(.021,getGarden());
+    refresh(true);
+  });
+  document.addEventListener("keyup",(event)=>{
+    const direction=MOVE_KEYS[event.key];
+    if(!direction||!avatarMotion.isControlled())return;
+    avatarMotion.setHeld(direction,false);
+    if(!avatarMotion.isControlled())saveAvatarPosition(true);
+    refresh(true);
+  });
+  window.addEventListener("blur",()=>{
+    stopAvatarControl();
+    dropPreview=null;
   });
   document.addEventListener("visibilitychange", () => {
-    if(document.hidden)avatarMotion.cancel();
+    if(document.hidden){
+      stopAvatarControl();
+      dropPreview=null;
+      previousAvatarPaint=0;
+    }
     if (!document.hidden && onScreen) startAnimation();
   });
   window.addEventListener("bloomodoro:environmentchange", () => refresh());
   window.addEventListener("bloomodoro:screenchange", (event) => {
     onScreen = event.detail?.screen === "world" && !document.hidden;
-    if(!onScreen)avatarMotion.cancel();
-    if (onScreen) { renderer.resize(); refresh(); startAnimation(); }
+    if(!onScreen)stopAvatarControl();
+    if(onScreen){previousAvatarPaint=0;renderer.resize();refresh();startAnimation();}
   });
   function startAnimation() {
     if (animationFrame) return;
     animationFrame = requestAnimationFrame(tick);
   }
   function tick(timestamp) {
-    animationFrame = 0;
-    if (document.hidden || !onScreen) return;
-    const interval = reduceMotionQuery.matches ? 500 : 100;
-    if (timestamp - lastPaint >= interval) {
-      if(editingLocked()&&avatarMotion.isMoving())avatarMotion.cancel();
-      const elapsed=previousAvatarPaint?Math.min(.25,(timestamp-previousAvatarPaint)/1000):0;
+    animationFrame=0;
+    if(document.hidden||!onScreen)return;
+    const busy=avatarMotion.isMoving()||Boolean(pointerGesture?.friendHeld);
+    // Moving pixels get high-frequency updates; an idle garden stays frugal.
+    const interval=reduceMotionQuery.matches?220:busy?16:72;
+    if(timestamp-lastPaint>=interval){
+      if(editingLocked()&&avatarMotion.isMoving())stopAvatarControl();
+      const elapsed=previousAvatarPaint?Math.min(.22,(timestamp-previousAvatarPaint)/1000):0;
       previousAvatarPaint=timestamp;
       if(avatarMotion.isMoving()&&!editingLocked()){
-        const step=avatarMotion.advance(elapsed);
-        if(step.done){
-          try{
-            const next=moveAvatar(getGarden(),renderer.map,step.position.x,step.position.y,step.direction);
-            undoHistory.length=0;redoHistory.length=0;
-            setGarden(next);
-          }catch(error){announce(error?.message||"아바타 이동을 완료하지 못했어요.");}
+        const step=avatarMotion.advance(elapsed,getGarden());
+        if(step.blocked)announce("길이 막혔어요. 다른 방향으로 이동해 보세요.");
+        if(step.changed&&timestamp-lastAvatarSave>=360)saveAvatarPosition();
+        if(step.done)saveAvatarPosition(true);
+      }
+      const player=avatarMotion.visual();
+      if(avatarSelected&&avatarMotion.isMoving()&&player&&timestamp>cameraPanUntil){
+        // A soft dead-zone avoids camera/keyboard jitter near the viewport edge.
+        const screen=renderer.worldToScreen(player.x,player.y);
+        const rect=canvas.getBoundingClientRect();
+        const targetX=rect.width*.5,targetY=rect.height*.57;
+        const offX=screen.x-targetX,offY=screen.y-targetY;
+        if(Math.abs(offX)>rect.width*.18||Math.abs(offY)>rect.height*.15){
+          const factor=Math.min(.23,elapsed*9);
+          renderer.setCamera(
+            renderer.camera.x+offX/(WORLD_SPEC.tileSize*renderer.camera.zoom)*factor,
+            renderer.camera.y+offY/(WORLD_SPEC.tileSize*renderer.camera.zoom)*factor
+          );
         }
       }
-      renderer.draw(getGarden(), getTimerState(), { selected, ghost, avatar:avatarMotion.visual(),
-        avatarSelected,reduceMotion: reduceMotionQuery.matches, time: timestamp, environment: getEnvironment() });
+      renderer.draw(getGarden(),getTimerState(),{
+        selected,ghost,avatar:player,avatarSelected,dropPreview,
+        moveFeedback:timestamp<moveTargetUntil?moveFeedback:null,
+        moveTarget:avatarSelected?avatarMotion.target():null,
+        reduceMotion:reduceMotionQuery.matches,time:timestamp,environment:getEnvironment(),
+      });
       paintMinimap(getGarden());
       updateRegionName(getGarden());
-      lastPaint = timestamp;
+      lastPaint=timestamp;
     }
-    animationFrame = requestAnimationFrame(tick);
+    animationFrame=requestAnimationFrame(tick);
   }
   if ("IntersectionObserver" in window) {
     new IntersectionObserver((entries) => {

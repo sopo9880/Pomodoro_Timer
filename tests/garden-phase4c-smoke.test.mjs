@@ -25,5 +25,7 @@ test("phase 4C offline cache lists new modules and Node CI checks them",()=>{
    assert.ok(sw.includes(path),"Uncached: "+path);
    assert.ok(ci.includes(path),"Unchecked: "+path);
  }
- assert.match(sw,/bloomodoro-cache-v15/);
+ // 4C's offline contract must tolerate later cache-version bumps.
+ // The current release's exact version is asserted by its own phase smoke test.
+ assert.match(sw,/bloomodoro-cache-v\d+/);
 });

@@ -38,8 +38,8 @@ test("new sprites render original equipped wearable layers, cache exact frames",
   const doc={createElement(tag){assert.equal(tag,"canvas");return {width:0,height:0,getContext(){return ctx;}}}};
   const art=createAvatarSpriteAtlas(doc);
   const skin=art.frame({outfit:"outfit-linen",hat:"hat-none"},"down",0);
-  assert.equal(skin.width,32);
-  assert.equal(skin.height,48);
+  assert.equal(skin.width,48);
+  assert.equal(skin.height,64);
   assert.equal(art.frame({outfit:"outfit-linen",hat:"hat-none"},"down",0),skin);
   assert.notEqual(art.frame({outfit:"outfit-forest",hat:"hat-star"},"left",1),skin);
 });
