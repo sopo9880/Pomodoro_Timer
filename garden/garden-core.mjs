@@ -1,5 +1,7 @@
 // Bloomodoro Pixel Garden — framework-independent shared Web / future Android domain.
 import { createWorldMap } from "./world-map.mjs";
+import { createAvatar, normalizeAvatar, createGuestProfile, normalizeGuestProfile,
+  createDiscoveryState, normalizeDiscovery, normalizeTimeWallet, timePointsEarnedBetween } from "./life-core.mjs";
 export const GARDEN_SCHEMA_VERSION = 2;
 export const WORLD_SPEC = Object.freeze({
   id: "bloomodoro-garden",
@@ -94,7 +96,10 @@ export function createGardenState() {
     schemaVersion: GARDEN_SCHEMA_VERSION,
     worldId: WORLD_SPEC.id,
     progress: { focusSeconds: 0, sunshineEarned: 0, petalsEarned: 0 },
-    wallet: { sunshine: 0, petals: 0 },
+    wallet: { sunshine: 0, petals: 0, timePoints: 0 },
+    guest: createGuestProfile(),
+    avatar: createAvatar(),
+    discovery: createDiscoveryState(),
     unlockedZones: ["central"],
     inventory: STARTER_INVENTORY.map((item) => ({ ...item })),
     placements: [],
@@ -127,7 +132,14 @@ export function normalizeGardenState(raw) {
   return {
     ...base,
     progress: { focusSeconds, sunshineEarned: earnedSunshine, petalsEarned: earnedPetals },
-    wallet: { sunshine: Math.floor(nonNegative(raw.wallet?.sunshine, earnedSunshine)), petals: Math.floor(nonNegative(raw.wallet?.petals, earnedPetals)) },
+    wallet: {
+      sunshine: Math.floor(nonNegative(raw.wallet?.sunshine, earnedSunshine)),
+      petals: Math.floor(nonNegative(raw.wallet?.petals, earnedPetals)),
+      timePoints: normalizeTimeWallet(raw.wallet, focusSeconds),
+    },
+    guest: normalizeGuestProfile(raw.guest),
+    avatar: normalizeAvatar(raw.avatar),
+    discovery: normalizeDiscovery(raw.discovery),
     unlockedZones: WORLD_SPEC.zones.filter((zone) => focusSeconds >= zone.unlockAtSeconds).map((zone) => zone.id),
     inventory,
     placements: normalizeObjects(raw.placements, "decor"),
@@ -142,10 +154,15 @@ export function creditGardenFocus(garden, deltaSeconds) {
   const next = previous + deltaSeconds;
   const sunshineDelta = Math.floor(next / 300) - Math.floor(previous / 300);
   const petalsDelta = Math.floor(next / 1500) - Math.floor(previous / 1500);
+  const timeDelta = timePointsEarnedBetween(previous,next);
   return {
     ...garden,
     progress: { focusSeconds: next, sunshineEarned: garden.progress.sunshineEarned + sunshineDelta, petalsEarned: garden.progress.petalsEarned + petalsDelta },
-    wallet: { sunshine: garden.wallet.sunshine + sunshineDelta, petals: garden.wallet.petals + petalsDelta },
+    wallet: {
+      sunshine: garden.wallet.sunshine + sunshineDelta,
+      petals: garden.wallet.petals + petalsDelta,
+      timePoints: (garden.wallet.timePoints || 0) + timeDelta,
+    },
     unlockedZones: WORLD_SPEC.zones.filter((zone) => next >= zone.unlockAtSeconds).map((zone) => zone.id),
     companions: garden.companions.map((companion) => ({
       ...companion, affinity: nonNegative(companion.affinity) + petalsDelta,
@@ -180,12 +197,14 @@ export function purchaseGardenItem(garden, itemId) {
   const item = findGardenItem(itemId);
   if (!item) throw new Error("존재하지 않는 아이템입니다.");
   if (garden.progress.focusSeconds < (item.unlockAtSeconds || 0)) throw new Error("집중 시간을 쌓으면 구매할 수 있는 아이템입니다.");
-  if (garden.wallet.sunshine < item.price) throw new Error("햇살이 부족합니다.");
+  // Existing garden prices retain their former 5-minutes-per-sunshine value.
+  const cost = item.price * 5;
+  if ((garden.wallet.timePoints || 0) < cost) throw new Error("시간 포인트가 부족합니다.");
   const inventory = garden.inventory.map((entry) => ({ ...entry }));
   const owned = inventory.find((entry) => entry.itemId === itemId);
   if (owned) owned.quantity += 1;
   else inventory.push({ itemId, quantity: 1 });
-  return { ...garden, wallet: { ...garden.wallet, sunshine: garden.wallet.sunshine - item.price }, inventory };
+  return { ...garden, wallet: { ...garden.wallet, timePoints: garden.wallet.timePoints - cost }, inventory };
 }
 function checkUniqueId(garden, id) {
   if (typeof id !== "string" || !id || garden.placements.some((x) => x.id === id) || garden.plants.some((x) => x.id === id)) throw new Error("중복되거나 잘못된 아이템 ID입니다.");

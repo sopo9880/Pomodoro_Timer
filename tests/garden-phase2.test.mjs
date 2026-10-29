@@ -28,12 +28,13 @@ test("catalog preserves original three companions and extends the collection", (
   assert.deepEqual(GARDEN_COMPANIONS.slice(3).map((item) => item.speciesId), ["sparrow", "turtle", "fox"]);
 });
 
-test("purchasing spends sunshine exactly once and increases inventory", () => {
+test("purchasing spends focus time points and preserves historical sunshine", () => {
   const garden = creditGardenFocus(createGardenState(), 1800);
   const result = purchaseGardenItem(garden, "lantern");
-  assert.equal(result.wallet.sunshine, garden.wallet.sunshine - 6);
+  assert.equal(result.wallet.timePoints, garden.wallet.timePoints - 30);
+  assert.equal(result.wallet.sunshine, garden.wallet.sunshine);
   assert.equal(getAvailableGardenQuantity(result, "lantern"), 1);
-  assert.throws(() => purchaseGardenItem(createGardenState(), "lantern"), /햇살/);
+  assert.throws(() => purchaseGardenItem(createGardenState(), "lantern"), /시간 포인트/);
 });
 
 test("plant growth uses newly credited focus only, even after save and reload", () => {
