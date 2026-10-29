@@ -48,3 +48,15 @@ There is no Android APK build in this work. GitHub Pages can deploy on changes m
 ## Next actions
 
 After PR CI starts, report the Actions link and end the development turn. On the user's next `확인해`, inspect the exact HEAD run and follow the PR merge/deployment workflow. Begin Phase 4B only on an explicit development instruction. Do not create duplicate releases.
+
+
+## Phase 4B implementation details (pending PR CI)
+
+- `garden/companion-ai.mjs`: transient, bounded BFS obstacle avoidance and individual activity selection; no save writes; a companion's authoritative coordinates and affinity remain in v2 garden state.
+- `garden/companion-art.mjs`: entirely original 32px four-direction animated companion pixel sprites, lazy cached.
+- `garden/plant-art.mjs`: entirely original nine-species four-stage growth sprite atlas; preserves `growSeconds` arrays for all existing plants.
+- `garden/ecology.mjs` and `garden/wildlife-art.mjs`: deterministic 14-species weather/season/time habitat sampling and cached 16px animated fauna.
+- The existing renderer combines placements, plants, friends and wildlife by Y depth and avoids rendering invisible world actors; region map/minimap from 4A remain intact.
+- Core catalog adds six new plants and three new companions, but the save format remains `GARDEN_SCHEMA_VERSION=2`. Existing item IDs, inventories, planted timestamps, user placement coordinates, accumulated focus and wallet amounts are preserved.
+- Node tests must verify all new plant thresholds, friend recruitment/legacy saves, obstacle navigation, species conditions, sprite-atlas caching, data persistence and visual test mocks.
+- Required later: browser visual validation on desktop/mobile and genuine multi-tab / offline validation in 4C. A release is not authorized by this PR.
