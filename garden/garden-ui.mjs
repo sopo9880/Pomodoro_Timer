@@ -78,6 +78,7 @@ export function mountGarden({ getGarden, setGarden, getTimerState, getEnvironmen
   let cameraPanUntil = 0;
   let dropPreview = null;
   let moveTargetUntil = 0;
+  let moveFeedback = null;
   let lastFingerprint = "";
   let lastFocusProgress = getGarden().progress.focusSeconds;
   const undoHistory = [];
@@ -428,7 +429,8 @@ export function mountGarden({ getGarden, setGarden, getTimerState, getEnvironmen
     }
     if (onScreen) {
       renderer.draw(garden, getTimerState(), { selected, ghost, avatar:avatarMotion.visual(),
-        avatarSelected,dropPreview,moveTarget:avatarSelected?avatarMotion.target():null,
+        avatarSelected,dropPreview,moveFeedback:performance.now()<moveTargetUntil?moveFeedback:null,
+        moveTarget:avatarSelected?avatarMotion.target():null,
         reduceMotion: reduceMotionQuery.matches, time: performance.now(), environment: getEnvironment() });
       paintMinimap(garden, force);
       updateRegionName(garden);
@@ -642,6 +644,7 @@ export function mountGarden({ getGarden, setGarden, getTimerState, getEnvironmen
         stopAvatarControl();
         const path=avatarMotion.goTo(getGarden(),x,y);
         moveTargetUntil=performance.now()+950;
+        moveFeedback={x,y,allowed:path};
         announce(path?"선택한 곳까지 이동해요. 키보드로 즉시 방향을 바꿀 수도 있어요.":"갈 수 없는 곳이에요. 열린 산책로를 눌러 주세요.");
         return;
       }
@@ -925,6 +928,7 @@ export function mountGarden({ getGarden, setGarden, getTimerState, getEnvironmen
       }
       renderer.draw(getGarden(),getTimerState(),{
         selected,ghost,avatar:player,avatarSelected,dropPreview,
+        moveFeedback:timestamp<moveTargetUntil?moveFeedback:null,
         moveTarget:avatarSelected?avatarMotion.target():null,
         reduceMotion:reduceMotionQuery.matches,time:timestamp,environment:getEnvironment(),
       });

@@ -485,6 +485,7 @@ export function createPixelGardenRenderer(canvas) {
       }
     }
     if (options.moveTarget)drawInteractionMarker(options.moveTarget,true,true);
+    if (options.moveFeedback)drawInteractionMarker(options.moveFeedback,Boolean(options.moveFeedback.allowed));
     if (options.dropPreview)drawInteractionMarker(options.dropPreview,Boolean(options.dropPreview.allowed));
     if (options.ghost) {
       const flower = garden.plants.some(x=>findGardenItem(x.itemId)?.sprite===options.ghost.sprite)
