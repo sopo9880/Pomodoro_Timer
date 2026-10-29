@@ -78,3 +78,17 @@ Bloomodoro now opens on a full-screen pixel garden **instead of appending a gard
 Garden scene choices — Spring/Summer/Autumn/Winter, clear/rain/snow, day/night — run offline as **presentation-only** settings in `bloomodoro-world-display-v1`. They do not request geolocation, use a weather API, or change focus rewards. Focus time adds companion affinity each cumulative 25 minutes without penalties for breaks.
 
 The pixel garden renderer draws only visible 32px tiles and caps weather particles; when the garden screen is hidden, animation stops. The UI respects reduced-motion settings. In Node 22+, verify with `node --test tests/*.test.mjs`. Android APK packaging is a separate future stage; web/PWA is the current supported output.
+
+## 🌲 Phase 4A — immersive world foundations
+
+Phase 4A builds six fully connected thematic tile-map regions **without moving the existing 160×160 world coordinates or changing user save formats**:
+
+- 18 original fixed scenic landmarks and five biomes of detailed 32px tiles, along with pond/bridge paths, forest floor, greenhouse flowers, workshop stonework, and starlit hills.
+- Deterministic lazy 16×16 map chunks and cached original pixel-art textures; only visible chunks are rendered.
+- Clickable/keyboard-usable minimap with unlocked/locked region indication and viewport locator.
+- Pointer-anchored wheel/pinch zoom with pan gestures, and view/camera boundaries within the playable world.
+- The same focus ledger, rewards, garden schema v2, object placements and inventory. Existing saved decorations remain in place.
+- New placements cannot be made on pond water or bridges, but old placements are **not** moved or erased.
+- Added topology, sprite cache, minimap, legacy-save compatibility, and renderer tests.
+
+See [docs/phase4-plan.md](docs/phase4-plan.md) for the release gate and remaining 4B/4C work. **Phase 4A is PR-only; do not publish a release until the entire Phase 4 is finished.**
