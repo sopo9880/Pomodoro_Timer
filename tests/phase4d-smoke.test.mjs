@@ -21,7 +21,8 @@ test("4D keeps the legacy save data and refreshes PWA source cache",()=>{
   const sw=readFileSync(new URL("../sw.js",import.meta.url),"utf8");
   assert.match(core,/GARDEN_SCHEMA_VERSION = 2/);
   assert.match(script,/bloomodoro-state-v3/);
-  assert.match(sw,/bloomodoro-cache-v16/);
+  // Phase 4D checks that a versioned cache exists; newer visual releases bump it.
+  assert.match(sw,/bloomodoro-cache-v\d+/);
   for(const path of ["garden/avatar-art.mjs","garden/companion-art.mjs","garden/avatar-motion.mjs","garden/garden-ui.mjs"]){
     assert.ok(sw.includes(path),"Offline module missing: "+path);
   }
