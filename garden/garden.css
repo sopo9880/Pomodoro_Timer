@@ -147,3 +147,8 @@
 .codex-item { display: grid; justify-items: center; gap: 4px; padding: 8px 4px; border-radius: var(--r-s); background: var(--leaf); text-align: center; font-size: .75rem; line-height: 1.25; }
 .codex-item img { width: 60px; height: 60px; object-fit: contain; }
 .codex-item.undiscovered { color: var(--ink-faint); background: transparent; border: 1px dashed var(--line-strong); }
+
+/* Phase 4N: undiscovered entries keep their silhouette and a hint */
+.codex-item.undiscovered img { filter: brightness(0) opacity(.28); }
+.codex-item small { font-size: 11px; line-height: 1.3; color: var(--ink-faint); }
+.codex-item.undiscovered small { color: var(--ink-soft); }

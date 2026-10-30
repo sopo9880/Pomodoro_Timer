@@ -9,6 +9,8 @@
  * last painted frame or a soft placeholder rather than older artwork.
  */
 import { PAINTED_ART } from "./painted-art-data.mjs";
+import { RARE_WILDLIFE_ART } from "./rare-art-data.mjs";
+import { resolveAssetUrl, onAssetChange, stripQuery } from "./asset-overrides.mjs";
 import { DECOR_BACK_VIEWS, decorViewFor } from "./decor-views.mjs";
 
 export { PAINTED_ART };
@@ -16,7 +18,10 @@ export { PAINTED_ART };
 export const COMPANION_HEIGHT_TILES = Object.freeze({
   sprout: 1.2, mushroom: 1.45, cat: 1.25, sparrow: 1.05, turtle: 1.1, fox: 1.45,
 });
+/** Painted creature strips: the common fourteen plus the rare four. */
+export const WILDLIFE_ART = Object.freeze({ ...PAINTED_ART.wildlife, ...RARE_WILDLIFE_ART });
 export const WILDLIFE_HEIGHT_TILES = Object.freeze({
+  "white-fawn": .95, "moon-rabbit": .62, "golden-chick": .44, "blue-newt": .36,
   butterfly: .62, robin: .58, honeybee: .5, ladybug: .34, dragonfly: .5, frog: .55, carp: .8,
   firefly: .46, owl: .82, squirrel: .78, fieldmouse: .4, wren: .52, lunamoth: .66, glowbug: .55,
 });
@@ -26,6 +31,15 @@ export const DECOR_WIDTH_TILES = Object.freeze({
   "picnic-cloth": 1.9, "forest-lamp": .75, "wishing-well": 1.7, "stone-path": .95, "tea-table": 1.15,
   "mushroom-stool": .8, "flower-archway": 1.9, "tiny-pond": .8, "star-bench": 1.7, "flower-pot": 1.0,
   birdbath: .9, "flower-bed": 1.5, "wooden-lamp": .7,
+  "little-tree": 1.9, "star-crystal": 1.0, mailbox: .85, "garden-swing": 2.0, campfire: 1.3, "wind-chime": .75,
+});
+/** Decorations that animate: the frame shown is chosen by time (see decorView). */
+export const DECOR_FRAME_SETS = Object.freeze({
+  "wind-chime": ["wind_chime_0", "wind_chime_1", "wind_chime_2", "wind_chime_1"].map((n) => "assets/art/world/decor/" + n + ".webp"),
+});
+/** Campfire flames drawn over the ring, cycling; width relative to the ring. */
+export const CAMPFIRE_FLAMES = Object.freeze({
+  frames: [0, 1, 2, 3].map((n) => "assets/art/world/decor/campfire_flame_" + n + ".webp"), width: .46, lift: .1,
 });
 export const PLANT_WIDTH_TILES = 1.55;
 const PLANT_STAGES = Object.freeze(["seed", "sprout", "growing", "bloom"]);
@@ -60,7 +74,7 @@ export function companionFrame(species, direction = "down", activity = "idle", f
 }
 
 export function wildlifeFrame(species, frame = 0) {
-  const w = PAINTED_ART.wildlife[species];
+  const w = WILDLIFE_ART[species];
   if (!w) return null;
   const f = Math.abs(Math.floor(Number.isFinite(frame) ? frame : 0)) % w.count;
   return { src: w.frames, sx: f * w.frameWidth, sw: w.frameWidth, sh: w.frameHeight, flipX: false, ref: w.ref };
@@ -102,7 +116,7 @@ export function paintedAssetGroups() {
   return {
     companion,
     plant: id => Object.values(A.plants[id] || {}),
-    wildlife: id => (A.wildlife[id] ? [A.wildlife[id].frames] : []),
+    wildlife: id => (WILDLIFE_ART[id] ? [WILDLIFE_ART[id].frames] : []),
     terrain: Object.entries(A.terrain).map(([, v]) => v),
     landmarks: Object.values(A.landmarks),
     decor: Object.values(A.decor),
@@ -111,7 +125,7 @@ export function paintedAssetGroups() {
         ...this.terrain, ...this.landmarks, ...this.decor,
         ...Object.keys(A.companions).flatMap(companion),
         ...Object.keys(A.plants).flatMap(id => Object.values(A.plants[id])),
-        ...Object.values(A.wildlife).flatMap(w => [w.frames, w.codex]),
+        ...Object.values(WILDLIFE_ART).flatMap(w => [w.frames, w.codex]),
       ])];
     },
   };
@@ -125,6 +139,8 @@ export function paintedAssetGroups() {
  */
 export function createPaintedArtAtlas({ ImageClass = globalThis.Image, base = "./", concurrency = 6 } = {}) {
   const cache = new Map();
+  // A picture swapped in the studio is picked up on the next draw.
+  onAssetChange((path) => { for (const key of [...cache.keys()]) if (stripQuery(key) === path) cache.delete(key); });
   const queue = [];
   let active = 0;
   const waiters = new Set();
@@ -148,7 +164,7 @@ export function createPaintedArtAtlas({ ImageClass = globalThis.Image, base = ".
       else done(im.naturalWidth > 0);
     };
     im.onerror = () => done(false);
-    im.src = base + src;
+    im.src = resolveAssetUrl(base + src);
     return rec;
   }
   function image(src) {
@@ -217,17 +233,24 @@ export function createPaintedArtAtlas({ ImageClass = globalThis.Image, base = ".
       return src ? image(src) : null;
     },
     /** Decoration at a saved rotation: {image, flipX}, or null while it decodes. */
-    decorView(sprite, rotation = 0) {
+    decorView(sprite, rotation = 0, frame = 0) {
       const view = decorViewFor(sprite, rotation);
-      const src = view.back ? DECOR_BACK_VIEWS[sprite] : PAINTED_ART.decor[sprite];
+      const set = DECOR_FRAME_SETS[sprite];
+      const src = view.back ? DECOR_BACK_VIEWS[sprite] : set ? set[Math.abs(frame) % set.length] : PAINTED_ART.decor[sprite];
       const img = src ? image(src) : null;
       return img ? { image: img, flipX: view.flipX } : null;
     },
     /** Region scenery props, by image path. */
     scenery(src) { return image(src); },
+    /** Any shipped image by path (effects, speech bubbles). */
+    art(src) { return image(src); },
     hasLandmark: sprite => Boolean(PAINTED_ART.landmarks[sprite]),
     hasDecor: sprite => Boolean(PAINTED_ART.decor[sprite]),
     prefetch, whenReady, isReady: src => Boolean(cache.get(src)?.ready),
-    stats: () => ({ images: cache.size, queued: queue.length, loading: active }),
+    stats: () => {
+      let decodedBytes = 0;
+      for (const rec of cache.values()) if (rec.ready && rec.im) decodedBytes += (rec.im.naturalWidth || 0) * (rec.im.naturalHeight || 0) * 4;
+      return { images: cache.size, queued: queue.length, loading: active, decodedBytes };
+    },
   };
 }

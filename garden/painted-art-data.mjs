@@ -447,7 +447,10 @@ export const PAINTED_ART = Object.freeze({
   "observatory": "assets/art/world/landmarks/starry_hill/prop_05.webp",
   "wishing-tree": "assets/art/world/landmarks/starry_hill/prop_01.webp",
   "star-beacon": "assets/art/world/landmarks/starry_hill/prop_09.webp",
-  "gazebo": "assets/art/world/landmarks/decor_01/prop_06.webp"
+  "gazebo": "assets/art/world/landmarks/decor_01/prop_06.webp",
+  "cottage-large": "assets/art/world/landmarks/pack2/cottage.webp",
+  "mushroom-house": "assets/art/world/landmarks/pack2/mushroom_house.webp",
+  "windmill": "assets/art/world/landmarks/pack2/watermill.webp"
  },
  "ui": {
   "icons": {
@@ -572,9 +575,15 @@ export const PAINTED_ART = Object.freeze({
   "tiny-pond": "assets/art/world/landmarks/central_garden/prop_07.webp",
   "star-bench": "assets/art/world/landmarks/starry_hill/prop_03.webp",
   "flower-pot": "assets/art/world/landmarks/greenhouse/prop_06.webp",
-  "birdbath": "assets/art/world/landmarks/central_garden/prop_07.webp",
+  "birdbath": "assets/art/world/decor/birdbath.webp",
   "flower-bed": "assets/art/world/landmarks/greenhouse/prop_02.webp",
-  "wooden-lamp": "assets/art/world/landmarks/starry_hill/prop_08.webp"
+  "wooden-lamp": "assets/art/world/landmarks/starry_hill/prop_08.webp",
+  "little-tree": "assets/art/world/decor/apple_tree.webp",
+  "star-crystal": "assets/art/world/decor/star_crystal.webp",
+  "mailbox": "assets/art/world/decor/mailbox.webp",
+  "garden-swing": "assets/art/world/decor/garden_swing.webp",
+  "campfire": "assets/art/world/decor/campfire_ring.webp",
+  "wind-chime": "assets/art/world/decor/wind_chime_0.webp"
  },
  "terrainColor": {
   "grass": "#5e8543",

@@ -7,21 +7,26 @@ import {
 import { createPixelGardenRenderer, drawGardenThumbnail } from "./pixel-world.mjs";
 import { createWorldMinimap } from "./minimap.mjs";
 import { REGION_SCENES, WORLD_LANDMARKS } from "./world-map.mjs";
-import { WILDLIFE_SPECIES } from "./ecology.mjs";
+import { ALL_WILDLIFE as WILDLIFE_SPECIES } from "./ecology.mjs";
 import { createAvatarMotion } from "./avatar-motion.mjs";
 import { isDirectional } from "./decor-views.mjs";
-import { actionOf, createSeatController, interactionLine, readAutoSitPref, SIT_ART_READY } from "./interaction.mjs";
+import { actionOf, createSeatController, interactionLine, readAutoSitPref, writeAutoSitPref, SIT_READY, SEATED_ACTIONS } from "./interaction.mjs";
+import { CELEBRATION_SECONDS, FX_IMAGES, readCelebrationPref, writeCelebrationPref } from "./fx.mjs";
+import { createGardenSound } from "./garden-sound.mjs";
+import { canUseRig } from "./avatar-variants.mjs";
+import { hintFor, discoveredOnLabel, welcomeBack, growthProgress, growthLabel } from "./longterm.mjs";
+import { localDayKey } from "../core/focus-core.mjs";
 import { avatarIllustrationUri, companionIllustrationUri, wildlifeIllustrationUri } from "./hires-atlas.mjs";
 import { rasterAvatarPreviewUrl, rasterAvatarPortraitUrl, canUseRasterAvatar } from "./raster-art.mjs";
 import { renderRigPortrait } from "./avatar-rig.mjs";
-import { PAINTED_ART } from "./painted-art.mjs";
+import { PAINTED_ART, WILDLIFE_ART } from "./painted-art.mjs";
 
 /** Painted pictures for the collection cards (the world uses the same files). */
 const WARDROBE_ART = id => "assets/art/avatar/wardrobe/" + id + ".webp";
 const FOCUS_ART = "assets/art/avatar/portraits/focus_reading.webp";
 function paintedThumb(kind, id) {
   if (kind === "companion") return PAINTED_ART.companions[id]?.portrait || null;
-  if (kind === "wildlife") return PAINTED_ART.wildlife[id]?.codex || null;
+  if (kind === "wildlife") return WILDLIFE_ART[id]?.codex || null;
   if (kind === "plant") return PAINTED_ART.plants[id]?.bloom || null;
   if (kind === "decor") return PAINTED_ART.decor[id] || null;
   if (kind === "landmark") return PAINTED_ART.landmarks[id] || null;
@@ -33,26 +38,72 @@ import { drawPlantThumbnail } from "./plant-art.mjs";
 
 
 // The UI has no direct access to the timer's private state. Its save callback owns persistence.
-export function mountGarden({ getGarden, setGarden, getTimerState, getEnvironment = () => ({ season: 'spring', weather: 'clear', time: 'day' }) }) {
+export function mountGarden({ getGarden, setGarden, getTimerState, getEnvironment = () => ({ season: 'spring', weather: 'clear', time: 'day' }), getSoundSettings = () => ({ enabled: false, volume: 0 }) }) {
   const byId = (id) => document.getElementById(id);
   const canvas = byId("gardenWorld");
   if (!canvas) return { refresh() {} };
   const renderer = createPixelGardenRenderer(canvas);
   const avatarMotion = createAvatarMotion(renderer.map);
-  // Rest-time seating: at the start of a break the avatar walks to a free seat.
-  // Only active once the seated art ships (SIT_ART_READY); never touches saves.
+  // Rest-time seating: at the start of a break the avatar walks to a free seat and sits (switchable).
+  // The seated look is the rig itself folding up, so it fits every outfit; saves are never touched.
+  const autoSitToggle = document.getElementById("gardenAutoSit");
+  if (autoSitToggle) {
+    autoSitToggle.checked = readAutoSitPref();
+    autoSitToggle.addEventListener("change", () => writeAutoSitPref(autoSitToggle.checked));
+  }
   const seat = createSeatController({ motion: avatarMotion, findItem: findGardenItem, getGarden });
   let wasResting = false;
   const tapCounts = {};
+  // Focus-complete celebration (<5 s, switchable) and small garden sounds.
+  let celebration = null;
+  const celebrationToggle = document.getElementById("gardenCelebration");
+  if (celebrationToggle) {
+    celebrationToggle.checked = readCelebrationPref();
+    celebrationToggle.addEventListener("change", () => writeCelebrationPref(celebrationToggle.checked));
+  }
+  window.addEventListener("bloomodoro:focus-complete", () => {
+    if (!readCelebrationPref()) return;
+    renderer.painted.prefetch(FX_IMAGES, { front: true });
+    celebration = { start: performance.now(), seed: 1 + Math.floor(Math.random() * 9999) };
+    avatarMotion.cancel();
+    announce("집중 완료! 정원이 함께 기뻐해요.");
+  });
+  // A welcome back that never counts what was missed (device-local, not saved in the garden).
+  try {
+    const today = localDayKey(), last = localStorage.getItem("bloomodoro-last-visit");
+    const greeting = welcomeBack(last, today);
+    if (greeting) setTimeout(() => announce(greeting), 1400);
+    localStorage.setItem("bloomodoro-last-visit", today);
+  } catch { /* storage may be blocked; no greeting then */ }
+  // Walking up to a creature records it in the codex, once (never during focus).
+  let lastNotice = 0;
+  function noticeNearby(now, player) {
+    if (!player || now - lastNotice < 1500 || editingLocked()) return;
+    lastNotice = now;
+    const creature = renderer.getWildlifeAt(player.x, player.y, 3.4);
+    if (!creature || (getGarden().discovery?.wildlife || []).includes(creature.speciesId)) return;
+    mutate((garden) => discover(garden, "wildlife", creature.speciesId), creature.name + "을(를) 만났어요! 도감에 기록했어요.", false);
+  }
+  const SOUND_OF = { mail: "ding", listen: "chime", well: "splash", watch: "splash", warm: "warm", sit: "sit", swing: "pop", tea: "pop" };
+  const sound = createGardenSound({
+    getSettings: getSoundSettings,
+    isQuiet: () => { const t = getTimerState(); return t.isRunning && t.mode === "focus"; },
+  });
+  function celebrationState(now) {
+    if (!celebration) return null;
+    const t = (now - celebration.start) / 1000;
+    if (t >= CELEBRATION_SECONDS) { celebration = null; return null; }
+    return { t, seed: celebration.seed };
+  }
   function updateSeat() {
-    if (!SIT_ART_READY) return;
+    if (!SIT_READY) return;
     const timer = getTimerState();
     const resting = timer.isRunning && timer.mode !== "focus";
     if (resting && !wasResting && readAutoSitPref() && !avatarMotion.isControlled()) {
       const at = avatarMotion.visual();
       if (at) seat.seek(at);
     } else if (!resting && wasResting) seat.release();
-    else if (avatarMotion.isControlled()) seat.release();
+    else if (avatarMotion.isControlled() || (seat.phase === "seated" && avatarMotion.isMoving())) seat.release();
     wasResting = resting;
     seat.update();
   }
@@ -268,7 +319,7 @@ export function mountGarden({ getGarden, setGarden, getTimerState, getEnvironmen
     const stage = selected.kind === "plant" ? getPlantGrowthStage(object, getGarden().progress.focusSeconds) : null;
     view.selectionTitle.textContent = definition?.name || "정원 아이템";
     view.selectionDetail.textContent = selected.kind === "plant"
-      ? "성장 " + (stage + 1) + " / 4단계 · 실제 집중 시간에 따라 자라요."
+      ? "성장 " + (stage + 1) + " / 4단계 · " + growthLabel(growthProgress(object, getGarden().progress.focusSeconds))
       : isDirectional(definition?.sprite)
         ? "배치 위치를 이동하거나 돌려서 바라보는 방향을 바꿀 수 있어요."
         : "배치 위치를 이동할 수 있어요. 어느 쪽에서 봐도 같아서 돌리지 않아요.";
@@ -369,8 +420,8 @@ export function mountGarden({ getGarden, setGarden, getTimerState, getEnvironmen
   }
   function paintAvatarWardrobe(garden) {
     view.avatarWallet.textContent = (garden.wallet.timePoints || 0).toLocaleString("ko-KR");
-    if (canUseRasterAvatar(garden.avatar.equipped)) {
-      const portrait = renderRigPortrait(renderer.avatarRig);
+    if (canUseRig(garden.avatar.equipped)) {
+      const portrait = renderRigPortrait(renderer.avatarRig, { equipped: garden.avatar.equipped });
       if (portrait) view.avatarPreview.src = portrait;
       else { if (!view.avatarPreview.src) view.avatarPreview.src = WARDROBE_ART("outfit-linen"); setTimeout(() => paintAvatarWardrobe(getGarden()), 700); }
     } else view.avatarPreview.src = rasterAvatarPreviewUrl(garden.avatar.equipped) || avatarIllustrationUri(garden.avatar.equipped);
@@ -421,15 +472,18 @@ export function mountGarden({ getGarden, setGarden, getTimerState, getEnvironmen
         const codexId=category==="plants"||category==="decorations"?findGardenItem(entry.id)?.sprite
           :category==="landmarks"?WORLD_LANDMARKS.find(x=>x.id===entry.id)?.sprite:entry.id;
         const codexSrc=paintedThumb(codexKind,codexId);
-        if(entry.discovered&&(codexSrc||category==="companions"||category==="wildlife")){
+        // Undiscovered entries keep their silhouette (CSS darkens it) and a hint.
+        if(codexSrc||category==="companions"||category==="wildlife"){
           const picture=document.createElement("img");
           picture.alt="";picture.loading="lazy";picture.decoding="async";
           picture.src=codexSrc||(category==="companions"?companionIllustrationUri(entry.id):wildlifeIllustrationUri(entry.id));
           tile.append(picture);
         }
         const label=document.createElement("span");
-        label.textContent=entry.discovered?entry.name:"??? · 미발견";
+        label.textContent=entry.discovered?entry.name:"???";
         tile.append(label);
+        const note=entry.discovered?discoveredOnLabel(garden,category,entry.id):hintFor(category,entry.id);
+        if(note){const small=document.createElement("small");small.textContent=note;tile.append(small);}
         cards.append(tile);
       }
       details.append(sum,cards);fragment.append(details);
@@ -716,6 +770,7 @@ export function mountGarden({ getGarden, setGarden, getTimerState, getEnvironmen
       if(friend){
         const species=GARDEN_COMPANIONS.find(c=>c.speciesId===friend.speciesId);
         announce(friend.greeting || (species?.name||"친구")+"가 반갑게 인사해요.");
+        sound.play("pop");
         return;
       }
       if(avatarSelected){
@@ -753,7 +808,11 @@ export function mountGarden({ getGarden, setGarden, getTimerState, getEnvironmen
     if(picked?.kind==="decor"&&!editingLocked()){
       const action=actionOf(findGardenItem(picked.itemId)?.sprite);
       const line=action&&interactionLine(action,tapCounts[action]=(tapCounts[action]??-1)+1);
-      if(line)announce(line);
+      if(line){announce(line);sound.play(SOUND_OF[action]||"pop");}
+      // Tapping something to sit on walks over and sits (never during focus, never while editing).
+      if(SEATED_ACTIONS.includes(action)&&currentTool==="inspect"&&avatarMotion.visual()&&seat.seekItem(picked.id,avatarMotion.visual())){
+        announce("앉아서 잠깐 쉬어 가요. 움직이면 일어나요.");
+      }
     }
     selectObject(picked);
   }
@@ -1028,10 +1087,11 @@ export function mountGarden({ getGarden, setGarden, getTimerState, getEnvironmen
   function tick(timestamp) {
     animationFrame=0;
     if(document.hidden||!onScreen)return;
-    const busy=avatarMotion.isMoving()||Boolean(pointerGesture?.friendHeld)||cameraSettling;
+    const busy=avatarMotion.isMoving()||Boolean(pointerGesture?.friendHeld)||cameraSettling||Boolean(celebration);
     // Anything the player steers paints every frame; an idle garden (wandering
     // friends, swaying plants) paints at 30fps to stay light on batteries.
-    const interval=reduceMotionQuery.matches?220:busy?0:33;
+    const focusing=getTimerState().isRunning&&getTimerState().mode==="focus";
+    const interval=reduceMotionQuery.matches?220:busy?0:focusing?66:33;
     if(timestamp-lastPaint>=interval){
       if(editingLocked()&&avatarMotion.isMoving())stopAvatarControl();
       const elapsed=previousAvatarPaint?Math.min(.22,(timestamp-previousAvatarPaint)/1000):0;
@@ -1043,11 +1103,13 @@ export function mountGarden({ getGarden, setGarden, getTimerState, getEnvironmen
         if(step.done)saveAvatarPosition(true);
       }
       updateSeat();
+      noticeNearby(timestamp,avatarMotion.visual());
       const player=seat.seatedVisual(avatarMotion.visual())||avatarMotion.visual();
       cameraSettling=followCamera(player,elapsed,timestamp);
+      const celebrating=celebrationState(timestamp);
       renderer.draw(getGarden(),getTimerState(),{
-        selected,ghost,avatar:player,avatarSelected,
-        avatarReaction:timestamp<avatarReactionUntil?"surprised":null,dropPreview,
+        selected,ghost,avatar:player,avatarSelected,celebration:celebrating,
+        avatarReaction:celebrating?"happy":timestamp<avatarReactionUntil?"surprised":null,dropPreview,
         moveFeedback:timestamp<moveTargetUntil?moveFeedback:null,
         moveTarget:avatarSelected?avatarMotion.target():null,
         reduceMotion:reduceMotionQuery.matches,time:timestamp,environment:getEnvironment(),

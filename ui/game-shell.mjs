@@ -1,3 +1,6 @@
+import { weeklyRhythm, monumentProgress, shareText } from "../garden/longterm.mjs";
+import { PACK3_ART } from "../garden/pack3-art-data.mjs";
+import { renderShareCard, weekdayIndex } from "./share-card.mjs";
 // Pure UI shell: navigation and local presentation preferences only.
 // Timer and garden state remain owned by their respective existing controllers.
 const PREFS_KEY = "bloomodoro-world-display-v1";
@@ -40,7 +43,7 @@ export function buildWeekFocusSummary(dailyStats, at = new Date()) {
   }
   return { days, totalMinutes: days.reduce((total, day) => total + day.minutes, 0) };
 }
-export function mountGameShell({ getTimerState, getDailyStats = () => ({}) }) {
+export function mountGameShell({ getTimerState, getDailyStats = () => ({}), getShareStats = () => ({}) }) {
   const app = document.getElementById("gameApp");
   if (!app) throw new Error("Bloomodoro game shell was not found");
   const links = [...app.querySelectorAll(".screen-link")];
@@ -71,7 +74,7 @@ export function mountGameShell({ getTimerState, getDailyStats = () => ({}) }) {
     const fragment = document.createDocumentFragment();
     summary.days.forEach((day, index) => {
       const column = document.createElement("div");
-      column.className = "week-day" + (index === 6 ? " today" : "");
+      column.className = "week-day" + (index === 6 ? " today" : "") + (day.minutes ? " has-focus" : "");
       const amount = document.createElement("strong");
       amount.textContent = day.minutes + "분";
       const track = document.createElement("div");
@@ -83,10 +86,46 @@ export function mountGameShell({ getTimerState, getDailyStats = () => ({}) }) {
       track.append(bar);
       const caption = document.createElement("span");
       caption.textContent = day.label;
-      column.append(amount, track, caption);
+      const badge = document.createElement("img");
+      badge.className = "week-badge"; badge.alt = ""; badge.loading = "lazy"; badge.decoding = "async";
+      badge.src = PACK3_ART.badges[weekdayIndex(day.day)].src;
+      column.append(amount, track, badge, caption);
       fragment.append(column);
     });
     bars.replaceChildren(fragment);
+    const stats = getShareStats() || {};
+    const rhythm = document.getElementById("journalRhythm");
+    if (rhythm) rhythm.textContent = weeklyRhythm(summary);
+    const monument = document.getElementById("journalMonument");
+    if (monument && Number.isFinite(stats.focusSeconds)) {
+      const m = monumentProgress(stats.focusSeconds);
+      monument.textContent = m.next
+        ? `다음 기념물 '${m.next.name}'까지 집중 ${Math.max(1, Math.ceil(m.remainingSeconds / 3600))}시간`
+        : "모든 기념물을 모았어요. 정원이 오래 기억할 거예요.";
+    }
+  }
+  const shareButton = document.getElementById("journalShare");
+  if (shareButton) {
+    shareButton.addEventListener("click", async () => {
+      const summary = buildWeekFocusSummary(getDailyStats());
+      const stats = getShareStats() || {};
+      const text = shareText({ weekMinutes: summary.totalMinutes, activeDays: summary.days.filter((d) => d.minutes > 0).length,
+        plantsBloomed: stats.plantsBloomed || 0, discovered: stats.discovered || 0, total: stats.total || 0 });
+      try {
+        // A picture when the device can share files; otherwise the plain text below.
+        if (navigator.canShare && navigator.share) {
+          const canvas = await renderShareCard(document, { stats: { weekMinutes: summary.totalMinutes, activeDays: summary.days.filter((d) => d.minutes > 0).length,
+            plantsBloomed: stats.plantsBloomed || 0, discovered: stats.discovered || 0, total: stats.total || 0 }, days: summary.days });
+          const blob = await new Promise((resolve) => canvas.toBlob(resolve, "image/png"));
+          const file = blob && new File([blob], "bloomodoro-week.png", { type: "image/png" });
+          if (file && navigator.canShare({ files: [file] })) { await navigator.share({ files: [file], text }); return; }
+        }
+        if (navigator.share) { await navigator.share({ text }); return; }
+        await navigator.clipboard.writeText(text);
+        shareButton.textContent = "복사했어요! 어디든 붙여넣어 보세요";
+      } catch { /* the person closed the share sheet, or clipboard is blocked */ }
+      setTimeout(() => { shareButton.textContent = "정원 일기 공유하기"; }, 2600);
+    });
   }
   const getEnvironment = () => resolveWorldDisplayPreferences(preferences);
   function updateEnvironment() {

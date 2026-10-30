@@ -1,7 +1,7 @@
 // Bloomodoro Pixel Garden — framework-independent shared Web / future Android domain.
 import { createWorldMap } from "./world-map.mjs";
 import { createAvatar, normalizeAvatar, createGuestProfile, normalizeGuestProfile,
-  createDiscoveryState, normalizeDiscovery, normalizeTimeWallet, timePointsEarnedBetween } from "./life-core.mjs";
+  createDiscoveryState, normalizeDiscovery, normalizeDiscoveryDates, normalizeTimeWallet, timePointsEarnedBetween } from "./life-core.mjs";
 export const GARDEN_SCHEMA_VERSION = 2;
 export const WORLD_SPEC = Object.freeze({
   id: "bloomodoro-garden",
@@ -152,6 +152,7 @@ export function normalizeGardenState(raw) {
     guest: normalizeGuestProfile(raw.guest),
     avatar: normalizeAvatar(raw.avatar),
     discovery: normalizeDiscovery(raw.discovery),
+    ...(raw.discoveryDates ? { discoveryDates: normalizeDiscoveryDates(raw.discoveryDates) } : {}),
     unlockedZones: WORLD_SPEC.zones.filter((zone) => focusSeconds >= zone.unlockAtSeconds).map((zone) => zone.id),
     inventory,
     placements: normalizeObjects(raw.placements, "decor"),

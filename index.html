@@ -20,6 +20,27 @@
   <link rel="modulepreload" href="garden/life-core.mjs" />
   <link rel="modulepreload" href="garden/garden-ui.mjs" />
   <link rel="modulepreload" href="garden/pixel-world.mjs" />
+  <link rel="modulepreload" href="garden/asset-overrides.mjs" />
+  <link rel="modulepreload" href="garden/rig-tuning.mjs" />
+  <link rel="modulepreload" href="garden/rig-tuning-data.mjs" />
+  <link rel="modulepreload" href="garden/rig-tuning-store.mjs" />
+  <link rel="modulepreload" href="garden/avatar-hats.mjs" />
+  <link rel="modulepreload" href="garden/avatar-rig-adjust.mjs" />
+  <link rel="modulepreload" href="garden/avatar-variants-data.mjs" />
+  <link rel="modulepreload" href="garden/avatar-variants.mjs" />
+  <link rel="modulepreload" href="garden/decor-back-data.mjs" />
+  <link rel="modulepreload" href="garden/decor-views.mjs" />
+  <link rel="modulepreload" href="garden/fx.mjs" />
+  <link rel="modulepreload" href="garden/garden-sound.mjs" />
+  <link rel="modulepreload" href="garden/ground-cache.mjs" />
+  <link rel="modulepreload" href="garden/interaction.mjs" />
+  <link rel="modulepreload" href="garden/longterm.mjs" />
+  <link rel="modulepreload" href="garden/monuments.mjs" />
+  <link rel="modulepreload" href="garden/pack3-art-data.mjs" />
+  <link rel="modulepreload" href="garden/rare-art-data.mjs" />
+  <link rel="modulepreload" href="garden/scenery.mjs" />
+  <link rel="modulepreload" href="garden/world-art-data.mjs" />
+  <link rel="modulepreload" href="ui/share-card.mjs" />
   <link rel="modulepreload" href="garden/tile-atlas.mjs" />
   <link rel="modulepreload" href="garden/companion-ai.mjs" />
   <link rel="modulepreload" href="garden/companion-art.mjs" />
@@ -164,7 +185,7 @@
 
     <section class="game-screen" id="screenJournal" data-view="journal" aria-labelledby="journalHeading" hidden>
       <header class="subscreen-heading"><h1 id="journalHeading">나의 발자국</h1><p>집중한 날들이 여기에 차곡차곡 쌓여요.</p></header>
-      <div class="journal-insights"><div class="journal-insights-heading"><h2>최근 7일</h2><div class="journal-week-sum"><span>이번 주 집중</span><strong id="journalWeekTotal">0분</strong></div></div><div class="week-chart" id="journalWeekBars" aria-label="최근 7일 집중 시간"></div></div>
+      <div class="journal-insights"><div class="journal-insights-heading"><h2>최근 7일</h2><div class="journal-week-sum"><span>이번 주 집중</span><strong id="journalWeekTotal">0분</strong></div></div><div class="week-chart" id="journalWeekBars" aria-label="최근 7일 집중 시간"></div><p class="journal-rhythm" id="journalRhythm"></p><p class="journal-rhythm journal-monument" id="journalMonument"></p><button type="button" class="ghost-button journal-share" id="journalShare">정원 일기 공유하기</button></div>
       <div class="journal-sheet"><div class="sheet-heading"><h2>최근 세션</h2></div><ul class="event-log" id="eventLog"><li class="event-log-empty">첫 세션을 마치면 여기에 기록돼요. 오른쪽 타이머에서 시작해보세요.</li></ul><div class="shortcut-row"><span><kbd>Space</kbd> 시작과 정지</span><span><kbd>R</kbd> 처음부터</span><span><kbd>N</kbd> 다음 세션</span></div></div>
       <div class="journal-banner"><img src="assets/art/avatar/portraits/rest_stretch.webp" alt="" class="journal-art" /><div><h2>오늘의 작은 성취도 소중해요</h2><p>타이머를 끝까지 마칠 때마다 하루의 이야기가 한 줄씩 늘어나요.</p></div></div>
     </section>
@@ -184,6 +205,18 @@
                   <input id="soundEnabled" type="checkbox" checked />
                   <span class="toggle-track"></span>
                   <em>완료 알림음</em>
+                </label>
+
+                <label class="toggle">
+                  <input id="gardenCelebration" type="checkbox" checked />
+                  <span class="toggle-track"></span>
+                  <em>집중 완료 정원 연출</em>
+                </label>
+
+                <label class="toggle">
+                  <input id="gardenAutoSit" type="checkbox" checked />
+                  <span class="toggle-track"></span>
+                  <em>휴식 시작하면 자동으로 앉기</em>
                 </label>
 
                 <label class="toggle">

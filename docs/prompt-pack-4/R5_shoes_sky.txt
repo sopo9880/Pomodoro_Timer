@@ -1,0 +1,7 @@
+# R5 하늘색 신발 (A3b 다시: 6부품 빠짐없이)
+
+첨부할 기준 그림(refs 폴더): boot_front_left.png, boot_front_right.png, boot_back_left.png, boot_back_right.png, boot_side_near.png, boot_side_far.png, rig_front.png
+
+## 프롬프트
+
+Soft painterly anime game-art shading with clean thin warm-brown outlines, same style as the attached reference parts. Soft sky-blue / teal (#507b80) lace-up boots with pale (#acd1cf) toes and cream laces, same height, cuff and shape as the attached reference boots (each piece is a tall piece that includes the black-tights lower leg above the boot, like the references). Flat solid pure magenta background (#FF00FF), no gradient, no floor, no cast shadow, no text, no labels, no frame, no props. Every piece is a separate image with a wide magenta gap around it; pieces must NOT touch each other. Same scale in every piece. Draw in the order listed, left to right, top to bottom. EXACTLY SIX pieces in a 3x2 grid, no more, no fewer. Top row, left to right: (1) FRONT view left boot, (2) FRONT view right boot, (3) right-facing SIDE view, NEAR foot. Bottom row, left to right: (4) BACK view left boot, (5) BACK view right boot, (6) right-facing SIDE view, FAR foot (slightly smaller, seen behind the near one).

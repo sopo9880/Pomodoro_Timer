@@ -6,19 +6,19 @@
  */
 import { decorViewFor } from "./decor-views.mjs";
 
-/** Flip to true once the seated avatar art (sit poses) is wired into the rig. */
-export const SIT_ART_READY = false;
+/** The rig folds into a seated pose itself, so sitting works with every outfit, hair and hat. */
+export const SIT_READY = true;
 
 /** seat/approach are tile offsets from the placement's foot point, at step 0.
  * `approach` is where a walker stands to use the spot. */
 const SPOTS = Object.freeze({
-  "wooden-bench": { action: "sit", slots: [{ seat: [-.38, -.12], approach: [-.38, .95] }, { seat: [.38, -.12], approach: [.38, .95] }] },
-  "star-bench": { action: "sit", slots: [{ seat: [-.38, -.12], approach: [-.38, .95] }, { seat: [.38, -.12], approach: [.38, .95] }] },
-  "mushroom-stool": { action: "sit", slots: [{ seat: [0, -.05], approach: [0, .95] }] },
-  "picnic-cloth": { action: "sit", slots: [{ seat: [-.4, -.1], approach: [-.4, .95] }, { seat: [.4, -.1], approach: [.4, .95] }] },
-  "tea-table": { action: "tea", slots: [{ seat: [-.7, .3], approach: [-.7, 1.1] }, { seat: [.7, .3], approach: [.7, 1.1] }] },
+  "wooden-bench": { side: true, action: "sit", slots: [{ seat: [-.38, -.12], approach: [-.38, .95] }, { seat: [.38, -.12], approach: [.38, .95] }] },
+  "star-bench": { side: true, action: "sit", slots: [{ seat: [-.38, -.12], approach: [-.38, .95] }, { seat: [.38, -.12], approach: [.38, .95] }] },
+  "mushroom-stool": { side: true, action: "sit", slots: [{ seat: [0, -.05], approach: [0, .95] }] },
+  "picnic-cloth": { side: true, action: "sit", slots: [{ seat: [-.4, -.1], approach: [-.4, .95] }, { seat: [.4, -.1], approach: [.4, .95] }] },
+  "tea-table": { side: true, action: "tea", slots: [{ seat: [-.7, .3], approach: [-.7, 1.1] }, { seat: [.7, .3], approach: [.7, 1.1] }] },
   "campfire": { action: "warm", slots: [{ seat: [-.9, .1], approach: [-.9, .95] }, { seat: [.9, .1], approach: [.9, .95] }] },
-  "garden-swing": { action: "swing", slots: [{ seat: [0, -.1], approach: [0, .95] }] },
+  "garden-swing": { side: true, action: "swing", slots: [{ seat: [0, -.1], approach: [0, .95] }] },
   "mailbox": { action: "mail", slots: [{ seat: [0, 0], approach: [0, .95] }] },
   "wishing-well": { action: "well", slots: [{ seat: [0, 0], approach: [0, 1.1] }] },
   "wind-chime": { action: "listen", slots: [{ seat: [0, 0], approach: [0, .95] }] },
@@ -27,6 +27,8 @@ const SPOTS = Object.freeze({
 
 /** Actions that put the avatar in a seated pose (rest-time auto seating uses these). */
 export const REST_ACTIONS = Object.freeze(["sit"]);
+/** Everything the avatar can sit down at (tapping one walks there and sits). */
+export const SEATED_ACTIONS = Object.freeze(["sit", "swing", "tea"]);
 
 /** Offsets follow the drawn view: mirrored views flip x, back views flip y. */
 function orient([dx, dy], view) {
@@ -49,7 +51,8 @@ export function spotsFor(placement, sprite) {
       key: `${placement.id}:${index}`, placementId: placement.id, action: def.action,
       x: placement.x + sx, y: placement.y + sy,
       approach: { x: placement.x + ax, y: placement.y + ay },
-      facing: ay >= 0 ? "down" : "up",
+      // Benches, stools and tables are drawn in 3/4 view, so people sit sideways on them (readable on any outfit).
+      facing: def.side ? (view.flipX !== view.back ? "right" : "left") : ay >= 0 ? "down" : "up",
     };
   });
 }
@@ -93,6 +96,18 @@ export function createSeatController({ motion, findItem, getGarden }) {
       }
       return false;
     },
+    /** Walk to a free seat of one placed item (the person tapped it) and sit there. */
+    seekItem(placementId, from) {
+      this.release();
+      const wanted = nearestSpots(getGarden(), from, findItem, { actions: SEATED_ACTIONS, occupied, maxDistance: 40 }).filter((c) => c.placementId === placementId);
+      for (const candidate of wanted) {
+        if (motion.goTo(getGarden(), candidate.approach.x, candidate.approach.y)) {
+          spot = candidate; phase = "walking"; occupied.add(candidate.key);
+          return true;
+        }
+      }
+      return false;
+    },
     /** Call every frame; moves walking -> seated once the walk ends. */
     update() {
       if (phase === "walking" && !motion.isMoving()) phase = "seated";
@@ -102,10 +117,10 @@ export function createSeatController({ motion, findItem, getGarden }) {
       if (spot) occupied.delete(spot.key);
       phase = "idle"; spot = null;
     },
-    /** Visual override while seated, or null (only once seated art exists). */
+    /** Visual override while seated, or null. The avatar sits just in front of the furniture. */
     seatedVisual(base) {
-      if (!SIT_ART_READY || phase !== "seated" || !spot || !base) return null;
-      return { ...base, x: spot.x, y: spot.y, direction: spot.facing, moving: false, pose: "idle", seated: true };
+      if (!SIT_READY || phase !== "seated" || !spot || !base) return null;
+      return { ...base, x: spot.x, y: spot.y + .25, direction: spot.facing, moving: false, pose: "idle", seated: true, seatAction: spot.action };
     },
     occupiedKeys: () => new Set(occupied),
   };

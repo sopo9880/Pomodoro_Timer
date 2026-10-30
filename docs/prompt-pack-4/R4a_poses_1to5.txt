@@ -1,0 +1,7 @@
+# R4a 상호작용 포즈 1~5 (F4 다시, 첫 장)
+
+첨부할 기준 그림(refs 폴더): rig_front.png, rig_side.png, rig_back.png
+
+## 프롬프트
+
+The character is the attached reference: a TALL young-adult anime-style girl (about 7 heads tall, NOT chibi). Long wavy ash-brown hair, two white-and-gold flower hair ornaments with red ribbons, amber eyes, a cream dress with gold embroidery, green puff sleeves, a brown leather satchel at her hip, black tights and brown lace-up boots. NO cape, NO cloak, NO leaf crown. Match rig_front.png / rig_side.png / rig_back.png exactly in face, hair, outfit, proportions and painting style. Flat solid pure magenta background (#FF00FF), no gradient, no floor, no cast shadow, no text, no labels, no frame, no props. Every piece is a separate image with a wide magenta gap around it; pieces must NOT touch each other. Same scale in every piece. Draw in the order listed, left to right, top to bottom. Interaction poses with NO props drawn. Five pieces: (1) right-facing side view, reaching one arm forward to open a mailbox (palm out), (2) side view, holding a small letter in both hands and reading it happily, (3) side view, leaning over to peer down into a well with hands on the rim (no rim drawn), (4) side view, drawing up a bucket with both hands, (5) front view, head tilted up listening to wind chimes with closed eyes and a gentle smile.

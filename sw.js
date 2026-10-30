@@ -1,4 +1,4 @@
-const CACHE_NAME = "bloomodoro-cache-v24";
+const CACHE_NAME = "bloomodoro-cache-v33";
 // Painted art and fonts are kept across releases (file names change when the
 // art changes), so an app update never makes the player download the garden again.
 const ART_CACHE = "bloomodoro-art-v1";
@@ -11,6 +11,7 @@ const PRECACHE_URLS = [
   "./garden/garden-core.mjs",
   "./garden/garden-ui.mjs",
   "./ui/game-shell.mjs",
+  "./ui/share-card.mjs",
   "./garden/pixel-world.mjs",
   "./garden/world-map.mjs",
   "./garden/tile-atlas.mjs",
@@ -34,8 +35,22 @@ const PRECACHE_URLS = [
   "./garden/decor-views.mjs",
   "./garden/interaction.mjs",
   "./garden/avatar-variants.mjs",
+  "./garden/avatar-variants-data.mjs",
+  "./garden/avatar-hats.mjs",
+  "./garden/asset-overrides.mjs",
+  "./garden/rig-tuning.mjs",
+  "./garden/rig-tuning-data.mjs",
+  "./garden/rig-tuning-store.mjs",
   "./garden/scenery.mjs",
+  "./garden/decor-back-data.mjs",
   "./garden/ground-cache.mjs",
+  "./garden/world-art-data.mjs",
+  "./garden/fx.mjs",
+  "./garden/pack3-art-data.mjs",
+  "./garden/rare-art-data.mjs",
+  "./garden/monuments.mjs",
+  "./garden/longterm.mjs",
+  "./garden/garden-sound.mjs",
   "./garden/painted-art-data.mjs",
   "./assets/art/avatar/manifest.json",
   "./assets/art/avatar/base/idle-down.png",

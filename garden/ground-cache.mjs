@@ -11,6 +11,7 @@
  */
 import { terrainFor } from "./painted-art.mjs";
 import { GROUND, worldHash } from "./world-map.mjs";
+import { WORLD_ART } from "./world-art-data.mjs";
 
 /** Higher ground overlaps lower ground along their shared edge. */
 export const GROUND_PRIORITY = Object.freeze({
@@ -40,6 +41,29 @@ function valueNoise(x, y, salt) {
 /** Large-scale tone in [-1, 1] at a world position; seamless across chunks. */
 export function toneAt(x, y) {
   return (valueNoise(x / 9, y / 9, 301) - .5) * 1.4 + (valueNoise(x / 4, y / 4, 302) - .5) * .6;
+}
+
+/** Which decals suit which ground, how big (tiles wide) and how often. */
+const DECAL_RULES = Object.freeze({
+  grass: [["flowers", .9, .5], ["tufts", .7, .5]],
+  starhill_grass: [["flowers", .8, .35], ["tufts", .65, .65]],
+  forest_floor: [["leaves", .32, .55], ["tufts", .65, .25], ["pebbles", .5, .2]],
+  dirt_path: [["pebbles", .55, 1]],
+  stone_path: [["pebbles", .5, 1]],
+  flowerbed_soil: [["pebbles", .45, 1]],
+});
+const DECAL_CHANCE = .16;
+export const DECAL_IMAGES = Object.freeze(Object.values(WORLD_ART.decals).flat().map((d) => d.src));
+/** The decal (if any) that cell (x, y) hosts: deterministic, so chunks agree along their borders. */
+export function decalFor(x, y, textureId, kind) {
+  const rules = DECAL_RULES[textureId];
+  if (!rules || kind === GROUND.WATER || kind === GROUND.BRIDGE || kind === GROUND.VOID) return null;
+  if (worldHash(x, y, 111) > DECAL_CHANCE) return null;
+  let r = worldHash(x, y, 112) * rules.reduce((t, e) => t + e[2], 0);
+  const rule = rules.find((e) => (r -= e[2]) < 0) || rules[rules.length - 1];
+  const list = WORLD_ART.decals[rule[0]];
+  return { art: list[Math.floor(worldHash(x, y, 113) * list.length)], width: rule[1] * (.85 + worldHash(x, y, 114) * .3),
+    ox: worldHash(x, y, 115), oy: worldHash(x, y, 116), flip: worldHash(x, y, 117) > .5 };
 }
 
 const SIDES = [[0, -1], [0, 1], [-1, 0], [1, 0]]; // N S W E
@@ -75,7 +99,7 @@ function buildMasks(doc, t) {
   return { masks, corners };
 }
 
-export function createGroundCache({ document: doc, painted, map, textureTiles = 6, overlayTiles = 6, maxChunks = 14, bakesPerFrame = 2 }) {
+export function createGroundCache({ document: doc, painted, map, textureTiles = 6, overlayTiles = 6, maxChunks = 40, maxBytes = 40 * 1048576, bakesPerFrame = 1 }) {
   const lru = new Map();
   const maskSets = new Map();
   let tmp = null, bakes = 0;
@@ -120,6 +144,7 @@ export function createGroundCache({ document: doc, painted, map, textureTiles = 
         if (nt && !nt.img) ready = false;
       }
     }
+    for (const src of DECAL_IMAGES) if (!painted.art(src)) ready = false;
     if (!ready) return null;
 
     const canvas = mk(doc, chunk.width * t, chunk.height * t), ctx = canvas.getContext("2d");
@@ -183,6 +208,23 @@ export function createGroundCache({ document: doc, painted, map, textureTiles = 
         if (phase < .3) water.push([cell.x, cell.y, phase / .3]);
       }
     }
+    // Ground decals (flowers, pebbles, grass tufts, leaves) break up the painted texture's repeat.
+    for (let cy = chunk.y - 1; cy <= chunk.y + chunk.height; cy++) {
+      for (let cx = chunk.x - 1; cx <= chunk.x + chunk.width; cx++) {
+        const tile = tileAt(cx, cy);
+        const id = tile.zoneId && terrainFor(tile.kind, tile.zoneId);
+        const decal = id && decalFor(cx, cy, id, tile.kind);
+        if (!decal) continue;
+        const img = painted.art(decal.art.src);
+        if (!img) continue;
+        const w = decal.width * t, h = w * decal.art.h / decal.art.w;
+        const x = (cx - chunk.x + decal.ox) * t - w / 2, y = (cy - chunk.y + decal.oy) * t - h / 2;
+        ctx.save();
+        if (decal.flip) { ctx.translate(x + w, y); ctx.scale(-1, 1); ctx.drawImage(img, 0, 0, w, h); }
+        else ctx.drawImage(img, x, y, w, h);
+        ctx.restore();
+      }
+    }
     // Season cover (snow / fallen leaves) over land, as the flat path did.
     if (overlay) {
       for (const cell of cells) {
@@ -213,18 +255,47 @@ export function createGroundCache({ document: doc, painted, map, textureTiles = 
   }
 
   /** Baked chunk (cached), or null while textures decode / the frame's bake budget is spent. */
+  const keyOf = (chunk, options) => `${chunk.cx}:${chunk.cy}:${options.tilePx}:${options.season}:${[...options.unlocked].sort().join(",")}`;
+  let bytes = 0;
+  const sizeOf = (baked) => baked.canvas.width * baked.canvas.height * 4;
+  function store(key, baked) {
+    lru.set(key, baked);
+    bytes += sizeOf(baked);
+    // Least recently used goes first; whatever is on screen is touched every frame, so it stays.
+    while ((lru.size > maxChunks || bytes > maxBytes) && lru.size > 1) {
+      const oldest = lru.keys().next().value;
+      bytes -= sizeOf(lru.get(oldest));
+      lru.delete(oldest);
+    }
+  }
+  /** Baked chunk (cached), or null while textures decode / this frame's bake budget is spent. */
   function get(chunk, options) {
-    const sig = [...options.unlocked].sort().join(",");
-    const key = `${chunk.cx}:${chunk.cy}:${options.tilePx}:${options.season}:${sig}`;
+    const key = keyOf(chunk, options);
     const hit = lru.get(key);
     if (hit) { lru.delete(key); lru.set(key, hit); return hit; }
     if (bakes >= bakesPerFrame) return null;
     const baked = bake(chunk, options);
     if (!baked) return null;
     bakes++;
-    lru.set(key, baked);
-    while (lru.size > maxChunks) lru.delete(lru.keys().next().value);
+    store(key, baked);
     return baked;
   }
-  return { get, beginFrame() { bakes = 0; }, size: () => lru.size, clear() { lru.clear(); } };
+  /** Bake a chunk ahead of time (idle moments); never counts against the frame budget. */
+  function prebake(chunk, options) {
+    const key = keyOf(chunk, options);
+    if (lru.has(key)) return true;
+    const baked = bake(chunk, options);
+    if (!baked) return false;
+    store(key, baked);
+    return true;
+  }
+  const has = (chunk, options) => lru.has(keyOf(chunk, options));
+  /** The cached chunk, or null; never bakes (used while the first screen is still being revealed). */
+  function peek(chunk, options) {
+    const key = keyOf(chunk, options);
+    const hit = lru.get(key);
+    if (hit) { lru.delete(key); lru.set(key, hit); }
+    return hit || null;
+  }
+  return { get, peek, prebake, has, beginFrame() { bakes = 0; }, size: () => lru.size, bytes: () => bytes, clear() { lru.clear(); bytes = 0; } };
 }

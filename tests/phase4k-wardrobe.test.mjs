@@ -1,5 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { createAvatarRig, RIG_VIEW } from "../garden/avatar-rig.mjs";
 import { AVATAR_RIG_PARTS } from "../garden/avatar-rig-data.mjs";
 import { canUseRig, variantComplete, variantSrc, variantExpressions, VARIANT_SLOTS, DEFAULT_LOOK } from "../garden/avatar-variants.mjs";
@@ -16,7 +17,7 @@ test("the default look is always drawable; unregistered or partial variants are 
   assert.equal(canUseRig({ outfit: "outfit-forest" }, variants), true);
   assert.equal(canUseRig({ outfit: "outfit-garden" }, variants), false);
   assert.equal(variantComplete("outfit", "outfit-garden", variants), false);
-  assert.equal(canUseRig({ outfit: "outfit-forest", hat: "hat-straw" }, variants), false, "hats are not rig parts yet");
+  assert.equal(canUseRig({ outfit: "outfit-forest", hat: "hat-straw" }, variants, {}), false, "a hat without art keeps the fallback");
   assert.equal(canUseRig({ outfit: "outfit-forest", shoes: "shoes-boots", hair: "hair-chestnut" }, variants), true);
 });
 
@@ -54,4 +55,43 @@ test("the rig fetches the worn variant images instead of the default ones", () =
   createAvatarRig({ ImageClass: FakeImage, variants }).ready("right", {});
   assert.ok(asked.every((s) => !s.includes("/v/")), "default look never touches variants");
   assert.equal(RIG_VIEW.right, "side");
+});
+
+import { existsSync } from "node:fs";
+import { AVATAR_VARIANTS } from "../garden/avatar-variants.mjs";
+import { WEARABLES } from "../garden/life-core.mjs";
+
+test("every owned-able hair, outfit and shoe has its art, and every file exists", () => {
+  for (const item of WEARABLES) {
+    if (item.slot === "hat" || ["hair-natural", "outfit-linen", "shoes-travel"].includes(item.id)) continue;
+    assert.ok(variantComplete(item.slot, item.id, AVATAR_VARIANTS), item.id + " is not fully cut");
+    assert.equal(canUseRig({ [item.slot]: item.id }, AVATAR_VARIANTS), true, item.id);
+  }
+  for (const [sku, v] of Object.entries(AVATAR_VARIANTS)) {
+    const files = [...Object.values(v.front || {}), ...Object.values(v.side || {}), ...Object.values(v.back || {}), ...Object.values(v.expressions || {})];
+    assert.ok(files.length >= 6, sku);
+    for (const f of files) assert.ok(existsSync(new URL("../" + f.split("?")[0], import.meta.url)), f);
+  }
+});
+
+test("a hair variant ships all six faces so blinking and surprise keep working", () => {
+  for (const sku of ["hair-chestnut", "hair-silver", "hair-bloom"]) {
+    assert.deepEqual(Object.keys(AVATAR_VARIANTS[sku].expressions).sort(), ["blink", "focused", "halfblink", "happy", "neutral", "surprised"]);
+    assert.deepEqual(Object.keys(variantExpressions({ hair: sku })), Object.keys(AVATAR_VARIANTS[sku].expressions));
+  }
+});
+
+test("every hat is drawn on the rig, and a hat missing a view is not", () => {
+  for (const hat of ["hat-straw", "hat-flower", "hat-star"]) assert.equal(canUseRig({ hat }), true, hat);
+  assert.equal(canUseRig({ hat: "hat-straw" }, AVATAR_VARIANTS, { "hat-straw": { front: {}, side: {} } }), false);
+  assert.equal(canUseRig({ hair: "hair-silver", outfit: "outfit-starlight", shoes: "shoes-sky" }), true);
+});
+
+test("sitting and cheering are rig poses, so they cost no extra art and fit every outfit", () => {
+  const rig = readFileSync(new URL("../garden/avatar-rig.mjs", import.meta.url), "utf8");
+  assert.match(rig, /sit = 0, armsUp = 0, kick = 0/);
+  assert.match(rig, /const k = s\.sit \|\| 0/);
+  const world = readFileSync(new URL("../garden/pixel-world.mjs", import.meta.url), "utf8");
+  assert.match(world, /sit:sitAmt,armsUp:upAmt,kick/);
+  assert.match(world, /cheer:Boolean\(options\.celebration&&options\.celebration\.t<3\.4\)/);
 });

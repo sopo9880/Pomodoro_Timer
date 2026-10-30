@@ -1,5 +1,10 @@
 import { normalizeSettings as normalizeSavedSettings, normalizeDailyStats, creditFocusInterval, creditCompletedSession, recoverCheckpoint, localDayKey } from "./core/focus-core.mjs";
-import { createGardenState, normalizeGardenState, creditGardenFocus } from "./garden/garden-core.mjs";
+import { createGardenState, normalizeGardenState, creditGardenFocus, GARDEN_ITEMS, GARDEN_COMPANIONS } from "./garden/garden-core.mjs";
+import { collectionSnapshot } from "./garden/life-core.mjs";
+import { ALL_WILDLIFE as WILDLIFE_SPECIES } from "./garden/ecology.mjs";
+import { WORLD_LANDMARKS } from "./garden/world-map.mjs";
+import { growthProgress } from "./garden/longterm.mjs";
+import { watchDom } from "./garden/asset-overrides.mjs";
 import { mountGarden } from "./garden/garden-ui.mjs";
 import { mountGameShell } from "./ui/game-shell.mjs";
 
@@ -168,10 +173,20 @@ function init() {
   bindEvents();
   bindInstallEvents();
   registerServiceWorker();
+  watchDom(document);   // pictures swapped in the studio show up in icons and cards too
   restoreRunningTimer();
   gameShell = mountGameShell({
     getTimerState: () => ({ mode: state.mode, isRunning: state.isRunning }),
     getDailyStats: () => state.dailyStats,
+    getShareStats: () => {
+      const groups = collectionSnapshot(state.garden, { items: GARDEN_ITEMS, companions: GARDEN_COMPANIONS, wildlife: WILDLIFE_SPECIES, landmarks: WORLD_LANDMARKS });
+      const entries = Object.values(groups).flat();
+      const focusSeconds = state.garden.progress.focusSeconds;
+      return {
+        focusSeconds, total: entries.length, discovered: entries.filter((entry) => entry.discovered).length,
+        plantsBloomed: state.garden.plants.filter((plant) => growthProgress(plant, focusSeconds)?.bloomed).length,
+      };
+    },
   });
   render();
   gardenInterface = mountGarden({
@@ -179,6 +194,7 @@ function init() {
     setGarden: (nextGarden) => { state.garden = nextGarden; saveState(); },
     getTimerState: () => ({ mode: state.mode, isRunning: state.isRunning }),
     getEnvironment: () => gameShell.getEnvironment(),
+    getSoundSettings: () => ({ enabled: state.soundEnabled, volume: state.soundVolume }),
   });
 }
 
@@ -689,6 +705,7 @@ function advanceMode(markComplete) {
   if (markComplete && previousMode === "focus") {
     state.cycleFocusCount = Math.min(state.settings.cycleLength, state.cycleFocusCount + 1);
     state.completedToday += 1;
+    window.dispatchEvent(new CustomEvent("bloomodoro:focus-complete", { detail: { completedToday: state.completedToday } }));
     addLog({
       title: `${state.completedToday}번째 집중 완료`,
       detail: `${formatDurationLabel(completedDuration)} 몰입을 끝냈어요.`,

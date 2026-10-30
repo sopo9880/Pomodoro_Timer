@@ -178,7 +178,7 @@ body[data-mode="shortBreak"] .timer-ring, body[data-mode="longBreak"] .timer-rin
 .journal-week-sum span { font-size: var(--step--1); color: var(--ink-soft); }
 .journal-week-sum strong { font-family: var(--font-display); font-size: var(--step-3); color: var(--moss); font-variant-numeric: tabular-nums; }
 .week-chart { display: grid; grid-template-columns: repeat(7, 1fr); gap: 10px; height: 180px; align-items: end; }
-.week-day { display: grid; grid-template-rows: auto 1fr auto; height: 100%; gap: 6px; text-align: center; font-size: var(--step--1); }
+.week-day { display: grid; grid-template-rows: auto 1fr auto auto; height: 100%; gap: 6px; text-align: center; font-size: var(--step--1); }
 .week-day strong { font-variant-numeric: tabular-nums; color: var(--ink-soft); font-weight: 400; }
 .week-day.today strong, .week-day.today span { color: var(--moss); font-weight: 700; }
 .week-bar-track { position: relative; background: var(--paper); border-radius: 8px; overflow: hidden; }
@@ -232,3 +232,13 @@ body[data-mode="shortBreak"] .timer-ring, body[data-mode="longBreak"] .timer-rin
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
 }
+
+/* Phase 4N: calm weekly rhythm, monument ledger and share */
+.journal-rhythm { margin: 10px 2px 0; font-size: var(--step--1); color: var(--ink-soft); line-height: 1.5; }
+.journal-monument { color: var(--moss); }
+.journal-share { margin-top: 12px; }
+
+/* Phase 4N: weekday badges light up on days with focus */
+.week-badge { width: 26px; height: 26px; object-fit: contain; justify-self: center; opacity: .28; filter: grayscale(1); transition: opacity .3s, filter .3s; }
+.week-day.has-focus .week-badge { opacity: 1; filter: none; }
+@media (prefers-reduced-motion: reduce) { .week-badge { transition: none; } }
