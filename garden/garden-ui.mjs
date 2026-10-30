@@ -10,7 +10,7 @@ import { REGION_SCENES, WORLD_LANDMARKS } from "./world-map.mjs";
 import { WILDLIFE_SPECIES } from "./ecology.mjs";
 import { createAvatarMotion } from "./avatar-motion.mjs";
 import { isDirectional } from "./decor-views.mjs";
-import { createSeatController, readAutoSitPref, SIT_ART_READY } from "./interaction.mjs";
+import { actionOf, createSeatController, interactionLine, readAutoSitPref, SIT_ART_READY } from "./interaction.mjs";
 import { avatarIllustrationUri, companionIllustrationUri, wildlifeIllustrationUri } from "./hires-atlas.mjs";
 import { rasterAvatarPreviewUrl, rasterAvatarPortraitUrl, canUseRasterAvatar } from "./raster-art.mjs";
 import { renderRigPortrait } from "./avatar-rig.mjs";
@@ -43,6 +43,7 @@ export function mountGarden({ getGarden, setGarden, getTimerState, getEnvironmen
   // Only active once the seated art ships (SIT_ART_READY); never touches saves.
   const seat = createSeatController({ motion: avatarMotion, findItem: findGardenItem, getGarden });
   let wasResting = false;
+  const tapCounts = {};
   function updateSeat() {
     if (!SIT_ART_READY) return;
     const timer = getTimerState();
@@ -748,6 +749,12 @@ export function mountGarden({ getGarden, setGarden, getTimerState, getEnvironmen
       }
     }
     if(avatarSelected && picked)stopAvatarControl();
+    // Tapping a usable decoration answers with a quiet line; not during focus.
+    if(picked?.kind==="decor"&&!editingLocked()){
+      const action=actionOf(findGardenItem(picked.itemId)?.sprite);
+      const line=action&&interactionLine(action,tapCounts[action]=(tapCounts[action]??-1)+1);
+      if(line)announce(line);
+    }
     selectObject(picked);
   }
   canvas.addEventListener("pointerdown", (event) => {

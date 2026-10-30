@@ -111,6 +111,32 @@ export function createSeatController({ motion, findItem, getGarden }) {
   };
 }
 
+/** One-line reactions shown when a decoration is tapped. Calm, never urgent. */
+const LINES = Object.freeze({
+  mail: [
+    "오늘도 와 줘서 고마워요.", "편지는 없지만, 우편함이 반짝였어요.", "천천히 해도 괜찮아요. 정원은 기다려요.",
+    "물 한 모금 마시고 오세요.", "어제의 당신이 심은 씨앗이 자라고 있어요.", "쉬는 것도 일의 일부예요.",
+    "동료들이 안부를 전해 달래요.", "오늘의 한 걸음이면 충분해요.", "창문을 열고 바람을 한 번 느껴 보세요.",
+    "돌아오신 걸 환영해요. 아무것도 시들지 않았어요.",
+  ],
+  warm: ["타닥타닥, 불꽃이 따뜻하게 일렁여요.", "손을 가까이 대면 온기가 느껴져요.", "불멍하기 좋은 밤이에요."],
+  well: ["우물 속에서 작은 메아리가 대답해요.", "소원을 하나 떠올려 보세요. 천천히요.", "맑은 물에 하늘이 비쳐요."],
+  listen: ["딸랑, 바람이 지나갔어요.", "풍경 소리에 마음이 한결 가벼워져요.", "바람이 어디서 오는지 귀 기울여 봐요."],
+  watch: ["작은 새가 물을 한 모금 마시고 갔어요.", "물 위에 햇살이 반짝여요.", "물방울이 또르르 굴러가요."],
+  sit: ["앉아서 잠깐 쉬어 가요.", "의자가 딱 좋은 높이예요.", "쉬는 시간엔 쉬는 것만 해요."],
+  swing: ["그네가 살랑살랑 흔들려요.", "발을 구르면 하늘이 가까워져요."],
+  tea: ["차가 아직 따뜻해요.", "티타임엔 서두르지 않아요."],
+});
+/** The nth reaction line for an action (cycles), or null for actions without one. */
+export function interactionLine(action, n = 0) {
+  const list = LINES[action];
+  return list ? list[((n % list.length) + list.length) % list.length] : null;
+}
+/** The action of the first spot an item offers, e.g. "mail" for a mailbox. */
+export function actionOf(sprite) {
+  return SPOTS[sprite]?.action || null;
+}
+
 const PREF_KEY = "bloomodoro-auto-sit";
 /** Per-device convenience, on by default. Never part of the garden save. */
 export function readAutoSitPref(storage = globalThis.localStorage) {

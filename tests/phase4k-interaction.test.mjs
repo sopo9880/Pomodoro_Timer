@@ -83,3 +83,18 @@ test("painted renderer applies the saved rotation, and the save format is untouc
   const core = readFileSync(new URL("../garden/garden-core.mjs", import.meta.url), "utf8");
   assert.match(core, /GARDEN_SCHEMA_VERSION\s*=\s*2/);
 });
+
+import { interactionLine, actionOf } from "../garden/interaction.mjs";
+
+test("tapping a usable decoration has calm cycling lines and unknown items stay silent", () => {
+  assert.equal(actionOf("mailbox"), "mail");
+  assert.equal(actionOf("lantern"), null);
+  const seen = new Set(Array.from({ length: 10 }, (_, i) => interactionLine("mail", i)));
+  assert.equal(seen.size, 10);
+  assert.equal(interactionLine("mail", 10), interactionLine("mail", 0));
+  assert.equal(interactionLine("mail", -1), interactionLine("mail", 9));
+  assert.equal(interactionLine("nope", 0), null);
+  for (const action of ["warm", "well", "listen", "watch", "sit", "swing", "tea"]) assert.ok(interactionLine(action, 0), action);
+  const ui = readFileSync(new URL("../garden/garden-ui.mjs", import.meta.url), "utf8");
+  assert.match(ui, /picked\?\.kind==="decor"&&!editingLocked\(\)/, "reactions stay quiet during focus");
+});
