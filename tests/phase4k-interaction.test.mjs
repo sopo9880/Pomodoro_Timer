@@ -11,9 +11,12 @@ const bench = (extra = {}) => ({ id: "b1", itemId: "wooden-bench", x: 10, y: 10,
 test("directional items turn between four steps; symmetric ones never change", () => {
   assert.deepEqual(decorViewFor("wooden-bench", 0), { step: 0, back: false, flipX: false });
   assert.equal(decorViewFor("wooden-bench", 90).flipX, true);
-  // no back art yet: 180 reuses the front, 270 the mirrored front
-  assert.deepEqual(decorViewFor("wooden-bench", 180), { step: 0, back: false, flipX: false });
-  assert.deepEqual(decorViewFor("wooden-bench", 270), { step: 1, back: false, flipX: true });
+  // the bench has back art: 180 shows its back, 270 the mirrored back
+  assert.deepEqual(decorViewFor("wooden-bench", 180), { step: 2, back: true, flipX: false });
+  assert.deepEqual(decorViewFor("wooden-bench", 270), { step: 3, back: true, flipX: true });
+  // a directional item without back art falls back to the front, turning between two looks
+  assert.deepEqual(decorViewFor("picnic-cloth", 180), { step: 0, back: false, flipX: false });
+  assert.deepEqual(decorViewFor("picnic-cloth", 270), { step: 1, back: false, flipX: true });
   assert.deepEqual(decorViewFor("wooden-bench", -90), decorViewFor("wooden-bench", 270));
   assert.deepEqual(decorViewFor("lantern", 90), { step: 0, back: false, flipX: false });
   assert.ok(isDirectional("garden-swing") && !isDirectional("campfire"));
@@ -78,7 +81,7 @@ test("auto-sit preference is on by default and survives blocked storage", () => 
 
 test("painted renderer applies the saved rotation, and the save format is untouched", () => {
   const world = readFileSync(new URL("../garden/pixel-world.mjs", import.meta.url), "utf8");
-  assert.match(world, /painted\.decorView\(sprite, actor\.rotation\)/);
+  assert.match(world, /painted\.decorView\(sprite, actor\.rotation, frame\)/);
   assert.match(world, /painted\.decorView\(g\.sprite, g\.rotation\)/);
   const core = readFileSync(new URL("../garden/garden-core.mjs", import.meta.url), "utf8");
   assert.match(core, /GARDEN_SCHEMA_VERSION\s*=\s*2/);
@@ -97,4 +100,16 @@ test("tapping a usable decoration has calm cycling lines and unknown items stay 
   for (const action of ["warm", "well", "listen", "watch", "sit", "swing", "tea"]) assert.ok(interactionLine(action, 0), action);
   const ui = readFileSync(new URL("../garden/garden-ui.mjs", import.meta.url), "utf8");
   assert.match(ui, /picked\?\.kind==="decor"&&!editingLocked\(\)/, "reactions stay quiet during focus");
+});
+
+import { existsSync as exists } from "node:fs";
+import { DECOR_BACK_VIEWS } from "../garden/decor-views.mjs";
+test("every back view exists and seats follow the turned furniture", () => {
+  assert.ok(Object.keys(DECOR_BACK_VIEWS).length >= 8);
+  for (const [sprite, path] of Object.entries(DECOR_BACK_VIEWS)) {
+    assert.ok(exists(new URL("../" + path.split("?")[0], import.meta.url)), path);
+    assert.ok(isDirectional(sprite), sprite);
+  }
+  const back = spotsFor(bench({ rotation: 180 }), "wooden-bench");
+  assert.ok(back.every((s) => s.facing === "up" && s.approach.y < 10), "seen from behind, people approach from the other side");
 });

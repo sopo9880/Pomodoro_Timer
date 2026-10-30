@@ -26,6 +26,15 @@ export const DECOR_WIDTH_TILES = Object.freeze({
   "picnic-cloth": 1.9, "forest-lamp": .75, "wishing-well": 1.7, "stone-path": .95, "tea-table": 1.15,
   "mushroom-stool": .8, "flower-archway": 1.9, "tiny-pond": .8, "star-bench": 1.7, "flower-pot": 1.0,
   birdbath: .9, "flower-bed": 1.5, "wooden-lamp": .7,
+  "little-tree": 1.9, "star-crystal": 1.0, mailbox: .85, "garden-swing": 2.0, campfire: 1.3, "wind-chime": .75,
+});
+/** Decorations that animate: the frame shown is chosen by time (see decorView). */
+export const DECOR_FRAME_SETS = Object.freeze({
+  "wind-chime": ["wind_chime_0", "wind_chime_1", "wind_chime_2", "wind_chime_1"].map((n) => "assets/art/world/decor/" + n + ".webp"),
+});
+/** Campfire flames drawn over the ring, cycling; width relative to the ring. */
+export const CAMPFIRE_FLAMES = Object.freeze({
+  frames: [0, 1, 2, 3].map((n) => "assets/art/world/decor/campfire_flame_" + n + ".webp"), width: .46, lift: .1,
 });
 export const PLANT_WIDTH_TILES = 1.55;
 const PLANT_STAGES = Object.freeze(["seed", "sprout", "growing", "bloom"]);
@@ -217,9 +226,10 @@ export function createPaintedArtAtlas({ ImageClass = globalThis.Image, base = ".
       return src ? image(src) : null;
     },
     /** Decoration at a saved rotation: {image, flipX}, or null while it decodes. */
-    decorView(sprite, rotation = 0) {
+    decorView(sprite, rotation = 0, frame = 0) {
       const view = decorViewFor(sprite, rotation);
-      const src = view.back ? DECOR_BACK_VIEWS[sprite] : PAINTED_ART.decor[sprite];
+      const set = DECOR_FRAME_SETS[sprite];
+      const src = view.back ? DECOR_BACK_VIEWS[sprite] : set ? set[Math.abs(frame) % set.length] : PAINTED_ART.decor[sprite];
       const img = src ? image(src) : null;
       return img ? { image: img, flipX: view.flipX } : null;
     },

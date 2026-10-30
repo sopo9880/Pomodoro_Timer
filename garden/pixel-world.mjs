@@ -15,7 +15,7 @@ import { celebrationItems, createDust, companionEmote, EMOTE_DIR } from "./fx.mj
 import { sceneryInRect, clearOfPlacements, PLACEMENT_LIGHTS } from "./scenery.mjs";
 import { createAvatarRig, createWalkClock, RIG_HEIGHT_TILES } from "./avatar-rig.mjs";
 import { createPaintedArtAtlas, COMPANION_HEIGHT_TILES, WILDLIFE_HEIGHT_TILES,
-  DECOR_WIDTH_TILES, PLANT_WIDTH_TILES, PAINTED_ART, paintedAssetGroups } from "./painted-art.mjs";
+  DECOR_WIDTH_TILES, PLANT_WIDTH_TILES, CAMPFIRE_FLAMES, PAINTED_ART, paintedAssetGroups } from "./painted-art.mjs";
 import { AVATAR_RIG_PARTS } from "./avatar-rig-data.mjs";
 import { WORLD_LANDMARKS } from "./world-map.mjs";
 
@@ -212,7 +212,8 @@ export function createPixelGardenRenderer(canvas) {
   const TEXTURE_TILES = 6; // one painted ground texture spans 6x6 world tiles
   // Painted buildings read at a believable size next to a 3-tile character.
   const LANDMARK_SCALE = Object.freeze({ greenhouse: 1.55, "tree-library": 1.5, workshop: 1.45, observatory: 1.6,
-    gazebo: 1.5, "wishing-tree": 1.35, fountain: 1.3, "flower-arch": 1.25, "market-stall": 1.3 });
+    gazebo: 1.5, "wishing-tree": 1.35, fountain: 1.3, "flower-arch": 1.25, "market-stall": 1.3,
+    "cottage-large": 1.25, "mushroom-house": 1.2, windmill: 1.3 });
   const dust = createDust();
   let quietNow = false;
   const OVERLAY_TILES = 6; // seasonal snow / leaves (the leaf overlay is pre-tiled 2x2 at half size)
@@ -707,10 +708,23 @@ export function createPixelGardenRenderer(canvas) {
         drawPainted(pp, actor.x, actor.y, 0, { widthTiles: PLANT_WIDTH_TILES, rotation: sway * .5 });
       } else {
         const sprite = def?.sprite || "flower-pot";
-        const dv = painted.decorView(sprite, actor.rotation);
+        const frame = reducedMotion || quiet ? 0 : Math.floor(time * 1.6 + actor.x * 1.7);
+        const dv = painted.decorView(sprite, actor.rotation, frame);
         const pd = dv?.image;
         const art = pd && { image: pd, sx: 0, sy: 0, sw: pd.naturalWidth, sh: pd.naturalHeight, ref: pd.naturalHeight, flipX: dv.flipX };
-        if (art) drawPainted(art, actor.x, actor.y, 0, { widthTiles: DECOR_WIDTH_TILES[sprite] || 1.2 });
+        if (art) {
+          drawPainted(art, actor.x, actor.y, 0, { widthTiles: DECOR_WIDTH_TILES[sprite] || 1.2 });
+          if (sprite === "campfire") {
+            // Flames dance over the ring; the fire holds still on the quiet focus screen.
+            const fl = painted.art(CAMPFIRE_FLAMES.frames[reducedMotion || quiet ? 0 : Math.floor(time * 7 + actor.x * 3) % CAMPFIRE_FLAMES.frames.length]);
+            if (fl) {
+              const p = worldToScreen(actor.x, actor.y), w = DECOR_WIDTH_TILES.campfire * CAMPFIRE_FLAMES.width * tile;
+              const h = w * fl.naturalHeight / fl.naturalWidth;
+              ctx.imageSmoothingEnabled = true;
+              ctx.drawImage(fl, Math.round(p.x - w / 2), Math.round(p.y + tile * (.18 - CAMPFIRE_FLAMES.lift) - h - tile * .02), Math.round(w), Math.round(h));
+            }
+          }
+        }
         else if (painted.hasDecor(sprite)) missingActors++;
         else if (!painted.hasDecor(sprite)) drawSprite(sprite,actor.x,actor.y,1.5,actor.rotation||0);
       }
