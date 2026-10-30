@@ -1,4 +1,7 @@
-const CACHE_NAME = "bloomodoro-cache-v21";
+const CACHE_NAME = "bloomodoro-cache-v22";
+// Painted art and fonts are kept across releases (file names change when the
+// art changes), so an app update never makes the player download the garden again.
+const ART_CACHE = "bloomodoro-art-v1";
 const PRECACHE_URLS = [
   "./",
   "./index.html",
@@ -122,7 +125,7 @@ self.addEventListener("activate", (event) => {
     caches
       .keys()
       .then((keys) =>
-        Promise.all(keys.filter((key) => key !== CACHE_NAME).map((key) => caches.delete(key))),
+        Promise.all(keys.filter((key) => key !== CACHE_NAME && key !== ART_CACHE).map((key) => caches.delete(key))),
       )
       .then(() => self.clients.claim()),
   );
@@ -172,13 +175,14 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
+  const store = url.pathname.includes("/assets/art/") || url.pathname.includes("/assets/fonts/") ? ART_CACHE : CACHE_NAME;
   event.respondWith(
     caches.match(request).then((cachedResponse) => {
       const networkResponse = fetch(request)
         .then((response) => {
           if (response.ok) {
             const copy = response.clone();
-            caches.open(CACHE_NAME).then((cache) => cache.put(request, copy));
+            caches.open(store).then((cache) => cache.put(request, copy));
           }
           return response;
         })

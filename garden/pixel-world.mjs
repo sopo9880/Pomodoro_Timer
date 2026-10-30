@@ -486,8 +486,12 @@ export function createPixelGardenRenderer(canvas) {
     const time = reducedMotion ? 0 : currentTime / 1000;
     const wallClock = typeof performance !== "undefined" ? performance.now() : currentTime;
     if (firstDrawAt === null) firstDrawAt = wallClock;
-    if (revealStart !== null && !rigPreloaded) { rigPreloaded = true; avatarRig.preload(); }
-    planPrefetch(garden);
+    // Until the first reveal only what is on screen is requested (directly, in
+    // parallel); zone and idle prefetching start afterwards so they never compete.
+    if (revealStart !== null) {
+      if (!rigPreloaded) { rigPreloaded = true; avatarRig.preload(); }
+      planPrefetch(garden);
+    }
     let missingGround = 0, missingActors = 0;
     const needOverlay = PAINTED_ART.terrain[season === "winter" ? "snow_overlay" : season === "autumn" ? "autumn_overlay" : ""];
     if (needOverlay && !painted.isReady(needOverlay)) { painted.overlay(season); missingGround++; }

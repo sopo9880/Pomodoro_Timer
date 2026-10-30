@@ -141,3 +141,9 @@ test("service worker fetches app code network-first so releases never mix versio
   assert.match(sw, /network-first/);
   assert.match(sw, /m\?js\|css/);
 });
+
+test("painted art survives app updates in its own cache", () => {
+  const sw = readFileSync(new URL("sw.js", root), "utf8");
+  assert.match(sw, /ART_CACHE = "bloomodoro-art-v\d+"/);
+  assert.match(sw, /key !== CACHE_NAME && key !== ART_CACHE/);
+});
