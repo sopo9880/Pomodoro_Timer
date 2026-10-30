@@ -1,6 +1,7 @@
 // A small share picture for the week. It is drawn locally on a canvas; nothing is
 // uploaded, and the person decides where it goes (share sheet or a saved image).
 import { PACK3_ART } from "../garden/pack3-art-data.mjs";
+import { resolveAssetUrl } from "../garden/asset-overrides.mjs";
 
 export const CARD_SIZE = Object.freeze({ width: 1080, height: 1350 });
 
@@ -25,7 +26,7 @@ function loadImage(doc, src) {
     const im = new (doc.defaultView?.Image || globalThis.Image)();
     im.onload = () => resolve(im);
     im.onerror = () => resolve(null);
-    im.src = src;
+    im.src = resolveAssetUrl(src);
   });
 }
 
