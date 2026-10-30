@@ -34,6 +34,8 @@ const PRECACHE_URLS = [
   "./garden/decor-views.mjs",
   "./garden/interaction.mjs",
   "./garden/avatar-variants.mjs",
+  "./garden/scenery.mjs",
+  "./garden/ground-cache.mjs",
   "./garden/painted-art-data.mjs",
   "./assets/art/avatar/manifest.json",
   "./assets/art/avatar/base/idle-down.png",

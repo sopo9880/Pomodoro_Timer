@@ -198,6 +198,8 @@ export function createPaintedArtAtlas({ ImageClass = globalThis.Image, base = ".
       const id = terrainFor(kind, zoneId);
       return id ? image(PAINTED_ART.terrain[id]) : null;
     },
+    /** A ground texture by id (see terrainFor), or null while it decodes. */
+    terrainTex(id) { const src = PAINTED_ART.terrain[id]; return src ? image(src) : null; },
     /** Flat colour of a ground texture, used for a cell until its texture is decoded. */
     terrainColor(kind, zoneId) {
       return PAINTED_ART.terrainColor?.[terrainFor(kind, zoneId)] || null;
@@ -221,6 +223,8 @@ export function createPaintedArtAtlas({ ImageClass = globalThis.Image, base = ".
       const img = src ? image(src) : null;
       return img ? { image: img, flipX: view.flipX } : null;
     },
+    /** Region scenery props, by image path. */
+    scenery(src) { return image(src); },
     hasLandmark: sprite => Boolean(PAINTED_ART.landmarks[sprite]),
     hasDecor: sprite => Boolean(PAINTED_ART.decor[sprite]),
     prefetch, whenReady, isReady: src => Boolean(cache.get(src)?.ready),
