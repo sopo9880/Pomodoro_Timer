@@ -2,11 +2,20 @@
 export const AVATAR_RIG_PARTS = Object.freeze({
  "front": {
   "cape": {
-   "src": "assets/art/avatar/front/cape.webp?v=2",
+   "src": "assets/art/avatar/front/cape.webp?v=3",
    "w": 366,
-   "h": 372,
+   "h": 391,
    "pivot": [
-    182.5,
+    181.0,
+    8.0
+   ]
+  },
+  "capeInner": {
+   "src": "assets/art/avatar/front/cape_inner.webp?v=1",
+   "w": 366,
+   "h": 391,
+   "pivot": [
+    181.0,
     8.0
    ]
   },
@@ -499,12 +508,12 @@ export const AVATAR_RIG_PARTS = Object.freeze({
    ]
   },
   "cape": {
-   "src": "assets/art/avatar/back/cape.webp",
-   "w": 286,
-   "h": 466,
+   "src": "assets/art/avatar/back/cape.webp?v=2",
+   "w": 366,
+   "h": 377,
    "pivot": [
-    147.0,
-    10.0
+    182.0,
+    8.0
    ]
   },
   "capelet": {
@@ -526,55 +535,55 @@ export const AVATAR_RIG_PARTS = Object.freeze({
    ]
   },
   "sleeveL": {
-   "src": "assets/art/avatar/back/sleeve_left.webp?v=2",
+   "src": "assets/art/avatar/back/sleeve_left.webp?v=3",
    "w": 98,
-   "h": 134,
+   "h": 112,
    "pivot": [
-    55.5,
+    53.0,
     7.0
    ],
    "end": [
-    37.5,
-    126.0
+    49.5,
+    106.0
    ]
   },
   "sleeveR": {
-   "src": "assets/art/avatar/back/sleeve_right.webp?v=2",
+   "src": "assets/art/avatar/back/sleeve_right.webp?v=3",
    "w": 98,
-   "h": 133,
+   "h": 112,
    "pivot": [
-    40.5,
-    8.0
+    43.0,
+    7.0
    ],
    "end": [
-    59.0,
-    127.0
+    48.0,
+    106.0
    ]
   },
   "forearmL": {
-   "src": "assets/art/avatar/back/forearm_left.webp",
-   "w": 80,
-   "h": 182,
+   "src": "assets/art/avatar/back/forearm_left.webp?v=2",
+   "w": 53,
+   "h": 233,
    "pivot": [
-    14.5,
-    10.0
+    22.5,
+    8.0
    ],
    "end": [
-    58.0,
-    174.0
+    22.5,
+    227.0
    ]
   },
   "forearmR": {
-   "src": "assets/art/avatar/back/forearm_right.webp",
-   "w": 78,
-   "h": 182,
+   "src": "assets/art/avatar/back/forearm_right.webp?v=2",
+   "w": 52,
+   "h": 232,
    "pivot": [
-    15.5,
-    10.0
+    28.5,
+    8.0
    ],
    "end": [
-    61.5,
-    174.0
+    29.5,
+    226.0
    ]
   },
   "thighL": {
