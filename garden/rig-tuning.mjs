@@ -28,7 +28,56 @@ export const PARAMS_DEFAULT = Object.freeze({
   walk: Object.freeze({ armSide: .42, armFront: .05, elbow: .06, nearBack: 0, nearFore: 0, farBack: 0, farFore: 0 }),
 });
 
-export const emptyTuning = () => ({ version: 1, layers: {}, params: {} });
+export const emptyTuning = () => ({ version: 1, layers: {}, params: {}, anim: {} });
+
+/**
+ * Keyframes: anim[owner][clip][view][part] = [{ t, dx, dy, rot, s, z, hide, img }, ...]
+ *   clip "walk": t is the walk phase 0..1 (one full double step). Values are added on top of the normal
+ *   movement and blend between neighbouring keys; z/hide/img stay as the previous key set them.
+ *   img: another picture path to show for that part from this key on (same size as the part's own picture).
+ */
+export const CLIPS = Object.freeze(["walk"]);
+export const MAX_KEYS = 12;
+const IMG = /^assets\/art\/[\w./-]+\.(webp|png|jpe?g)$/i;
+export const isImgPath = (v) => typeof v === "string" && IMG.test(v) && !v.includes("..");
+
+function cleanKey(k) {
+  if (!k || typeof k !== "object" || !Number.isFinite(k.t)) return null;
+  const out = cleanAdjust(k) || {};
+  out.t = Math.round((((k.t % 1) + 1) % 1) * 1000) / 1000;
+  if (isImgPath(k.img)) out.img = k.img;
+  return out;
+}
+function cleanKeys(list) {
+  const seen = new Set(), out = [];
+  for (const k of (Array.isArray(list) ? list : []).slice(0, MAX_KEYS * 2)) {
+    const c = cleanKey(k);
+    if (c && !seen.has(c.t)) { seen.add(c.t); out.push(c); }
+  }
+  return out.sort((a, b) => a.t - b.t).slice(0, MAX_KEYS);
+}
+
+/** The blended values at phase p (cyclic): numbers glide between keys, z/hide/img follow the key just passed. */
+export function animDelta(keys, p) {
+  if (!keys?.length) return null;
+  p = ((p % 1) + 1) % 1;
+  let i = keys.length - 1;
+  for (let j = 0; j < keys.length; j++) if (keys[j].t <= p) i = j;
+  const a = keys[i], b = keys[(i + 1) % keys.length];
+  const span = ((b.t - a.t) + 1) % 1 || 1, u = keys.length === 1 ? 0 : (((p - a.t) + 1) % 1) / span;
+  const e = u * u * (3 - 2 * u), mix = (x, y) => x + (y - x) * e;
+  return {
+    dx: mix(a.dx || 0, b.dx || 0), dy: mix(a.dy || 0, b.dy || 0), rot: mix(a.rot || 0, b.rot || 0),
+    s: mix(Number.isFinite(a.s) ? a.s : 1, Number.isFinite(b.s) ? b.s : 1), z: a.z || 0, hide: Boolean(a.hide), img: a.img,
+  };
+}
+
+/** Every picture the keyframes of these owners may show in a view (so they can be loaded ahead of time). */
+export function animImages(tuning, owners, view) {
+  const out = new Set();
+  for (const owner of owners) for (const keys of Object.values(tuning?.anim?.[owner]?.walk?.[view] || {})) for (const k of keys) if (k.img) out.add(k.img);
+  return [...out];
+}
 
 const OWNER = /^[a-z0-9][a-z0-9-]{0,39}$/;
 const PART = /^[A-Za-z0-9]{1,24}$/;
@@ -57,6 +106,15 @@ export function normalizeTuning(raw) {
       }
     }
   }
+  for (const [owner, clips] of Object.entries(raw.anim || {}).slice(0, 80)) {
+    if (!OWNER.test(owner) || !clips || typeof clips !== "object") continue;
+    for (const clip of CLIPS) for (const view of VIEWS) {
+      for (const [part, list] of Object.entries(clips[clip]?.[view] || {}).slice(0, 60)) {
+        const c = PART.test(part) && cleanKeys(list);
+        if (c?.length) (((out.anim[owner] ||= {})[clip] ||= {})[view] ||= {})[part] = c;
+      }
+    }
+  }
   for (const [owner, poses] of Object.entries(raw.params || {}).slice(0, 80)) {
     if (!OWNER.test(owner) || !poses || typeof poses !== "object") continue;
     for (const pose of Object.keys(PARAMS_DEFAULT)) {
@@ -75,6 +133,9 @@ export function mergeTunings(a, b) {
   const extra = normalizeTuning(b);
   for (const [owner, poses] of Object.entries(extra.layers)) for (const [pose, views] of Object.entries(poses)) for (const [view, parts] of Object.entries(views)) {
     Object.assign((((out.layers[owner] ||= {})[pose] ||= {})[view] ||= {}), parts);
+  }
+  for (const [owner, clips] of Object.entries(extra.anim)) for (const [clip, views] of Object.entries(clips)) for (const [view, parts] of Object.entries(views)) {
+    Object.assign((((out.anim[owner] ||= {})[clip] ||= {})[view] ||= {}), parts);
   }
   for (const [owner, poses] of Object.entries(extra.params)) for (const [pose, vals] of Object.entries(poses)) {
     Object.assign(((out.params[owner] ||= {})[pose] ||= {}), vals);
@@ -113,7 +174,18 @@ export function effectiveAdjust(tuning, owners, amounts, view, key, committed) {
       if (a.hide && w > 0.5) hide = true;
     }
   }
-  return touched ? { dx, dy, rot, s, z: Math.round(z), hide } : undefined;
+  let img;
+  const wk = amounts.walk || 0;
+  if (wk > 0.001 && tuning?.anim) for (const owner of owners) {
+    const d = animDelta(tuning.anim[owner]?.walk?.[view]?.[key], amounts.phase || 0);
+    if (!d) continue;
+    touched = true;
+    dx += wk * d.dx; dy += wk * d.dy; rot += wk * d.rot;
+    s *= 1 + wk * (d.s - 1);
+    z += wk * d.z;
+    if (wk > 0.5) { if (d.hide) hide = true; if (d.img) img = d.img; }
+  }
+  return touched ? { dx, dy, rot, s, z: Math.round(z), hide, img } : undefined;
 }
 
 /** Pose numbers for a look: defaults, then the base layer, then each worn item. */

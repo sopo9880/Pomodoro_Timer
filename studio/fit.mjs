@@ -39,14 +39,14 @@ const toBlob = (canvas, path) => new Promise((resolve) => {
  *  stretch - textures: the same size exactly
  *  contain - everything else: as large as fits, standing on the bottom edge
  */
-export async function fitReplacement(picture, path, { auto = true } = {}) {
-  const original = await loadOriginal(path);
+export async function fitReplacement(picture, path, { auto = true, like = path } = {}) {
+  const original = await loadOriginal(like);
   const w = original?.naturalWidth || picture.naturalWidth, h = original?.naturalHeight || picture.naturalHeight;
   const out = document.createElement("canvas");
   out.width = w; out.height = h;
   const ctx = out.getContext("2d");
   ctx.imageSmoothingQuality = "high";
-  const mode = auto ? fitModeFor(path) : "stretch";
+  const mode = auto ? fitModeFor(like) : "stretch";
   const sameShape = Math.abs(picture.naturalWidth / picture.naturalHeight - w / h) < 0.02;
   if (!auto || mode === "stretch" || sameShape) {
     ctx.drawImage(picture, 0, 0, w, h);
@@ -54,7 +54,7 @@ export async function fitReplacement(picture, path, { auto = true } = {}) {
     const o = visibleBox(original), v = visibleBox(picture);
     const s = (o.w / v.w + o.h / v.h) / 2;
     const dw = v.w * s, dh = v.h * s;
-    const bottom = /\/boots\/|_shin|\/shin/i.test(path);
+    const bottom = /\/boots\/|_shin|\/shin/i.test(like);
     ctx.drawImage(picture, v.x, v.y, v.w, v.h, o.x + o.w / 2 - dw / 2, bottom ? o.y + o.h - dh : o.y, dw, dh);
   } else {
     const s = Math.min(w / picture.naturalWidth, h / picture.naturalHeight);

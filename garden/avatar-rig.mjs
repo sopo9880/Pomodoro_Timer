@@ -14,7 +14,7 @@ import { AVATAR_VARIANTS, variantSrc, variantExpressions } from "./avatar-varian
 import { hatFor, hatLocalMatrix } from "./avatar-hats.mjs";
 import { resolveAssetUrl, onAssetChange, stripQuery } from "./asset-overrides.mjs";
 import { RIG_ADJUST } from "./avatar-rig-adjust.mjs";
-import { effectiveAdjust, ownersOf, paramsFor, PARAMS_DEFAULT } from "./rig-tuning.mjs";
+import { effectiveAdjust, ownersOf, paramsFor, PARAMS_DEFAULT, animImages } from "./rig-tuning.mjs";
 
 const TAU = Math.PI * 2;
 const DEG = Math.PI / 180;
@@ -73,11 +73,11 @@ let ADJUST = RIG_ADJUST;
 export function setRigAdjust(next) { ADJUST = next || {}; }
 export function getRigAdjust() { return ADJUST; }
 // What the studio (and committed tuning) changes for the look being drawn right now.
-const CTX = { tuning: null, owners: ["base"], sit: 0, up: 0 };
+const CTX = { tuning: null, owners: ["base"], sit: 0, up: 0, phase: 0, walk: 0 };
 let PR = paramsFor(null, ["base"]);
 const EA = (view, key) => effectiveAdjust(CTX.tuning, CTX.owners, CTX, view, key, ADJUST[view]?.[key]);
-function useLook(tuning, equipped, sit = 0, up = 0) {
-  CTX.tuning = tuning || null; CTX.owners = ownersOf(equipped); CTX.sit = sit; CTX.up = up;
+function useLook(tuning, equipped, sit = 0, up = 0, phase = 0, walk = 0) {
+  CTX.tuning = tuning || null; CTX.owners = ownersOf(equipped); CTX.sit = sit; CTX.up = up; CTX.phase = phase; CTX.walk = walk;
   PR = paramsFor(CTX.tuning, CTX.owners);
 }
 function adj(view, key, part, m) {
@@ -370,6 +370,8 @@ export function createAvatarRig({ ImageClass = globalThis.Image, onReady = () =>
     const view = RIG_VIEW[direction] || "front";
     let ok = true;
     for (const { src } of partsFor(view, equipped)) if (!img(src)) ok = false;
+    // keyframe pictures load ahead of time but never hold the character back
+    for (const src of animImages(CTX.tuning, CTX.owners, view)) img(src);
     const hat = hatFor(equipped?.hat);
     if (hat && !img(hatArt(hat, view).src)) ok = false;
     // Expressions are optional: until one decodes the painted front head is used.
@@ -389,7 +391,7 @@ export function createAvatarRig({ ImageClass = globalThis.Image, onReady = () =>
   function draw(ctx, { x, y, height, direction = "down", phase = 0.25, weight = 0, time = 0,
     expression = "neutral", reducedMotion = false, shadow = true, equipped = null, sit = 0, armsUp = 0, kick = 0, tuning = undefined, highlight = null } = {}) {
     const view = RIG_VIEW[direction] || "front";
-    useLook(tuning === undefined ? getTuning() : tuning, equipped, sit, armsUp);
+    useLook(tuning === undefined ? getTuning() : tuning, equipped, sit, armsUp, phase, reducedMotion ? 0 : weight);
     if (!readyNow(direction, equipped)) return false;
     drawn = [];
     const t = reducedMotion ? 0 : time;
@@ -445,7 +447,7 @@ export function createAvatarRig({ ImageClass = globalThis.Image, onReady = () =>
       ctx.drawImage(bk, 0, 0);
     }
     for (const [part, m, itemKey, clip] of pose.items) {
-      let im = (hooks && hooks.image(part)) || img(srcOf(part, equipped));
+      let im = (hooks && hooks.image(part)) || (EA(view, itemKey)?.img && img(EA(view, itemKey).img)) || img(srcOf(part, equipped));
       let mm = m;
       if (view === "front" && part === AVATAR_RIG_PARTS.front.head) {
         const key = blink === 2 ? "blink" : blink === 1 ? "halfblink" : expression in EXPRESSIONS.files ? expression : "neutral";

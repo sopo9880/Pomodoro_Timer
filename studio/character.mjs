@@ -7,7 +7,7 @@ import { AVATAR_HATS } from "../garden/avatar-hats.mjs";
 import { POSES, PARAMS_DEFAULT, emptyTuning, normalizeTuning, ownersOf, paramsFor } from "../garden/rig-tuning.mjs";
 import { getLocalTuning, saveLocalTuning, getActiveTuning, setStudioEnabled, studioEnabled, onTuningChange } from "../garden/rig-tuning-store.mjs";
 import { stripQuery, putAsset, removeAsset, isOverridden, clearAssets } from "../garden/asset-overrides.mjs";
-import { describeAsset, FILE_KR_EXPORT } from "../garden/asset-catalog.mjs";
+import { describeAsset, catalog, FILE_KR_EXPORT } from "../garden/asset-catalog.mjs";
 import { swapPicture } from "./assets.mjs";
 
 const PART_KR = {
@@ -29,8 +29,8 @@ const POSE_KR = { sit: "앉기", cheer: "만세", walk: "걷기 팔", swing: "�
 export function mountCharacter({ say }) {
   const $ = (id) => document.getElementById(id);
   const canvas = $("stage"), box = $("stageBox");
-  const st = { equipped: { ...DEFAULT_LOOK }, dir: "down", pose: "stand", face: "neutral", swing: false, zoom: 1, center: .5, sel: null, scope: "look", paramOwner: "outfit" };
-  let tuning = normalizeTuning(getLocalTuning()), undo = [], sitAmt = 0, upAmt = 0, lastT = performance.now();
+  const st = { keyMode: false, keyIdx: -1, paused: false, phase: 0, equipped: { ...DEFAULT_LOOK }, dir: "down", pose: "stand", face: "neutral", swing: false, zoom: 1, center: .5, sel: null, scope: "look", paramOwner: "outfit" };
+  let lastSlide = 0, tuning = normalizeTuning(getLocalTuning()), undo = [], sitAmt = 0, upAmt = 0, lastT = performance.now();
   const rig = createAvatarRig({ base: "./", getTuning: getActiveTuning });
   const viewOf = () => RIG_VIEW[st.dir];
   const poseLayer = () => (st.pose === "sit" ? "sit" : st.pose === "cheer" ? "cheer" : "stand");
@@ -55,7 +55,24 @@ export function mountCharacter({ say }) {
     for (const [slot, views] of Object.entries(VARIANT_SLOTS)) if (views[viewOf()]?.includes(key)) return st.equipped[slot];
     return "base";
   }
+  const keying = () => st.keyMode && st.pose === "walk";
+  const keyList = (key, create = false) => {
+    const o = ownerFor(key), v = viewOf();
+    if (!create) return tuning.anim?.[o]?.walk?.[v]?.[key] || null;
+    return ((((tuning.anim ||= {})[o] ||= {}).walk ||= {})[v] ||= {})[key] ||= [];
+  };
+  function addKey(key) {
+    const list = keyList(key, true), t = Math.round(st.phase * 200) / 200;
+    let i = list.findIndex((k) => Math.abs(k.t - t) < 0.004);
+    if (i < 0) { if (list.length >= 12) { say("키는 부위마다 12개까지예요"); return list.indexOf(list[st.keyIdx]); } list.push({ t }); list.sort((a, b) => a.t - b.t); i = list.findIndex((k) => k.t === t); }
+    st.keyIdx = i; return i;
+  }
   const entry = (key, create = false) => {
+    if (keying()) {
+      const list = keyList(key);
+      if (!list?.[st.keyIdx] && create) addKey(key);
+      return keyList(key)?.[st.keyIdx] || null;
+    }
     const o = ownerFor(key), v = viewOf();
     const path = tuning.layers[o]?.[poseLayer()]?.[v]?.[key];
     if (path || !create) return path || null;
@@ -63,6 +80,7 @@ export function mountCharacter({ say }) {
   };
   function cleanup(key) {
     const e = entry(key);
+    if (keying()) { if (e) for (const k of Object.keys(e)) if (e[k] === undefined || (k === "hide" && !e[k]) || (k === "img" && !e[k])) delete e[k]; return; }
     if (e) for (const k of Object.keys(e)) if (e[k] === undefined || (k === "s" && e[k] === 1) || (["dx", "dy", "rot", "z"].includes(k) && e[k] === 0) || (k === "hide" && !e[k])) delete e[k];
     if (e && !Object.keys(e).length) { delete tuning.layers[ownerFor(key)][poseLayer()][viewOf()][key]; }
   }
@@ -72,7 +90,7 @@ export function mountCharacter({ say }) {
     Object.assign(entry(key, true), patch);
     cleanup(key); commit(); refreshDials();
   }
-  const anyEdit = (key) => Object.entries(tuning.layers).some(([, poses]) => POSES.some((p) => poses[p]?.[viewOf()]?.[key]));
+  const anyEdit = (key) => Object.values(tuning.anim || {}).some((c) => c.walk?.[viewOf()]?.[key]?.length) || Object.entries(tuning.layers).some(([, poses]) => POSES.some((p) => poses[p]?.[viewOf()]?.[key]));
 
   // ---- part list
   function partKeys() {
@@ -106,6 +124,7 @@ export function mountCharacter({ say }) {
     $("zOut").textContent = String(e.z ?? 0);
     $("hidePart").textContent = e.hide ? "다시 보이기" : "숨기기";
     $("adjustBox").style.opacity = st.sel ? 1 : .55;
+    refreshKeys();
   }
   for (const [k, [r, n]] of Object.entries(D)) for (const id of [r, n]) $(id).addEventListener("input", (e) => {
     if (!st.sel) return;
@@ -119,6 +138,7 @@ export function mountCharacter({ say }) {
   $("resetPart").addEventListener("click", () => {
     if (!st.sel) return;
     snapshot();
+    if (keying()) { const o = ownerFor(st.sel); delete tuning.anim?.[o]?.walk?.[viewOf()]?.[st.sel]; st.keyIdx = -1; commit(); refreshDials(); renderParts(); return; }
     const o = ownerFor(st.sel), v = viewOf();
     delete tuning.layers[o]?.[poseLayer()]?.[v]?.[st.sel];
     commit(); refreshDials(); renderParts();
@@ -193,6 +213,7 @@ export function mountCharacter({ say }) {
     const key = rig.pick(x, y);
     if (key) { st.sel = key; renderParts(); refreshDials(); refreshImage(); }
     if (!st.sel) return;
+    if (keying() && !st.paused) { st.paused = true; refreshKeys(); }
     snapshot();
     drag = { x: e.clientX, y: e.clientY, rotate: e.shiftKey, start: { ...(entry(st.sel) || {}) } };
     canvas.setPointerCapture(e.pointerId); canvas.classList.add("drag");
@@ -221,6 +242,54 @@ export function mountCharacter({ say }) {
     if (moves[e.key]) { e.preventDefault(); setAdj(st.sel, moves[e.key]); }
   });
 
+  // ---- walking keyframes
+  const keyImgs = () => catalog().filter((r) => r.path.startsWith("assets/art/avatar/") && (r.path.includes("/" + viewOf() + "/") || r.path.includes("/" + viewOf() + "_") || r.path.includes("/anim/")));
+  function refreshKeys() {
+    const box = $("keyBox"), on = keying();
+    box.toggleAttribute("data-on", on);
+    $("keyMode").checked = st.keyMode;
+    $("keyPlay").textContent = st.paused ? "재생" : "멈춤";
+    const list = (st.sel && keyList(st.sel)) || [];
+    if (st.keyIdx >= list.length) st.keyIdx = list.length - 1;
+    const marks = $("keyMarks"); marks.replaceChildren();
+    list.forEach((k, i) => {
+      const b = document.createElement("button"); b.type = "button"; b.style.left = k.t * 100 / 0.995 + "%"; b.title = Math.round(k.t * 100) + "%";
+      b.setAttribute("aria-pressed", String(i === st.keyIdx));
+      b.addEventListener("click", () => { st.keyIdx = i; st.paused = true; st.phase = k.t; $("phase").value = k.t; refreshDials(); });
+      marks.append(b);
+    });
+    const k = list[st.keyIdx];
+    $("keyInfo").textContent = st.pose !== "walk" ? "「걷기」 포즈로 바꾸면 쓸 수 있어요." : !st.sel ? "부위를 먼저 고르세요." : !st.keyMode ? `키 ${list.length}개 · 켜면 편집해요.` : k ? `키 ${st.keyIdx + 1}/${list.length} · ${Math.round(k.t * 100)}% 지점${k.img ? " · 다른 그림 사용" : ""}` : `키 ${list.length}개 · 「여기에 키 추가」로 이 위치(${Math.round(st.phase * 100)}%)에 키를 만드세요.`;
+    const sel = $("keyImg"); sel.replaceChildren(new Option("원래 그림", ""));
+    const used = new Set();
+    for (const r of keyImgs()) { if (used.has(r.path)) continue; used.add(r.path); sel.add(new Option(`${r.label} · ${r.path.replace("assets/art/avatar/", "")}`, r.path)); }
+    if (k?.img && !used.has(k.img)) sel.add(new Option(k.img, k.img));
+    sel.value = k?.img || "";
+    sel.disabled = $("keyPick").disabled = !(on && st.sel && k);
+    for (const id of ["keyAdd", "keyDel", "keyPrev", "keyNext"]) $(id).disabled = !(on && st.sel);
+  }
+  $("keyMode").addEventListener("change", (e) => { st.keyMode = e.target.checked; if (st.keyMode) { st.paused = true; st.keyIdx = -1; if (st.pose !== "walk") { st.pose = "walk"; render(); return; } } refreshDials(); });
+  $("keyPlay").addEventListener("click", () => { st.paused = !st.paused; refreshKeys(); });
+  $("phase").addEventListener("input", (e) => { st.paused = true; st.phase = Number(e.target.value); refreshKeys(); });
+  $("keyAdd").addEventListener("click", () => { if (!st.sel) return; snapshot(); st.paused = true; addKey(st.sel); commit(); refreshDials(); renderParts(); });
+  $("keyDel").addEventListener("click", () => {
+    const list = st.sel && keyList(st.sel); if (!list?.[st.keyIdx]) return;
+    snapshot(); list.splice(st.keyIdx, 1); st.keyIdx = Math.min(st.keyIdx, list.length - 1);
+    if (!list.length) delete tuning.anim[ownerFor(st.sel)].walk[viewOf()][st.sel];
+    commit(); refreshDials(); renderParts();
+  });
+  const stepKey = (d) => { const list = st.sel && keyList(st.sel); if (!list?.length) return; st.keyIdx = (st.keyIdx + d + list.length) % list.length; st.paused = true; st.phase = list[st.keyIdx].t; $("phase").value = st.phase; refreshDials(); };
+  $("keyPrev").addEventListener("click", () => stepKey(-1)); $("keyNext").addEventListener("click", () => stepKey(1));
+  $("keyImg").addEventListener("change", (e) => { if (st.sel && entry(st.sel)) setAdj(st.sel, { img: e.target.value || undefined }); });
+  $("keyPick").addEventListener("click", () => $("keyFile").click());
+  $("keyFile").addEventListener("change", async (e) => {
+    const f = e.target.files[0]; e.target.value = "";
+    const like = pathOfPart(st.sel);
+    if (!f || !like || !entry(st.sel)) return;
+    const path = `assets/art/avatar/anim/${ownerFor(st.sel)}_${st.sel}_${viewOf()}_${Date.now().toString(36)}.webp`;
+    try { say(await swapPicture(path, f, $("autoFit").checked, like)); setAdj(st.sel, { img: path }); } catch (err) { say(err.message); }
+  });
+
   // ---- zoom
   const zoomTo = (z, c) => { st.zoom = Math.max(.5, Math.min(4, z)); if (c !== undefined) st.center = c; $("zoomOut2").textContent = Math.round(st.zoom * 100) + "%"; };
   $("zoomIn").addEventListener("click", () => zoomTo(st.zoom * 1.2)); $("zoomOut").addEventListener("click", () => zoomTo(st.zoom / 1.2));
@@ -247,8 +316,9 @@ export function mountCharacter({ say }) {
     sitAmt += (wantSit - sitAmt) * ease; upAmt += (wantUp - upAmt) * ease;
     const t = now / 1000, height = H * .82 * st.zoom;
     const walking = st.pose === "walk";
+    if (walking && !st.paused) { st.phase = (t * 1.1) % 1; if (now - lastSlide > 120) { lastSlide = now; $("phase").value = st.phase; } }
     rig.draw(ctx, {
-      x: W / 2, y: H / 2 + (1 - st.center) * height, height, direction: st.dir, phase: walking ? (t * 1.1) % 1 : .25, weight: walking ? 1 : 0, time: t,
+      x: W / 2, y: H / 2 + (1 - st.center) * height, height, direction: st.dir, phase: walking ? (st.paused ? st.phase : (t * 1.1) % 1) : .25, weight: walking ? 1 : 0, time: t,
       expression: st.face, equipped: st.equipped, sit: sitAmt, armsUp: upAmt, kick: st.swing && st.pose === "sit" ? Math.sin(t * 2.4) : 0, highlight: st.sel, shadow: true,
     });
     requestAnimationFrame(frame);

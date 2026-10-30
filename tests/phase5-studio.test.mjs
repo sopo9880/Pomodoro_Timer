@@ -20,7 +20,7 @@ test("tuning from storage or an import is cleaned: unknown keys, bad numbers and
   assert.equal(t.layers["BAD KEY"], undefined);
   assert.equal(t.layers["outfit-forest"].nonsense, undefined);
   assert.deepEqual(t.params.base.sit, { hip: 1.2, skirtRot: 6 });
-  assert.deepEqual(normalizeTuning(null), { version: 1, layers: {}, params: {} });
+  assert.deepEqual(normalizeTuning(null), { version: 1, layers: {}, params: {}, anim: {} });
   assert.deepEqual(normalizeTuning(JSON.parse('{"layers":{"__proto__":{"stand":{"front":{"x":{"dx":1}}}}}}')).layers.__proto__ === Object.prototype ? 1 : 0, 1, "no prototype pollution");
 });
 
@@ -182,4 +182,20 @@ test("every id the studio's scripts look up exists on the page", () => {
     for (const m of read(f).matchAll(/\$\("([\w]+)"\)/g)) assert.ok(ids.has(m[1]), `${f}: #${m[1]} is not on studio.html`);
   }
   for (const m of html.matchAll(/data-page="(\w+)"/g)) assert.ok(ids.has("page" + m[1]), m[1]);
+});
+
+test("walk keyframes: cleaned, blended around the cycle, and only while walking", async () => {
+  const { normalizeTuning, animDelta, effectiveAdjust, animImages } = await import("../garden/rig-tuning.mjs");
+  const t = normalizeTuning({ anim: { base: { walk: { side: { armNear: [
+    { t: 0.5, dx: 10, img: "assets/art/avatar/anim/x.webp" }, { t: 0, dx: 0, z: -2 }, { t: 0, dx: 5 }, { t: 0.2, img: "../evil.webp" }] } } } } });
+  const keys = t.anim.base.walk.side.armNear;
+  assert.deepEqual(keys.map((k) => k.t), [0, 0.2, 0.5]); // sorted, duplicate time dropped
+  assert.equal(keys[1].img, undefined);                  // unsafe picture path dropped
+  assert.ok(Math.abs(animDelta(keys, 0.35).dx - 5) < 1e-9); // halfway between the keys at 0.2 and 0.5
+  assert.ok(Math.abs(animDelta(keys, 0.75).dx - 5) < 1e-9); // wraps from 0.5 back to 0
+  assert.equal(animDelta(keys, 0.6).img, "assets/art/avatar/anim/x.webp");
+  assert.equal(effectiveAdjust(t, ["base"], { walk: 0, phase: 0.5 }, "side", "armNear"), undefined);
+  assert.equal(effectiveAdjust(t, ["base"], { walk: 1, phase: 0.5 }, "side", "armNear").dx, 10);
+  assert.equal(effectiveAdjust(t, ["base"], { walk: 1, phase: 0.5 }, "side", "armFar"), undefined);
+  assert.deepEqual(animImages(t, ["base"], "side"), ["assets/art/avatar/anim/x.webp"]);
 });

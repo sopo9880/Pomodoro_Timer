@@ -16,9 +16,9 @@ function patchNote(path, patch) {
 }
 
 /** Swap `path` for a picture the person chose; returns a message. */
-export async function swapPicture(path, file, auto = true) {
+export async function swapPicture(path, file, auto = true, like = path) {
   if (/\.svg$/i.test(path)) { await putAsset(path, file); return "바꿨어요"; }
-  const blob = await fitReplacement(await loadImageFile(file), path, { auto });
+  const blob = await fitReplacement(await loadImageFile(file), path, { auto, like });
   if (!blob) throw new Error("그림을 만들지 못했어요");
   await putAsset(path, blob);
   return "바꿨어요";
