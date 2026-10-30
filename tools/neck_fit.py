@@ -73,3 +73,36 @@ if __name__ == "__main__":
     feather_stub(ROOT / "tools/rig_src/front_head.webp", ROOT / "assets/art/avatar/front/head.webp")
     for src in sorted((ROOT / "tools/rig_src").glob("expressions_*.webp")):
         feather_stub(src, ROOT / "assets/art/avatar/expressions" / src.name.replace("expressions_", ""))
+
+
+def split_collar(src: Path, inner_dst: Path, outer_dst: Path, tol: float = 38) -> None:
+    """Split the capelet's stand collar so the neck can sit inside it: the
+    collar's inner back (dark lining + back rim) becomes its own layer drawn
+    behind the neck; the trimmed front edges stay in front."""
+    from scipy import ndimage as nd
+    a = np.array(Image.open(src).convert("RGBA")).astype(float)
+    h, w = a.shape[:2]
+    seed = (int(h * 0.12), w // 2)
+    d = np.sqrt(((a[..., :3] - a[seed][:3]) ** 2).sum(-1))
+    lab, _ = nd.label((d < tol) & (a[..., 3] > 200))
+    comp = lab == lab[seed]
+    ys, xs = np.where(comp)
+    top = ys.min()
+    band = comp[top:top + 8].any(0)
+    x0, x1 = np.where(band)[0][[0, -1]]
+    rim = np.zeros_like(comp)
+    rim[:top + 3, max(0, x0 - 3):x1 + 4] = True
+    mask = nd.binary_fill_holes(nd.binary_dilation(comp, iterations=1)) | (rim & (a[..., 3] > 0))
+    soft = nd.gaussian_filter(mask.astype(float), 0.7)
+    inner, outer = a.copy(), a.copy()
+    inner[..., 3] *= soft
+    outer[..., 3] *= 1 - soft
+    for arr, dst in ((inner, inner_dst), (outer, outer_dst)):
+        Image.fromarray(arr.clip(0, 255).astype(np.uint8)).save(dst, "WEBP", quality=92, method=6)
+    print("collar lining rows", top, "-", ys.max(), "cols", x0, "-", x1)
+
+
+if __name__ == "__main__":
+    split_collar(ROOT / "tools/rig_src/front_capelet.webp",
+                 ROOT / "assets/art/avatar/front/capelet_inner.webp",
+                 ROOT / "assets/art/avatar/front/capelet.webp")

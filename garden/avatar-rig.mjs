@@ -151,6 +151,9 @@ function frontBack(parts, back, s) {
     torso: [P.torso, torso, "torso"],
     capelet: K("capelet", P.capelet, place(P.capelet, neckPt[0], neckPt[1] - P.capelet.h * 0.02, -0.006 * Math.sin(TAU * p) * w)),
   };
+  // The collar's inside back (lining + back rim) sits behind the neck, so the
+  // neck reads as going down into the collar; it moves with the capelet.
+  if (P.capeletInner) items.capeletInner = [P.capeletInner, items.capelet[1], "capelet"];
   const headM = adj(V, "head", head, mul(T(0, -bob * 0.25), place(head, chin[0], chin[1] + (back ? head.h * 0.42 : 0), headTilt)));
   items.head = [head, headM, "head"];
   if (!back) {
@@ -164,7 +167,8 @@ function frontBack(parts, back, s) {
     : place(P.bag, hipRight[0] + P.torso.w * 0.32, hipRight[1] - P.bag.h * 0.42, bagA, 0.78, 0.78));
   const armsL = arm("L", shL, 1), armsR = arm("R", shR, -1);
   const legItems = legs.flatMap(l => l.items);
-  if (!back) out.push(items.cape, items.hair, ...legItems, items.skirt, items.neck, items.torso, items.bag, ...armsL, ...armsR, items.capelet, items.head);
+  if (!back) out.push(items.cape, items.hair, ...legItems, items.skirt,
+    ...(items.capeletInner ? [items.capeletInner] : []), items.neck, items.torso, items.bag, ...armsL, ...armsR, items.capelet, items.head);
   else out.push(...legItems, items.skirt, items.neck, items.torso, items.bag, ...armsL, ...armsR, items.cape, items.capelet, items.head);
   return { items: order(V, out), shadows: legs.map(l => l.shadow), headM, crownY: apply(headM, head.crown)[1] };
 }

@@ -75,7 +75,16 @@ export const AVATAR_RIG_PARTS = Object.freeze({
    ]
   },
   "capelet": {
-   "src": "assets/art/avatar/front/capelet.webp",
+   "src": "assets/art/avatar/front/capelet.webp?v=2",
+   "w": 238,
+   "h": 143,
+   "pivot": [
+    118.0,
+    3.0
+   ]
+  },
+  "capeletInner": {
+   "src": "assets/art/avatar/front/capelet_inner.webp?v=2",
    "w": 238,
    "h": 143,
    "pivot": [
