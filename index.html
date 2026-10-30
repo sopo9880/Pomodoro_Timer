@@ -13,6 +13,37 @@
   <link rel="icon" href="icons/bloomodoro-b.svg" type="image/svg+xml" />
   <link rel="icon" href="icons/icon-192.png" type="image/png" />
   <link rel="apple-touch-icon" href="icons/apple-touch-icon.png" />
+  <!-- Fetch the whole module graph at once instead of one import level at a time. -->
+  <link rel="modulepreload" href="core/focus-core.mjs" />
+  <link rel="modulepreload" href="garden/garden-core.mjs" />
+  <link rel="modulepreload" href="garden/world-map.mjs" />
+  <link rel="modulepreload" href="garden/life-core.mjs" />
+  <link rel="modulepreload" href="garden/garden-ui.mjs" />
+  <link rel="modulepreload" href="garden/pixel-world.mjs" />
+  <link rel="modulepreload" href="garden/tile-atlas.mjs" />
+  <link rel="modulepreload" href="garden/companion-ai.mjs" />
+  <link rel="modulepreload" href="garden/companion-art.mjs" />
+  <link rel="modulepreload" href="garden/plant-art.mjs" />
+  <link rel="modulepreload" href="garden/ecology.mjs" />
+  <link rel="modulepreload" href="garden/wildlife-art.mjs" />
+  <link rel="modulepreload" href="garden/avatar-art.mjs" />
+  <link rel="modulepreload" href="garden/hires-atlas.mjs" />
+  <link rel="modulepreload" href="garden/hires-avatar.mjs" />
+  <link rel="modulepreload" href="garden/hires-companions.mjs" />
+  <link rel="modulepreload" href="garden/raster-art.mjs" />
+  <link rel="modulepreload" href="garden/avatar-rig.mjs" />
+  <link rel="modulepreload" href="garden/avatar-rig-data.mjs" />
+  <link rel="modulepreload" href="garden/painted-art.mjs" />
+  <link rel="modulepreload" href="garden/painted-art-data.mjs" />
+  <link rel="modulepreload" href="garden/minimap.mjs" />
+  <link rel="modulepreload" href="garden/avatar-motion.mjs" />
+  <link rel="modulepreload" href="ui/game-shell.mjs" />
+  <link rel="preload" as="image" href="assets/art/world/terrain/grass.webp" fetchpriority="high" />
+  <link rel="preload" as="image" href="assets/art/world/terrain/dirt_path.webp" fetchpriority="high" />
+  <link rel="preload" as="image" href="assets/art/avatar/front/torso.webp" fetchpriority="high" />
+  <link rel="preload" as="image" href="assets/art/avatar/front/head.webp" fetchpriority="high" />
+  <link rel="preload" as="image" href="assets/art/avatar/front/skirt.webp" fetchpriority="high" />
+  <link rel="preload" as="image" href="assets/art/avatar/front/cape.webp" fetchpriority="high" />
   <link rel="stylesheet" href="assets/fonts/fonts.css" />
   <link rel="stylesheet" href="styles.css" />
   <link rel="stylesheet" href="garden/garden.css" />

@@ -122,7 +122,7 @@ export function paintedAssetGroups() {
  * shows half an image. prefetch() fills the cache in the background, a few at a
  * time, most important first; the service worker keeps what it fetches offline.
  */
-export function createPaintedArtAtlas({ ImageClass = globalThis.Image, base = "./", concurrency = 4 } = {}) {
+export function createPaintedArtAtlas({ ImageClass = globalThis.Image, base = "./", concurrency = 6 } = {}) {
   const cache = new Map();
   const queue = [];
   let active = 0;
@@ -131,11 +131,13 @@ export function createPaintedArtAtlas({ ImageClass = globalThis.Image, base = ".
     for (const w of [...waiters]) if (w.urls.every(u => isSettled(u))) { waiters.delete(w); w.resolve(); }
   }
   function isSettled(src) { const r = cache.get(src); return Boolean(r && (r.ready || r.failed)); }
-  function load(src) {
+  function load(src, priority = "high") {
     if (!src || typeof ImageClass !== "function") return null;
     let rec = cache.get(src);
     if (rec) return rec;
     const im = new ImageClass();
+    // On-screen requests jump the queue; background prefetch never competes with them.
+    try { im.fetchPriority = priority; } catch { /* older browsers */ }
     rec = { im, ready: false, failed: false };
     cache.set(src, rec);
     im.decoding = "async";
@@ -157,7 +159,7 @@ export function createPaintedArtAtlas({ ImageClass = globalThis.Image, base = ".
       const src = queue.shift();
       if (cache.has(src)) continue;
       active++;
-      const rec = load(src);
+      const rec = load(src, "low");
       const finish = () => { active--; pump(); };
       if (!rec) { finish(); continue; }
       const check = () => (rec.ready || rec.failed) ? finish() : setTimeout(check, 60);

@@ -242,6 +242,7 @@ export function createAvatarRig({ ImageClass = globalThis.Image, onReady = () =>
       const im = new ImageClass();
       rec = { im, failed: false };
       im.decoding = "async";
+      try { im.fetchPriority = "high"; } catch { /* older browsers */ }
       im.onload = () => onReady(src);
       im.onerror = () => { rec.failed = true; };
       im.src = base + src;
@@ -257,7 +258,8 @@ export function createAvatarRig({ ImageClass = globalThis.Image, onReady = () =>
     const view = RIG_VIEW[direction] || "front";
     let ok = true;
     for (const part of partsFor(view)) if (!img(part.src)) ok = false;
-    if (view === "front") for (const src of Object.values(EXPRESSIONS.files)) if (!img(src)) ok = false;
+    // Expressions are optional: until one decodes the painted front head is used.
+    if (view === "front") for (const src of Object.values(EXPRESSIONS.files)) img(src);
     return ok;
   }
   function preload() { for (const v of ["front", "side", "back"]) ready(v === "front" ? "down" : v === "back" ? "up" : "right"); }

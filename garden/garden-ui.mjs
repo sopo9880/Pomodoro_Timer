@@ -264,7 +264,7 @@ export function mountGarden({ getGarden, setGarden, getTimerState, getEnvironmen
       thumb.width = 64;
       thumb.height = 64;
       thumb.setAttribute("aria-hidden", "true");
-      if (paintedSrc) { thumb.alt = ""; thumb.decoding = "async"; thumb.loading = "lazy"; thumb.src = paintedSrc; }
+      if (paintedSrc) { thumb.alt = ""; thumb.decoding = "async"; thumb.loading = "lazy"; thumb.fetchPriority = "low"; thumb.src = paintedSrc; }
       const body = document.createElement("div");
       body.className = "garden-item-body";
       const title = document.createElement("strong");
@@ -319,6 +319,7 @@ export function mountGarden({ getGarden, setGarden, getTimerState, getEnvironmen
       thumb.alt = "";
       thumb.loading = "lazy";
       thumb.decoding = "async";
+      thumb.fetchPriority = "low";
       thumb.src = paintedThumb("companion", friend.speciesId) || companionIllustrationUri(friend.speciesId);
       const details = document.createElement("div");
       const name = document.createElement("strong");
@@ -356,7 +357,7 @@ export function mountGarden({ getGarden, setGarden, getTimerState, getEnvironmen
       card.className="avatar-shop-card";
       const preview=document.createElement("img");
       preview.className="avatar-shop-preview";
-      preview.alt="";preview.loading="lazy";preview.decoding="async";
+      preview.alt="";preview.loading="lazy";preview.decoding="async";preview.fetchPriority="low";
       preview.src=WARDROBE_ART(item.id);
       const row=document.createElement("div");
       row.className="avatar-item-title";
