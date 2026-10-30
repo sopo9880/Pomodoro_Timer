@@ -27,7 +27,7 @@ export async function swapPicture(path, file, auto = true) {
 export function mountAssets({ say, onChange }) {
   const $ = (id) => document.getElementById(id);
   const cards = $("cards"), file = $("aFile");
-  let target = null, shown = [];
+  let target = null, shown = [], limit = 120;
   for (const [id, label] of [["all", "전체 종류"], ...GROUPS]) $("aGroup").add(new Option(label, id));
 
   function visible() {
@@ -40,7 +40,7 @@ export function mountAssets({ say, onChange }) {
     shown = visible();
     $("aCount").textContent = `${shown.length}장 / 전체 ${ROWS.length}장 · 바꾼 것 ${overriddenPaths().length}장`;
     const frag = document.createDocumentFragment();
-    for (const r of shown.slice(0, 400)) {
+    for (const r of shown.slice(0, limit)) {
       const el = document.createElement("div");
       el.className = "card" + (isOverridden(r.path) ? " changed" : "") + (note(r.path).flag ? " flag" : "");
       el.dataset.path = r.path;
@@ -59,7 +59,12 @@ export function mountAssets({ say, onChange }) {
       frag.append(el);
     }
     cards.replaceChildren(frag);
-    if (shown.length > 400) { const more = document.createElement("p"); more.className = "note"; more.textContent = `400장까지만 보여요. 위의 찾기나 종류로 좁혀 주세요. (${shown.length - 400}장 더 있어요)`; cards.append(more); }
+    if (shown.length > limit) {
+      const more = document.createElement("button"); more.type = "button"; more.className = "btn"; more.style.gridColumn = "1/-1";
+      more.textContent = `더 보기 (${shown.length - limit}장 남음)`;
+      more.addEventListener("click", () => { limit += 240; render(); });
+      cards.append(more);
+    }
   }
   file.addEventListener("change", async () => {
     const f = file.files?.[0];
@@ -68,9 +73,9 @@ export function mountAssets({ say, onChange }) {
     target = null;
   });
   let timer = 0;
-  $("aq").addEventListener("input", () => { clearTimeout(timer); timer = setTimeout(render, 150); });
-  $("aGroup").addEventListener("change", render);
-  $("aFilter").addEventListener("change", render);
+  $("aq").addEventListener("input", () => { clearTimeout(timer); timer = setTimeout(() => { limit = 120; render(); }, 150); });
+  $("aGroup").addEventListener("change", () => { limit = 120; render(); });
+  $("aFilter").addEventListener("change", () => { limit = 120; render(); });
   onAssetChange(() => { render(); onChange(); });
   render();
   return { render };

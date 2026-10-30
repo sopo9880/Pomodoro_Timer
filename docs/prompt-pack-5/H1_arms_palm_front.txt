@@ -1,0 +1,7 @@
+# H1 손바닥이 앞으로 보이는 팔 — 정면·후면 (기본 린넨 옷)
+
+첨부할 기준 그림(refs 폴더): front_sleeve_left.png, front_sleeve_right.png, back_sleeve_left.png, back_sleeve_right.png, rig_front.png
+
+## 프롬프트
+
+The character is the attached reference: a TALL young-adult anime-style girl (about 7 heads tall, NOT chibi), amber eyes, a cream dress with gold embroidery and green puff sleeves. NO cape. Soft painterly anime shading with clean thin warm-brown outlines, same style and proportions as the attached reference arm parts. Flat solid pure magenta background (#FF00FF), no gradient, no floor, no cast shadow, no text, no labels, no frame, no props. Every piece is a separate image with a wide magenta gap around it; pieces must NOT touch each other. Same scale as the reference arm pieces. Draw in the order listed, left to right, top to bottom. ARM ONLY: sleeve + bare forearm + hand, no body, no head, no torso. FOUR pieces in a 2x2 grid. The arm is raised straight up overhead, slightly outward, the OPEN PALM facing the viewer with fingers spread (waving / cheering). Top row: (1) FRONT view character's left arm (viewer's right), (2) FRONT view character's right arm. Bottom row: (3) BACK view left arm, (4) BACK view right arm (seen from behind: back of the hand toward the viewer). Shoulder end of each piece at the bottom, hand at the top. The puff sleeve must look like the reference sleeve.

@@ -23,6 +23,9 @@ export const PARAMS_DEFAULT = Object.freeze({
   sit: Object.freeze({ hip: 1, skirtRot: .95, nearFoot: .99, farFoot: .88, armNear: .8, armFar: .7, skirtWide: .1, skirtShort: .16, frontFootDrop: .14 }),
   cheer: Object.freeze({ front: 2.55, near: 2.6, far: 2.45 }),
   swing: Object.freeze({ near: .34, far: .28, lift: .2 }),
+  // walking arms: how far they swing (side view / front+back view), elbow bend, and which layer an arm
+  // takes while it swings backward (nearBack: negative = behind the body) or forward (farFront: positive = in front)
+  walk: Object.freeze({ armSide: .42, armFront: .05, elbow: .06, nearBack: 0, nearFore: 0, farBack: 0, farFore: 0 }),
 });
 
 export const emptyTuning = () => ({ version: 1, layers: {}, params: {} });
@@ -115,7 +118,7 @@ export function effectiveAdjust(tuning, owners, amounts, view, key, committed) {
 
 /** Pose numbers for a look: defaults, then the base layer, then each worn item. */
 export function paramsFor(tuning, owners) {
-  const out = { sit: { ...PARAMS_DEFAULT.sit }, cheer: { ...PARAMS_DEFAULT.cheer }, swing: { ...PARAMS_DEFAULT.swing } };
+  const out = { sit: { ...PARAMS_DEFAULT.sit }, cheer: { ...PARAMS_DEFAULT.cheer }, swing: { ...PARAMS_DEFAULT.swing }, walk: { ...PARAMS_DEFAULT.walk } };
   for (const owner of owners) for (const pose of Object.keys(out)) Object.assign(out[pose], tuning?.params?.[owner]?.[pose] || {});
   return out;
 }

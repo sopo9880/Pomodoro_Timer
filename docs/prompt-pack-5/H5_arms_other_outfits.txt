@@ -1,0 +1,7 @@
+# H5 (선택) 다른 옷의 손바닥 앞 팔
+
+첨부할 기준 그림(refs 폴더): front_sleeve_left.png, side_arm_near.png, rig_front.png
+
+## 프롬프트
+
+The character is the attached reference: a TALL young-adult anime-style girl (about 7 heads tall, NOT chibi), amber eyes, a cream dress with gold embroidery and green puff sleeves. NO cape. Soft painterly anime shading with clean thin warm-brown outlines, same style and proportions as the attached reference arm parts. Flat solid pure magenta background (#FF00FF), no gradient, no floor, no cast shadow, no text, no labels, no frame, no props. Every piece is a separate image with a wide magenta gap around it; pieces must NOT touch each other. Same scale as the reference arm pieces. Draw in the order listed, left to right, top to bottom. ARM ONLY: sleeve + bare forearm + hand, no body, no head, no torso. Do the same two pieces as H1 (FRONT view left arm raised with palm facing viewer, FRONT view right arm) for a DIFFERENT outfit: replace this line with the outfit description, for example 'dark-green forest coat with long fitted sleeves and gold buttons'. Keep arm length, hand size and pose identical to H1 so the pieces can be swapped without moving anything.

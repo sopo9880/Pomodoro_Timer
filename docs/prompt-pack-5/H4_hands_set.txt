@@ -1,0 +1,7 @@
+# H4 손 모양 모음 (팔 끝에 붙이는 손)
+
+첨부할 기준 그림(refs 폴더): front_sleeve_left.png, side_arm_near.png
+
+## 프롬프트
+
+The character is the attached reference: a TALL young-adult anime-style girl (about 7 heads tall, NOT chibi), amber eyes, a cream dress with gold embroidery and green puff sleeves. NO cape. Soft painterly anime shading with clean thin warm-brown outlines, same style and proportions as the attached reference arm parts. Flat solid pure magenta background (#FF00FF), no gradient, no floor, no cast shadow, no text, no labels, no frame, no props. Every piece is a separate image with a wide magenta gap around it; pieces must NOT touch each other. Same scale as the reference arm pieces. Draw in the order listed, left to right, top to bottom. ARM ONLY: sleeve + bare forearm + hand, no body, no head, no torso. EIGHT HANDS ONLY (wrist to fingertips, no sleeve, no arm beyond the wrist), skin tone matching the reference, in a 4x2 grid, same scale, wrist at the bottom: (1) open palm facing viewer, fingers spread, (2) open palm facing viewer, fingers together (stop / wave), (3) relaxed fist, (4) pointing with the index finger, (5) peace sign, (6) palm facing up, (7) hand cupped as if holding a small object, (8) back of the hand facing viewer, fingers relaxed. Exactly eight pieces.
