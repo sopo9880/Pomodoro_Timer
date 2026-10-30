@@ -1,0 +1,12 @@
+# E1a 설치물 뒷면 (벤치·별빛 벤치·테이블·울타리)
+
+첨부할 기준 그림(refs 폴더): furniture_bench_front.png, furniture_starbench_front.png, furniture_teatable_front.png, furniture_fence_front.png
+
+## 프롬프트
+
+Cozy painterly botanical-fantasy garden furniture illustration, soft shading, thin warm-brown outlines, same style, materials, colors and isometric 3/4 camera angle as the attached reference objects. Flat solid pure magenta background (#FF00FF), no gradient, no floor, no cast shadow, no text, no frame. Each object is a separate piece with a wide magenta gap around it; objects must NOT touch each other. Draw them in the order listed, left to right, top to bottom. 
+For EACH attached reference object, draw the SAME object seen from the OPPOSITE side: the exact same camera angle (isometric 3/4, looking slightly down) but rotated 180 degrees, so we see its BACK. Keep identical size, proportions, materials, colors, wear and decorations, and the same ground footprint and bottom-center position as the reference so the two can be swapped in place. Do not add new details that are not in the reference. One piece per reference, same order as the attachments:
+(1) 나무 벤치
+(2) 별빛 벤치
+(3) 티타임 테이블
+(4) 원목 울타리
