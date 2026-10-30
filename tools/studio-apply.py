@@ -31,6 +31,11 @@ def merge(a, b):
                         node.setdefault(view, {}).update(parts)
                 else:
                     node.update(rest)
+    # keyframes: a part's list of keys is replaced as a whole
+    for owner, clips in (b.get("anim") or {}).items():
+        for clip, views in clips.items():
+            for view, parts in views.items():
+                out.setdefault("anim", {}).setdefault(owner, {}).setdefault(clip, {}).setdefault(view, {}).update(parts)
     return out
 
 

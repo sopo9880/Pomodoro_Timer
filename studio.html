@@ -70,6 +70,15 @@
       <div class="dial"><span>앞뒤</span><div class="zrow"><button class="btn" id="zBack">뒤로</button><output id="zOut">0</output><button class="btn" id="zFront">앞으로</button></div></div>
       <div class="actions"><button class="btn" id="resetPart">이 부위 되돌리기</button><button class="btn" id="hidePart">숨기기</button><button class="btn" id="undo">실행 취소</button></div>
     </details>
+    <details open id="keyBox"><summary>걷기 키프레임 <small>(단계별 동작·그림·앞뒤)</small></summary>
+      <p class="note" id="keyNote">「걷기」 포즈에서 부위를 고르고 켜세요. 걷기 한 바퀴(0~100%)를 키로 나눠 단계마다 위치·회전·크기·앞뒤·숨기기·그림을 정해요. 키 사이는 부드럽게 이어져요.</p>
+      <label class="check"><input type="checkbox" id="keyMode"> 키프레임 편집 (위의 가로·세로·회전·크기·앞뒤·숨기기가 고른 키에 저장돼요)</label>
+      <div class="timeline"><input type="range" id="phase" min="0" max="0.995" step="0.005" aria-label="걷기 위치"><div id="keyMarks"></div></div>
+      <div class="actions"><button class="btn" id="keyPlay">멈춤</button><button class="btn" id="keyPrev">◀ 이전 키</button><button class="btn" id="keyNext">다음 키 ▶</button><button class="btn primary" id="keyAdd">여기에 키 추가</button><button class="btn" id="keyDel">이 키 지우기</button></div>
+      <p class="note" id="keyInfo"></p>
+      <div class="actions"><select id="keyImg" aria-label="이 키의 그림"></select><button class="btn" id="keyPick">새 그림 올리기…</button></div>
+      <input type="file" id="keyFile" accept="image/png,image/webp,image/jpeg" hidden>
+    </details>
     <details open><summary>그림 갈아 끼우기</summary>
       <p class="note" id="imgNote">부위를 고른 뒤 그림 파일(PNG, WebP)을 고르거나 화면에 끌어다 놓으세요.</p>
       <label class="check"><input type="checkbox" id="autoFit" checked> 크기와 위치를 원래 부위에 맞춰 넣기</label>
