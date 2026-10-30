@@ -623,8 +623,9 @@ export function createPixelGardenRenderer(canvas) {
         drawPainted(pp, actor.x, actor.y, 0, { widthTiles: PLANT_WIDTH_TILES, rotation: sway * .5 });
       } else {
         const sprite = def?.sprite || "flower-pot";
-        const pd = painted.decor(sprite);
-        const art = pd && { image: pd, sx: 0, sy: 0, sw: pd.naturalWidth, sh: pd.naturalHeight, ref: pd.naturalHeight };
+        const dv = painted.decorView(sprite, actor.rotation);
+        const pd = dv?.image;
+        const art = pd && { image: pd, sx: 0, sy: 0, sw: pd.naturalWidth, sh: pd.naturalHeight, ref: pd.naturalHeight, flipX: dv.flipX };
         if (art) drawPainted(art, actor.x, actor.y, 0, { widthTiles: DECOR_WIDTH_TILES[sprite] || 1.2 });
         else if (painted.hasDecor(sprite)) missingActors++;
         else if (!painted.hasDecor(sprite)) drawSprite(sprite,actor.x,actor.y,1.5,actor.rotation||0);
@@ -665,9 +666,10 @@ export function createPixelGardenRenderer(canvas) {
     if (options.ghost) {
       const g = options.ghost;
       const plantArt = painted.plant(g.sprite, 3, 0);
-      const decorImg = painted.decor(g.sprite);
+      const ghostView = painted.decorView(g.sprite, g.rotation);
+      const decorImg = ghostView?.image;
       if (plantArt) drawPainted(plantArt, g.x, g.y, 0, { widthTiles: PLANT_WIDTH_TILES, opacity: .6 });
-      else if (decorImg) drawPainted({ image: decorImg, sx: 0, sy: 0, sw: decorImg.naturalWidth, sh: decorImg.naturalHeight, ref: decorImg.naturalHeight },
+      else if (decorImg) drawPainted({ image: decorImg, sx: 0, sy: 0, sw: decorImg.naturalWidth, sh: decorImg.naturalHeight, ref: decorImg.naturalHeight, flipX: ghostView.flipX },
         g.x, g.y, 0, { widthTiles: DECOR_WIDTH_TILES[g.sprite] || 1.2, opacity: .6 });
       else if (!PAINTED_ART.plants[g.sprite] && !painted.hasDecor(g.sprite)) drawSprite(g.sprite,g.x,g.y,1.5,g.rotation||0,.65);
     }

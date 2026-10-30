@@ -9,6 +9,8 @@ import { createWorldMinimap } from "./minimap.mjs";
 import { REGION_SCENES, WORLD_LANDMARKS } from "./world-map.mjs";
 import { WILDLIFE_SPECIES } from "./ecology.mjs";
 import { createAvatarMotion } from "./avatar-motion.mjs";
+import { isDirectional } from "./decor-views.mjs";
+import { createSeatController, readAutoSitPref, SIT_ART_READY } from "./interaction.mjs";
 import { avatarIllustrationUri, companionIllustrationUri, wildlifeIllustrationUri } from "./hires-atlas.mjs";
 import { rasterAvatarPreviewUrl, rasterAvatarPortraitUrl, canUseRasterAvatar } from "./raster-art.mjs";
 import { renderRigPortrait } from "./avatar-rig.mjs";
@@ -37,6 +39,22 @@ export function mountGarden({ getGarden, setGarden, getTimerState, getEnvironmen
   if (!canvas) return { refresh() {} };
   const renderer = createPixelGardenRenderer(canvas);
   const avatarMotion = createAvatarMotion(renderer.map);
+  // Rest-time seating: at the start of a break the avatar walks to a free seat.
+  // Only active once the seated art ships (SIT_ART_READY); never touches saves.
+  const seat = createSeatController({ motion: avatarMotion, findItem: findGardenItem, getGarden });
+  let wasResting = false;
+  function updateSeat() {
+    if (!SIT_ART_READY) return;
+    const timer = getTimerState();
+    const resting = timer.isRunning && timer.mode !== "focus";
+    if (resting && !wasResting && readAutoSitPref() && !avatarMotion.isControlled()) {
+      const at = avatarMotion.visual();
+      if (at) seat.seek(at);
+    } else if (!resting && wasResting) seat.release();
+    else if (avatarMotion.isControlled()) seat.release();
+    wasResting = resting;
+    seat.update();
+  }
   avatarMotion.sync(getGarden().avatar);
   const minimapCanvas = byId("gardenMiniMap");
   const minimapPanel = byId("gardenMiniMapPanel");
@@ -250,9 +268,11 @@ export function mountGarden({ getGarden, setGarden, getTimerState, getEnvironmen
     view.selectionTitle.textContent = definition?.name || "정원 아이템";
     view.selectionDetail.textContent = selected.kind === "plant"
       ? "성장 " + (stage + 1) + " / 4단계 · 실제 집중 시간에 따라 자라요."
-      : "배치 위치를 이동하거나 회전할 수 있어요.";
+      : isDirectional(definition?.sprite)
+        ? "배치 위치를 이동하거나 돌려서 바라보는 방향을 바꿀 수 있어요."
+        : "배치 위치를 이동할 수 있어요. 어느 쪽에서 봐도 같아서 돌리지 않아요.";
     view.move.disabled = editingLocked();
-    view.rotate.disabled = editingLocked() || selected.kind === "plant";
+    view.rotate.disabled = editingLocked() || selected.kind === "plant" || !isDirectional(definition?.sprite);
     view.remove.disabled = editingLocked();
   }
   function paintCatalogCards() {
@@ -658,7 +678,7 @@ export function mountGarden({ getGarden, setGarden, getTimerState, getEnvironmen
   view.rotate.addEventListener("click", () => {
     const item = selectedObject();
     if (!item) return;
-    mutate((garden) => moveGardenObject(garden, "decor", item.id, item.x, item.y, (item.rotation + 90) % 360), "장식을 90도 회전했어요.");
+    mutate((garden) => moveGardenObject(garden, "decor", item.id, item.x, item.y, (item.rotation + 90) % 360), "장식의 방향을 바꿨어요.");
   });
   view.remove.addEventListener("click", () => {
     const item = selectedObject();
@@ -1015,7 +1035,8 @@ export function mountGarden({ getGarden, setGarden, getTimerState, getEnvironmen
         if(step.changed&&timestamp-lastAvatarSave>=AVATAR_SAVE_INTERVAL)saveAvatarPosition();
         if(step.done)saveAvatarPosition(true);
       }
-      const player=avatarMotion.visual();
+      updateSeat();
+      const player=seat.seatedVisual(avatarMotion.visual())||avatarMotion.visual();
       cameraSettling=followCamera(player,elapsed,timestamp);
       renderer.draw(getGarden(),getTimerState(),{
         selected,ghost,avatar:player,avatarSelected,

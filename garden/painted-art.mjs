@@ -9,6 +9,7 @@
  * last painted frame or a soft placeholder rather than older artwork.
  */
 import { PAINTED_ART } from "./painted-art-data.mjs";
+import { DECOR_BACK_VIEWS, decorViewFor } from "./decor-views.mjs";
 
 export { PAINTED_ART };
 /** On-screen height in world tiles of a standing companion / creature (its reference pose). */
@@ -212,6 +213,13 @@ export function createPaintedArtAtlas({ ImageClass = globalThis.Image, base = ".
     decor(sprite) {
       const src = PAINTED_ART.decor[sprite];
       return src ? image(src) : null;
+    },
+    /** Decoration at a saved rotation: {image, flipX}, or null while it decodes. */
+    decorView(sprite, rotation = 0) {
+      const view = decorViewFor(sprite, rotation);
+      const src = view.back ? DECOR_BACK_VIEWS[sprite] : PAINTED_ART.decor[sprite];
+      const img = src ? image(src) : null;
+      return img ? { image: img, flipX: view.flipX } : null;
     },
     hasLandmark: sprite => Boolean(PAINTED_ART.landmarks[sprite]),
     hasDecor: sprite => Boolean(PAINTED_ART.decor[sprite]),
