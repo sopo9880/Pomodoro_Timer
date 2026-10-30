@@ -31,3 +31,14 @@ test("the head sits low on a neck that matches the jaw", () => {
     assert.ok(NECK[v].width > 1.05, v + " neck is widened to the jaw");
   }
 });
+
+test("the hand-tuned rig fit is locked in: no capes, no separate neck", async () => {
+  const { RIG_ADJUST } = await import("../garden/avatar-rig-adjust.mjs");
+  for (const v of ["front", "side", "back"]) {
+    assert.equal(RIG_ADJUST[v].cape?.hide, true, v + " long cape hidden");
+    assert.equal(RIG_ADJUST[v].capelet?.hide, true, v + " capelet hidden");
+  }
+  assert.equal(RIG_ADJUST.front.neck?.hide, true);
+  assert.equal(RIG_ADJUST.side.neck?.hide, true);
+  assert.equal(RIG_ADJUST.side.skirt?.rot, -17.5);
+});

@@ -93,25 +93,25 @@ export const RIG_ADJUST = Object.freeze({
   },
   "skirt": {
    "dx": -46.2,
-   "dy": 22.1,
-   "rot": -19,
+   "dy": 13.9,
+   "rot": -17.5,
    "s": 1.09
   },
   "shinNear": {
-   "dx": -3.2,
-   "dy": -27.3
+   "dx": 21.3,
+   "dy": -33.4
   },
   "thighNear": {
    "dx": -26.3,
    "dy": 21
   },
   "thighFar": {
-   "dx": 13.7,
-   "dy": 5.3
+   "dx": 10.6,
+   "dy": -0.8
   },
   "shinFar": {
-   "dx": -6.3,
-   "dy": -15.8,
+   "dx": -33.9,
+   "dy": -17.8,
    "rot": -10
   }
  },
@@ -156,6 +156,12 @@ export const RIG_ADJUST = Object.freeze({
   "torso": {
    "dx": 6.3,
    "dy": 44.1
+  },
+  "forearmR": {
+   "z": -6
+  },
+  "forearmL": {
+   "z": -4
   }
-  }
+ }
 });

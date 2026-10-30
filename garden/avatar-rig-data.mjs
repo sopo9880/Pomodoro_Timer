@@ -425,7 +425,7 @@ export const AVATAR_RIG_PARTS = Object.freeze({
    ]
   },
   "shinNear": {
-   "src": "assets/art/avatar/boots/side_near.webp",
+   "src": "assets/art/avatar/boots/side_near.webp?v=2",
    "w": 152,
    "h": 391,
    "pivot": [
@@ -439,7 +439,7 @@ export const AVATAR_RIG_PARTS = Object.freeze({
    "scale": 0.79
   },
   "shinFar": {
-   "src": "assets/art/avatar/boots/side_far.webp",
+   "src": "assets/art/avatar/boots/side_far.webp?v=2",
    "w": 151,
    "h": 391,
    "pivot": [
