@@ -10,7 +10,21 @@ import { REGION_SCENES, WORLD_LANDMARKS } from "./world-map.mjs";
 import { WILDLIFE_SPECIES } from "./ecology.mjs";
 import { createAvatarMotion } from "./avatar-motion.mjs";
 import { avatarIllustrationUri, companionIllustrationUri, wildlifeIllustrationUri } from "./hires-atlas.mjs";
-import { rasterAvatarPreviewUrl, rasterAvatarPortraitUrl } from "./raster-art.mjs";
+import { rasterAvatarPreviewUrl, rasterAvatarPortraitUrl, canUseRasterAvatar } from "./raster-art.mjs";
+import { renderRigPortrait } from "./avatar-rig.mjs";
+import { PAINTED_ART } from "./painted-art.mjs";
+
+/** Painted pictures for the collection cards (the world uses the same files). */
+const WARDROBE_ART = id => "assets/art/avatar/wardrobe/" + id + ".webp";
+const FOCUS_ART = "assets/art/avatar/portraits/focus_reading.webp";
+function paintedThumb(kind, id) {
+  if (kind === "companion") return PAINTED_ART.companions[id]?.portrait || null;
+  if (kind === "wildlife") return PAINTED_ART.wildlife[id]?.codex || null;
+  if (kind === "plant") return PAINTED_ART.plants[id]?.bloom || null;
+  if (kind === "decor") return PAINTED_ART.decor[id] || null;
+  if (kind === "landmark") return PAINTED_ART.landmarks[id] || null;
+  return null;
+}
 import { WEARABLES, purchaseWearable, equipWearable, moveAvatar, moveCompanionDrop,
   renameGuest, discover, collectionSnapshot } from "./life-core.mjs";
 import { drawPlantThumbnail } from "./plant-art.mjs";
@@ -30,7 +44,7 @@ export function mountGarden({ getGarden, setGarden, getTimerState, getEnvironmen
   const minimap = createWorldMinimap(minimapCanvas, renderer);
   const regionTitle = byId("gardenRegionTitle");
   const compactView = window.matchMedia("(max-width: 875px)").matches;
-  let minimapExpanded = !compactView;
+  let minimapExpanded = false; // opened from the map button; keeps the painted world unobstructed
   minimapPanel.hidden = !minimapExpanded;
   minimapToggle.setAttribute("aria-expanded", String(minimapExpanded));
   const view = {
@@ -244,11 +258,13 @@ export function mountGarden({ getGarden, setGarden, getTimerState, getEnvironmen
       const owned = garden.inventory.find((entry) => entry.itemId === item.id)?.quantity || 0;
       const card = document.createElement("article");
       card.className = "garden-item-card";
-      const thumb = document.createElement("canvas");
+      const paintedSrc = paintedThumb(item.kind === "plant" ? "plant" : "decor", item.sprite);
+      const thumb = document.createElement(paintedSrc ? "img" : "canvas");
       thumb.className = "garden-item-sprite";
       thumb.width = 64;
       thumb.height = 64;
       thumb.setAttribute("aria-hidden", "true");
+      if (paintedSrc) { thumb.alt = ""; thumb.decoding = "async"; thumb.loading = "lazy"; thumb.src = paintedSrc; }
       const body = document.createElement("div");
       body.className = "garden-item-body";
       const title = document.createElement("strong");
@@ -281,8 +297,10 @@ export function mountGarden({ getGarden, setGarden, getTimerState, getEnvironmen
       actions.append(buy);
       card.append(thumb, body, actions);
       fragment.append(card);
-      if (item.kind === "plant") drawPlantThumbnail(thumb,renderer.flowerArt,item.sprite);
-      else drawGardenThumbnail(thumb,item.sprite);
+      if (!paintedSrc) {
+        if (item.kind === "plant") drawPlantThumbnail(thumb,renderer.flowerArt,item.sprite);
+        else drawGardenThumbnail(thumb,item.sprite);
+      }
     }
     view.inventory.replaceChildren(fragment);
   }
@@ -301,7 +319,7 @@ export function mountGarden({ getGarden, setGarden, getTimerState, getEnvironmen
       thumb.alt = "";
       thumb.loading = "lazy";
       thumb.decoding = "async";
-      thumb.src = companionIllustrationUri(friend.speciesId);
+      thumb.src = paintedThumb("companion", friend.speciesId) || companionIllustrationUri(friend.speciesId);
       const details = document.createElement("div");
       const name = document.createElement("strong");
       name.textContent = friend.name;
@@ -324,8 +342,12 @@ export function mountGarden({ getGarden, setGarden, getTimerState, getEnvironmen
   }
   function paintAvatarWardrobe(garden) {
     view.avatarWallet.textContent = (garden.wallet.timePoints || 0).toLocaleString("ko-KR");
-    view.avatarPreview.src = rasterAvatarPreviewUrl(garden.avatar.equipped) || avatarIllustrationUri(garden.avatar.equipped);
-    if(view.focusAvatar)view.focusAvatar.src = rasterAvatarPortraitUrl(garden.avatar.equipped) || view.avatarPreview.src;
+    if (canUseRasterAvatar(garden.avatar.equipped)) {
+      const portrait = renderRigPortrait(renderer.avatarRig);
+      if (portrait) view.avatarPreview.src = portrait;
+      else { if (!view.avatarPreview.src) view.avatarPreview.src = WARDROBE_ART("outfit-linen"); setTimeout(() => paintAvatarWardrobe(getGarden()), 700); }
+    } else view.avatarPreview.src = rasterAvatarPreviewUrl(garden.avatar.equipped) || avatarIllustrationUri(garden.avatar.equipped);
+    if(view.focusAvatar && !view.focusAvatar.src.endsWith(FOCUS_ART))view.focusAvatar.src = FOCUS_ART;
     const fragment=document.createDocumentFragment();
     for(const item of WEARABLES){
       const owned=garden.avatar.ownedWearables.includes(item.id);
@@ -335,8 +357,7 @@ export function mountGarden({ getGarden, setGarden, getTimerState, getEnvironmen
       const preview=document.createElement("img");
       preview.className="avatar-shop-preview";
       preview.alt="";preview.loading="lazy";preview.decoding="async";
-      const outfitPreview={...garden.avatar.equipped,[item.slot]:item.id};
-      preview.src=rasterAvatarPreviewUrl(outfitPreview) || avatarIllustrationUri(outfitPreview);
+      preview.src=WARDROBE_ART(item.id);
       const row=document.createElement("div");
       row.className="avatar-item-title";
       const label=document.createElement("strong");label.textContent=item.name;
@@ -369,10 +390,14 @@ export function mountGarden({ getGarden, setGarden, getTimerState, getEnvironmen
       for(const entry of entries){
         const tile=document.createElement("div");
         tile.className="codex-item"+(entry.discovered?"":" undiscovered");
-        if(entry.discovered&&(category==="companions"||category==="wildlife")){
+        const codexKind={companions:"companion",wildlife:"wildlife",plants:"plant",decorations:"decor",landmarks:"landmark"}[category];
+        const codexId=category==="plants"||category==="decorations"?findGardenItem(entry.id)?.sprite
+          :category==="landmarks"?WORLD_LANDMARKS.find(x=>x.id===entry.id)?.sprite:entry.id;
+        const codexSrc=paintedThumb(codexKind,codexId);
+        if(entry.discovered&&(codexSrc||category==="companions"||category==="wildlife")){
           const picture=document.createElement("img");
           picture.alt="";picture.loading="lazy";picture.decoding="async";
-          picture.src=category==="companions"?companionIllustrationUri(entry.id):wildlifeIllustrationUri(entry.id);
+          picture.src=codexSrc||(category==="companions"?companionIllustrationUri(entry.id):wildlifeIllustrationUri(entry.id));
           tile.append(picture);
         }
         const label=document.createElement("span");

@@ -20,7 +20,7 @@ test("4D continuous held-key movement advances smoothly without key repeat",()=>
     last=result.position.x;
   }
   const moved=controller.visual();
-  assert.ok(moved.x>87.1&&moved.x<87.9,"Expected about 5 tiles after one second");
+  assert.ok(Math.abs(moved.x-(82.5+AVATAR_WALK_SPEED))<.4,"Expected AVATAR_WALK_SPEED tiles after one second");
   assert.equal(moved.pose,"walk");
   assert.equal(controller.isControlled(),true);
   assert.equal(JSON.stringify(garden),initial,"Visual movement does not mutate saved data");
@@ -39,7 +39,7 @@ test("4D diagonal movement normalizes speed and retains arrow direction",()=>{
   for(let n=0;n<20;n++)nav.advance(.05,garden);
   const p=nav.visual();
   const distance=Math.hypot(p.x-82.5,p.y-84.5);
-  assert.ok(distance>4.6 && distance<=AVATAR_WALK_SPEED+.001,"Diagonal movement must not be faster");
+  assert.ok(distance>AVATAR_WALK_SPEED*.9 && distance<=AVATAR_WALK_SPEED+.001,"Diagonal movement must not be faster");
   assert.ok(Math.abs((p.x-82.5)-(p.y-84.5))<.01);
   nav.releaseAll();
   assert.equal(nav.isControlled(),false);

@@ -8,7 +8,7 @@
 import { findCompanionPath } from "./companion-ai.mjs";
 import { avatarCanStand, moveAvatar } from "./life-core.mjs";
 
-export const AVATAR_WALK_SPEED = 5.1; // world tiles per second
+export const AVATAR_WALK_SPEED = 3.5; // world tiles per second (about 2.6 foot-locked steps per second)
 const DIRECTIONS = Object.freeze(["up","down","left","right"]);
 const vectors = Object.freeze({up:[0,-1],down:[0,1],left:[-1,0],right:[1,0]});
 const EPS = 1e-5;

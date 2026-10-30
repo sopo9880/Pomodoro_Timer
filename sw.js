@@ -1,4 +1,4 @@
-const CACHE_NAME = "bloomodoro-cache-v19";
+const CACHE_NAME = "bloomodoro-cache-v20";
 const PRECACHE_URLS = [
   "./",
   "./index.html",
@@ -88,6 +88,13 @@ const PRECACHE_URLS = [
   "./assets/art/avatar/side/thigh_near.webp",
   "./assets/art/avatar/side/torso.webp",
   "./ui/b-theme.css",
+  "./assets/fonts/fonts.css",
+  "./assets/art/ui/icons/garden.webp",
+  "./assets/art/ui/icons/focus.webp",
+  "./assets/art/ui/icons/records.webp",
+  "./assets/art/ui/icons/settings.webp",
+  "./assets/art/ui/icons/time_points.webp",
+  "./assets/art/avatar/portraits/focus_reading.webp",
   "./ui/flower-ornament.svg",
   "./garden/garden.css",
   "./keepalive.mp3",

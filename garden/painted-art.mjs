@@ -5,8 +5,8 @@
  * Images come from assets/art (generated sheets, background removed, frames
  * aligned on a shared bottom-centre baseline). Everything here is drawing
  * only: species ids, plant growth, rewards and saves are untouched. Each
- * lookup returns null until its image has decoded, so callers keep their
- * previous artwork as a fallback (also in Node tests, where Image is absent).
+ * lookup returns null until its image has decoded; the renderer then keeps the
+ * last painted frame or a soft placeholder rather than older artwork.
  */
 import { PAINTED_ART } from "./painted-art-data.mjs";
 
@@ -24,6 +24,7 @@ export const DECOR_WIDTH_TILES = Object.freeze({
   "wooden-bench": 1.7, lantern: .7, "wooden-fence": 1.6, birdhouse: .85, "moss-boulder": 1.25,
   "picnic-cloth": 1.9, "forest-lamp": .75, "wishing-well": 1.7, "stone-path": .95, "tea-table": 1.15,
   "mushroom-stool": .8, "flower-archway": 1.9, "tiny-pond": .8, "star-bench": 1.7, "flower-pot": 1.0,
+  birdbath: .9, "flower-bed": 1.5, "wooden-lamp": .7,
 });
 export const PLANT_WIDTH_TILES = 1.55;
 const PLANT_STAGES = Object.freeze(["seed", "sprout", "growing", "bloom"]);
@@ -90,22 +91,94 @@ export function terrainFor(kind, zoneId) {
   })[kind] || null;
 }
 
-export function createPaintedArtAtlas({ ImageClass = globalThis.Image, base = "./", limit = 160 } = {}) {
+/** Every painted file, grouped so the loader can fetch what is about to be seen first. */
+export function paintedAssetGroups() {
+  const A = PAINTED_ART;
+  const companion = id => {
+    const c = A.companions[id];
+    return c ? [...Object.values(c.move).map(m => m.file), ...Object.values(c.actions), c.portrait] : [];
+  };
+  return {
+    companion,
+    plant: id => Object.values(A.plants[id] || {}),
+    wildlife: id => (A.wildlife[id] ? [A.wildlife[id].frames] : []),
+    terrain: Object.entries(A.terrain).map(([, v]) => v),
+    landmarks: Object.values(A.landmarks),
+    decor: Object.values(A.decor),
+    all() {
+      return [...new Set([
+        ...this.terrain, ...this.landmarks, ...this.decor,
+        ...Object.keys(A.companions).flatMap(companion),
+        ...Object.keys(A.plants).flatMap(id => Object.values(A.plants[id])),
+        ...Object.values(A.wildlife).flatMap(w => [w.frames, w.codex]),
+      ])];
+    },
+  };
+}
+
+/**
+ * Image cache with "ready means decoded": a file only counts as available once
+ * image.decode() has finished, so the first frame that uses it never stalls or
+ * shows half an image. prefetch() fills the cache in the background, a few at a
+ * time, most important first; the service worker keeps what it fetches offline.
+ */
+export function createPaintedArtAtlas({ ImageClass = globalThis.Image, base = "./", concurrency = 4 } = {}) {
   const cache = new Map();
-  const capacity = Math.max(32, Math.min(400, Math.floor(limit)));
-  function image(src) {
+  const queue = [];
+  let active = 0;
+  const waiters = new Set();
+  function settle() {
+    for (const w of [...waiters]) if (w.urls.every(u => isSettled(u))) { waiters.delete(w); w.resolve(); }
+  }
+  function isSettled(src) { const r = cache.get(src); return Boolean(r && (r.ready || r.failed)); }
+  function load(src) {
     if (!src || typeof ImageClass !== "function") return null;
     let rec = cache.get(src);
-    if (!rec) {
-      const im = new ImageClass();
-      rec = { im, failed: false };
-      im.decoding = "async";
-      im.onerror = () => { rec.failed = true; };
-      im.src = base + src;
-      cache.set(src, rec);
-      while (cache.size > capacity) cache.delete(cache.keys().next().value);
-    } else { cache.delete(src); cache.set(src, rec); }
-    return !rec.failed && rec.im.complete && rec.im.naturalWidth > 0 ? rec.im : null;
+    if (rec) return rec;
+    const im = new ImageClass();
+    rec = { im, ready: false, failed: false };
+    cache.set(src, rec);
+    im.decoding = "async";
+    const done = ok => { if (ok) rec.ready = true; else rec.failed = true; settle(); };
+    im.onload = () => {
+      if (typeof im.decode === "function") im.decode().then(() => done(true), () => done(im.naturalWidth > 0));
+      else done(im.naturalWidth > 0);
+    };
+    im.onerror = () => done(false);
+    im.src = base + src;
+    return rec;
+  }
+  function image(src) {
+    const rec = load(src);
+    return rec && rec.ready ? rec.im : null;
+  }
+  function pump() {
+    while (active < concurrency && queue.length) {
+      const src = queue.shift();
+      if (cache.has(src)) continue;
+      active++;
+      const rec = load(src);
+      const finish = () => { active--; pump(); };
+      if (!rec) { finish(); continue; }
+      const check = () => (rec.ready || rec.failed) ? finish() : setTimeout(check, 60);
+      check();
+    }
+  }
+  /** Queue files for background loading; front=true puts them ahead of the rest. */
+  function prefetch(urls, { front = false } = {}) {
+    const fresh = urls.filter(u => u && !cache.has(u) && !queue.includes(u));
+    if (front) queue.unshift(...fresh); else queue.push(...fresh);
+    pump();
+  }
+  /** Resolve once every file is decoded (or failed), or after timeoutMs. */
+  function whenReady(urls, timeoutMs = 4000) {
+    urls.forEach(load);
+    if (urls.every(isSettled)) return Promise.resolve();
+    return new Promise(resolve => {
+      const w = { urls, resolve };
+      waiters.add(w);
+      setTimeout(() => { if (waiters.delete(w)) resolve(); }, timeoutMs);
+    });
   }
   function resolve(desc) {
     if (!desc) return null;
@@ -122,6 +195,10 @@ export function createPaintedArtAtlas({ ImageClass = globalThis.Image, base = ".
       const id = terrainFor(kind, zoneId);
       return id ? image(PAINTED_ART.terrain[id]) : null;
     },
+    /** Flat colour of a ground texture, used for a cell until its texture is decoded. */
+    terrainColor(kind, zoneId) {
+      return PAINTED_ART.terrainColor?.[terrainFor(kind, zoneId)] || null;
+    },
     overlay(season) {
       const id = season === "winter" ? "snow_overlay" : season === "autumn" ? "autumn_overlay" : null;
       return id ? image(PAINTED_ART.terrain[id]) : null;
@@ -134,6 +211,9 @@ export function createPaintedArtAtlas({ ImageClass = globalThis.Image, base = ".
       const src = PAINTED_ART.decor[sprite];
       return src ? image(src) : null;
     },
-    stats: () => ({ images: cache.size, capacity }),
+    hasLandmark: sprite => Boolean(PAINTED_ART.landmarks[sprite]),
+    hasDecor: sprite => Boolean(PAINTED_ART.decor[sprite]),
+    prefetch, whenReady, isReady: src => Boolean(cache.get(src)?.ready),
+    stats: () => ({ images: cache.size, queued: queue.length, loading: active }),
   };
 }
