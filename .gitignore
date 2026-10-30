@@ -1,2 +1,4 @@
 Thumbs.db
 .DS_Store
+__pycache__/
+tools/pack2_preview.png
