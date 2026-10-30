@@ -402,8 +402,10 @@ export function createPixelGardenRenderer(canvas) {
     const walking=Boolean(avatar.moving);
     // Painted cutout rig: only for the outfit it was painted in, so a purchased
     // costume is never shown as the default one (it keeps the previous art).
-    const worn=garden.avatar?.equipped;
+    let worn=garden.avatar?.equipped;
     const defaultOutfit=canUseRig(worn);
+    // While a new look decodes, the previous one stays on screen instead of the avatar vanishing.
+    if(defaultOutfit&&!avatarRig.ready(avatar.direction,worn))worn=null;
     if(defaultOutfit&&!avatarRig.ready(avatar.direction,worn))return;
     if(defaultOutfit){
       const clock=typeof performance!=="undefined"?performance.now()/1000:time;
@@ -529,7 +531,7 @@ export function createPixelGardenRenderer(canvas) {
     // Until the first reveal only what is on screen is requested (directly, in
     // parallel); zone and idle prefetching start afterwards so they never compete.
     if (revealStart !== null) {
-      if (!rigPreloaded) { rigPreloaded = true; avatarRig.preload(); }
+      if (!rigPreloaded) { rigPreloaded = true; avatarRig.preload(); avatarRig.preload(garden.avatar?.equipped); }
       planPrefetch(garden);
     }
     let missingGround = 0, missingActors = 0;

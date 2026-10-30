@@ -55,3 +55,32 @@ test("the rig fetches the worn variant images instead of the default ones", () =
   assert.ok(asked.every((s) => !s.includes("/v/")), "default look never touches variants");
   assert.equal(RIG_VIEW.right, "side");
 });
+
+import { existsSync } from "node:fs";
+import { AVATAR_VARIANTS } from "../garden/avatar-variants.mjs";
+import { WEARABLES } from "../garden/life-core.mjs";
+
+test("every owned-able hair, outfit and shoe has its art, and every file exists", () => {
+  for (const item of WEARABLES) {
+    if (item.slot === "hat" || ["hair-natural", "outfit-linen", "shoes-travel"].includes(item.id)) continue;
+    assert.ok(variantComplete(item.slot, item.id, AVATAR_VARIANTS), item.id + " is not fully cut");
+    assert.equal(canUseRig({ [item.slot]: item.id }, AVATAR_VARIANTS), true, item.id);
+  }
+  for (const [sku, v] of Object.entries(AVATAR_VARIANTS)) {
+    const files = [...Object.values(v.front || {}), ...Object.values(v.side || {}), ...Object.values(v.back || {}), ...Object.values(v.expressions || {})];
+    assert.ok(files.length >= 6, sku);
+    for (const f of files) assert.ok(existsSync(new URL("../" + f.split("?")[0], import.meta.url)), f);
+  }
+});
+
+test("a hair variant ships all six faces so blinking and surprise keep working", () => {
+  for (const sku of ["hair-chestnut", "hair-silver", "hair-bloom"]) {
+    assert.deepEqual(Object.keys(AVATAR_VARIANTS[sku].expressions).sort(), ["blink", "focused", "halfblink", "happy", "neutral", "surprised"]);
+    assert.deepEqual(Object.keys(variantExpressions({ hair: sku })), Object.keys(AVATAR_VARIANTS[sku].expressions));
+  }
+});
+
+test("hats still use the older art until the rig can wear them", () => {
+  assert.equal(canUseRig({ hat: "hat-straw" }), false);
+  assert.equal(canUseRig({ hair: "hair-silver", outfit: "outfit-starlight", shoes: "shoes-sky" }), true);
+});

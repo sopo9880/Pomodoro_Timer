@@ -13,6 +13,7 @@ import { isDirectional } from "./decor-views.mjs";
 import { actionOf, createSeatController, interactionLine, readAutoSitPref, SIT_ART_READY } from "./interaction.mjs";
 import { CELEBRATION_SECONDS, FX_IMAGES, readCelebrationPref, writeCelebrationPref } from "./fx.mjs";
 import { createGardenSound } from "./garden-sound.mjs";
+import { canUseRig } from "./avatar-variants.mjs";
 import { hintFor, discoveredOnLabel, welcomeBack, growthProgress, growthLabel } from "./longterm.mjs";
 import { localDayKey } from "../core/focus-core.mjs";
 import { avatarIllustrationUri, companionIllustrationUri, wildlifeIllustrationUri } from "./hires-atlas.mjs";
@@ -414,8 +415,8 @@ export function mountGarden({ getGarden, setGarden, getTimerState, getEnvironmen
   }
   function paintAvatarWardrobe(garden) {
     view.avatarWallet.textContent = (garden.wallet.timePoints || 0).toLocaleString("ko-KR");
-    if (canUseRasterAvatar(garden.avatar.equipped)) {
-      const portrait = renderRigPortrait(renderer.avatarRig);
+    if (canUseRig(garden.avatar.equipped)) {
+      const portrait = renderRigPortrait(renderer.avatarRig, { equipped: garden.avatar.equipped });
       if (portrait) view.avatarPreview.src = portrait;
       else { if (!view.avatarPreview.src) view.avatarPreview.src = WARDROBE_ART("outfit-linen"); setTimeout(() => paintAvatarWardrobe(getGarden()), 700); }
     } else view.avatarPreview.src = rasterAvatarPreviewUrl(garden.avatar.equipped) || avatarIllustrationUri(garden.avatar.equipped);
