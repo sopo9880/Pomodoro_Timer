@@ -158,3 +158,66 @@ export const VARIANT_DATA = {
   }
  }
 };
+export const HAT_DATA = {
+ "hat-straw": {
+  "front": {
+   "src": "assets/art/avatar/variants/hats/hat-straw/front.webp?v=1",
+   "w": 480,
+   "h": 242
+  },
+  "side": {
+   "src": "assets/art/avatar/variants/hats/hat-straw/side.webp?v=1",
+   "w": 480,
+   "h": 243
+  },
+  "back": {
+   "src": "assets/art/avatar/variants/hats/hat-straw/back.webp?v=1",
+   "w": 480,
+   "h": 252
+  },
+  "rear": {
+   "src": "assets/art/avatar/variants/hats/hat-straw/rear.webp?v=1",
+   "w": 480,
+   "h": 207
+  }
+ },
+ "hat-flower": {
+  "front": {
+   "src": "assets/art/avatar/variants/hats/hat-flower/front.webp?v=1",
+   "w": 480,
+   "h": 301
+  },
+  "side": {
+   "src": "assets/art/avatar/variants/hats/hat-flower/side.webp?v=1",
+   "w": 480,
+   "h": 455
+  },
+  "back": {
+   "src": "assets/art/avatar/variants/hats/hat-flower/back.webp?v=1",
+   "w": 480,
+   "h": 307
+  }
+ },
+ "hat-star": {
+  "front": {
+   "src": "assets/art/avatar/variants/hats/hat-star/front.webp?v=1",
+   "w": 480,
+   "h": 303
+  },
+  "side": {
+   "src": "assets/art/avatar/variants/hats/hat-star/side.webp?v=1",
+   "w": 480,
+   "h": 308
+  },
+  "back": {
+   "src": "assets/art/avatar/variants/hats/hat-star/back.webp?v=1",
+   "w": 480,
+   "h": 314
+  },
+  "rear": {
+   "src": "assets/art/avatar/variants/hats/hat-star/rear.webp?v=1",
+   "w": 480,
+   "h": 237
+  }
+ }
+};

@@ -11,6 +11,7 @@
  */
 import { AVATAR_RIG_PARTS } from "./avatar-rig-data.mjs";
 import { AVATAR_VARIANTS, variantSrc, variantExpressions } from "./avatar-variants.mjs";
+import { hatFor, hatLocalMatrix } from "./avatar-hats.mjs";
 import { RIG_ADJUST } from "./avatar-rig-adjust.mjs";
 
 const TAU = Math.PI * 2;
@@ -303,6 +304,7 @@ export function createWalkClock() {
 }
 
 // ------------------------------------------------------------------ renderer
+const P_head = (view) => AVATAR_RIG_PARTS[view].head;
 // part object -> where it lives, so a wardrobe variant can swap its image.
 const PART_INFO = new Map();
 for (const [view, parts] of Object.entries(AVATAR_RIG_PARTS)) {
@@ -340,6 +342,8 @@ export function createAvatarRig({ ImageClass = globalThis.Image, onReady = () =>
     const view = RIG_VIEW[direction] || "front";
     let ok = true;
     for (const { src } of partsFor(view, equipped)) if (!img(src)) ok = false;
+    const hat = hatFor(equipped?.hat);
+    if (hat && !img(hat.art[view].src)) ok = false;
     // Expressions are optional: until one decodes the painted front head is used.
     if (view === "front") for (const src of Object.values(expressionFiles(equipped))) img(src);
     return ok;
@@ -382,6 +386,15 @@ export function createAvatarRig({ ImageClass = globalThis.Image, onReady = () =>
     // Back layers: pieces of a part marked "behind the body" (part.back) draw
     // before everything else. The two hooks let the rig editor preview edits.
     const hooks = globalThis.__bloomodoroRigEdit;
+    const hat = hatFor(equipped?.hat);
+    const headPart = P_head(view);
+    const drawHat = (a, spec) => {
+      const him = a && img(a.src);
+      if (!him) return;
+      const g = mul(baseM, mul(root, mul(pose.headM, hatLocalMatrix(headPart, spec, a.w, a.h))));
+      ctx.setTransform(g[0], g[1], g[2], g[3], g[4], g[5]);
+      ctx.drawImage(him, 0, 0, a.w, a.h);
+    };
     for (const [part, m] of pose.items) {
       const bk = (hooks && hooks.back(part)) || (part.back ? img(part.back) : null);
       if (!bk) continue;
@@ -414,6 +427,7 @@ export function createAvatarRig({ ImageClass = globalThis.Image, onReady = () =>
       ctx.drawImage(im, 0, 0);
       if (clipping) ctx.restore();
     }
+    if (hat) drawHat(hat.art[view], hat.spec[view]);
     ctx.restore();
     return true;
   }

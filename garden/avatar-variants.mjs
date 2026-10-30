@@ -7,12 +7,13 @@
  * image must be cut to the default part's canvas. A look is drawn by the rig
  * only when every non-default piece the player wears has its variant
  * registered; otherwise the older fallback art is used, exactly as before.
- * Hats are not rig parts yet, so a worn hat also keeps the fallback.
+ * A hat is drawn on the head by avatar-hats.mjs.
  *
  * Drawing only: item ids, ownership and saves are untouched.
  */
 
 import { VARIANT_DATA } from "./avatar-variants-data.mjs";
+import { AVATAR_HATS } from "./avatar-hats.mjs";
 
 export const DEFAULT_LOOK = Object.freeze({
   hair: "hair-natural", outfit: "outfit-linen", hat: "hat-none", shoes: "shoes-travel",
@@ -49,10 +50,11 @@ export function variantComplete(slot, sku, variants = AVATAR_VARIANTS) {
 }
 
 /** Can the rig draw this exact look? */
-export function canUseRig(equipped, variants = AVATAR_VARIANTS) {
+export function canUseRig(equipped, variants = AVATAR_VARIANTS, hats = AVATAR_HATS) {
   return slotsOf(equipped).every(([slot, sku]) => {
     if (sku === DEFAULT_LOOK[slot]) return true;
-    return slot !== "hat" && variantComplete(slot, sku, variants);
+    if (slot === "hat") return Boolean(hats[sku]?.front && hats[sku]?.side && hats[sku]?.back);
+    return variantComplete(slot, sku, variants);
   });
 }
 

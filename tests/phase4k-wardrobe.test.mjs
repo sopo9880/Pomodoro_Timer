@@ -16,7 +16,7 @@ test("the default look is always drawable; unregistered or partial variants are 
   assert.equal(canUseRig({ outfit: "outfit-forest" }, variants), true);
   assert.equal(canUseRig({ outfit: "outfit-garden" }, variants), false);
   assert.equal(variantComplete("outfit", "outfit-garden", variants), false);
-  assert.equal(canUseRig({ outfit: "outfit-forest", hat: "hat-straw" }, variants), false, "hats are not rig parts yet");
+  assert.equal(canUseRig({ outfit: "outfit-forest", hat: "hat-straw" }, variants, {}), false, "a hat without art keeps the fallback");
   assert.equal(canUseRig({ outfit: "outfit-forest", shoes: "shoes-boots", hair: "hair-chestnut" }, variants), true);
 });
 
@@ -80,7 +80,8 @@ test("a hair variant ships all six faces so blinking and surprise keep working",
   }
 });
 
-test("hats still use the older art until the rig can wear them", () => {
-  assert.equal(canUseRig({ hat: "hat-straw" }), false);
+test("every hat is drawn on the rig, and a hat missing a view is not", () => {
+  for (const hat of ["hat-straw", "hat-flower", "hat-star"]) assert.equal(canUseRig({ hat }), true, hat);
+  assert.equal(canUseRig({ hat: "hat-straw" }, AVATAR_VARIANTS, { "hat-straw": { front: {}, side: {} } }), false);
   assert.equal(canUseRig({ hair: "hair-silver", outfit: "outfit-starlight", shoes: "shoes-sky" }), true);
 });
