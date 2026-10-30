@@ -10,6 +10,7 @@
  * Pure drawing: no saves, rewards or timers are touched here.
  */
 import { AVATAR_RIG_PARTS } from "./avatar-rig-data.mjs";
+import { RIG_ADJUST } from "./avatar-rig-adjust.mjs";
 
 const TAU = Math.PI * 2;
 const DEG = Math.PI / 180;
@@ -58,6 +59,29 @@ export const NECK = Object.freeze({
   side: Object.freeze({ chin: 0.16, tuck: 0.2, width: 1.2 }),
 });
 
+/**
+ * Hand-tuned fit from the rig editor (tools/rig-editor): per view and part, a
+ * nudge around the part's own pivot — dx/dy in part pixels, rot in degrees,
+ * s scale — and z, a shift in drawing order. Parts that hang off an adjusted
+ * part (forearm on sleeve, hair on head, everything on torso) follow it.
+ */
+let ADJUST = RIG_ADJUST;
+export function setRigAdjust(next) { ADJUST = next || {}; }
+export function getRigAdjust() { return ADJUST; }
+function adj(view, key, part, m) {
+  const a = ADJUST[view]?.[key];
+  if (!a) return m;
+  const pv = apply(m, part.pivot);
+  const sc = Number.isFinite(a.s) ? a.s : 1;
+  return mul(T(pv[0] + (a.dx || 0), pv[1] + (a.dy || 0)),
+    mul(R((a.rot || 0) * DEG), mul(S(sc), mul(T(-pv[0], -pv[1]), m))));
+}
+/** Apply z shifts: each item is [part, matrix, key]. */
+function order(view, list) {
+  const z = k => ADJUST[view]?.[k]?.z || 0;
+  return list.map((it, i) => [it, i + z(it[2]) + i * 1e-3]).sort((a, b) => a[1] - b[1]).map(x => x[0]);
+}
+
 // ------------------------------------------------------------------ poses
 /** Walk phase p in [0,1): 0 = right foot planted under the hip, moving back. */
 function footPath(p, stride, lift) {
@@ -69,6 +93,7 @@ function footPath(p, stride, lift) {
 
 function frontBack(parts, back, s) {
   const P = parts, w = s.weight, p = s.phase, t = s.time;
+  const V = back ? "back" : "front";
   const thighL = len(P.thighL) * 0.82, shinL = len(P.shinL);
   const stride = shinL * 0.16, lift = shinL * 0.08;
   const breath = Math.sin(t * TAU / 3.6) * (1 - w);
@@ -90,13 +115,13 @@ function frontBack(parts, back, s) {
     const stretch = Math.min(1.18, Math.max(0.8, Math.hypot(knee[0] - hip[0], knee[1] - hip[1]) / thighL));
     const near = 1 + 0.03 * (f.lift / lift) * w;
     legs.push({ depth: foot[1] * dir, items: [
-      [thigh, place(thigh, hip[0], hip[1], -ang, 1, stretch)],
-      [shin, mul(T(foot[0], foot[1]), mul(S(near), mul(T(-foot[0], -foot[1]),
-        place(shin, foot[0], foot[1] - shinL, 0))))],
+      [thigh, adj(V, "thigh" + side, thigh, place(thigh, hip[0], hip[1], -ang, 1, stretch)), "thigh" + side],
+      [shin, adj(V, "shin" + side, shin, mul(T(foot[0], foot[1]), mul(S(near), mul(T(-foot[0], -foot[1]),
+        place(shin, foot[0], foot[1] - shinL, 0))))), "shin" + side],
     ], shadow: [foot[0], foot[1], 1 - 0.45 * (f.lift / lift) * w] });
   }
   legs.sort((a, b) => a.depth - b.depth);
-  const torso = place(P.torso, sway, hipY + len(P.thighL) * 0.06, -0.012 * Math.sin(TAU * p) * w, 1, 1 + 0.006 * breath);
+  const torso = adj(V, "torso", P.torso, place(P.torso, sway, hipY + len(P.thighL) * 0.06, -0.012 * Math.sin(TAU * p) * w, 1, 1 + 0.006 * breath));
   const neckPt = local(torso, P.torso, "neck");
   const shL = local(torso, P.torso, "shoulderL"), shR = local(torso, P.torso, "shoulderR");
   const waist = local(torso, P.torso, "waist");
@@ -104,10 +129,10 @@ function frontBack(parts, back, s) {
   const arm = (side, pt, sgn) => {
     const sl = P["sleeve" + side], fa = P["forearm" + side];
     const a = sgn * (0.07 + 0.02 * breath) + (back ? -1 : 1) * sgn * 0.05 * swing * (side === "L" ? 1 : -1);
-    const m = place(sl, pt[0], pt[1], a);
+    const m = adj(V, "sleeve" + side, sl, place(sl, pt[0], pt[1], a));
     const elbow = apply(m, [sl.end[0], sl.end[1] - (sl.end[1] - sl.pivot[1]) * 0.2]);
     const bend = (side === "L" ? 1 : -1) * 0.06 * Math.max(0, swing * (side === "L" ? 1 : -1)) * (back ? -1 : 1);
-    return [[fa, place(fa, elbow[0], elbow[1], a + sgn * 0.03 + bend)], [sl, m]];
+    return [[fa, adj(V, "forearm" + side, fa, place(fa, elbow[0], elbow[1], a + sgn * 0.03 + bend)), "forearm" + side], [sl, m, "sleeve" + side]];
   };
   const head = P.head;
   const neck = P.neck;
@@ -118,29 +143,30 @@ function frontBack(parts, back, s) {
   const headTilt = -0.012 * Math.sin(TAU * p) * w + 0.01 * Math.sin(t * TAU / 5.3) * (1 - w);
   const capeA = -0.02 * Math.sin(TAU * (p - 0.12)) * w + 0.008 * Math.sin(t * TAU / 4.4) * (1 - w);
   const skirtA = -0.016 * Math.sin(TAU * (p - 0.07)) * w;
+  const K = (key, part, m) => [part, adj(V, key, part, m), key];
   const items = {
-    cape: [P.cape, place(P.cape, neckPt[0], neckPt[1] + len(neck) * 0.3, capeA, 1, 1 + 0.01 * Math.sin(2 * TAU * (p - 0.15)) * w)],
-    skirt: [P.skirt, place(P.skirt, waist[0], waist[1], skirtA, 1 + 0.015 * Math.sin(2 * TAU * p) * w, 1)],
-    neck: [neck, place(neck, chin[0], chin[1] - len(neck) * NECK.front.tuck, 0, NECK.front.width, 1)],
-    torso: [P.torso, torso],
-    capelet: [P.capelet, place(P.capelet, neckPt[0], neckPt[1] - P.capelet.h * 0.02, -0.006 * Math.sin(TAU * p) * w)],
+    cape: K("cape", P.cape, place(P.cape, neckPt[0], neckPt[1] + len(neck) * 0.3, capeA, 1, 1 + 0.01 * Math.sin(2 * TAU * (p - 0.15)) * w)),
+    skirt: K("skirt", P.skirt, place(P.skirt, waist[0], waist[1], skirtA, 1 + 0.015 * Math.sin(2 * TAU * p) * w, 1)),
+    neck: K("neck", neck, place(neck, chin[0], chin[1] - len(neck) * NECK.front.tuck, 0, NECK.front.width, 1)),
+    torso: [P.torso, torso, "torso"],
+    capelet: K("capelet", P.capelet, place(P.capelet, neckPt[0], neckPt[1] - P.capelet.h * 0.02, -0.006 * Math.sin(TAU * p) * w)),
   };
-  const headM = mul(T(0, -bob * 0.25), place(head, chin[0], chin[1] + (back ? head.h * 0.42 : 0), headTilt));
-  items.head = [head, headM];
+  const headM = adj(V, "head", head, mul(T(0, -bob * 0.25), place(head, chin[0], chin[1] + (back ? head.h * 0.42 : 0), headTilt)));
+  items.head = [head, headM, "head"];
   if (!back) {
     const hairTop = apply(headM, [head.crown[0], head.crown[1] + head.h * 0.16]);
-    items.hair = [P.hair, place(P.hair, hairTop[0], hairTop[1], headTilt * 0.5 - 0.02 * Math.sin(TAU * (p - 0.15)) * w)];
+    items.hair = K("hair", P.hair, place(P.hair, hairTop[0], hairTop[1], headTilt * 0.5 - 0.02 * Math.sin(TAU * (p - 0.15)) * w));
   }
   const hipRight = local(torso, P.torso, "hipR");
   const bagA = 0.06 * Math.sin(TAU * (p - 0.2)) * w + 0.01 * Math.sin(t * TAU / 3.9) * (1 - w);
-  items.bag = [P.bag, back
+  items.bag = K("bag", P.bag, back
     ? place(P.bag, hipRight[0] - P.torso.w * 0.86, hipRight[1] - P.bag.h * 0.12, -bagA, 0.72, 0.72)
-    : place(P.bag, hipRight[0] + P.torso.w * 0.32, hipRight[1] - P.bag.h * 0.42, bagA, 0.78, 0.78)];
+    : place(P.bag, hipRight[0] + P.torso.w * 0.32, hipRight[1] - P.bag.h * 0.42, bagA, 0.78, 0.78));
   const armsL = arm("L", shL, 1), armsR = arm("R", shR, -1);
   const legItems = legs.flatMap(l => l.items);
   if (!back) out.push(items.cape, items.hair, ...legItems, items.skirt, items.neck, items.torso, items.bag, ...armsL, ...armsR, items.capelet, items.head);
   else out.push(...legItems, items.skirt, items.neck, items.torso, items.bag, ...armsL, ...armsR, items.cape, items.capelet, items.head);
-  return { items: out, shadows: legs.map(l => l.shadow), headM, crownY: apply(headM, head.crown)[1] };
+  return { items: order(V, out), shadows: legs.map(l => l.shadow), headM, crownY: apply(headM, head.crown)[1] };
 }
 
 function side(parts, s) {
@@ -159,40 +185,44 @@ function side(parts, s) {
     const foot = [f.x * w, -f.lift * w];
     const [ta, sa, knee] = solveLeg(hip, foot, l1, l2, 1);
     const thigh = P["thigh" + nm], shin = P["shin" + nm];
-    legs.push([[thigh, place(thigh, hip[0], hip[1], -ta)],
-      [shin, place(shin, knee[0], knee[1] - len(shin) * 0.035, -sa)]]);
+    const tm = adj("side", "thigh" + nm, thigh, place(thigh, hip[0], hip[1], -ta));
+    const kn = apply(tm, thigh.end || [thigh.pivot[0], thigh.pivot[1] + len(thigh) / (thigh.scale || 1)]);
+    const moved = ADJUST.side?.["thigh" + nm] ? kn : knee;
+    legs.push([[thigh, tm, "thigh" + nm],
+      [shin, adj("side", "shin" + nm, shin, place(shin, moved[0], moved[1] - len(shin) * 0.035, -sa)), "shin" + nm]]);
     legs[legs.length - 1].shadow = [foot[0], foot[1], 1 - 0.5 * (f.lift / lift) * w];
   }
   const lean = 0.03 * w;
-  const torso = place(P.torso, hip[0] + P.torso.w * 0.04, hipY + len(P.thighNear) * 0.08, lean - 0.015 * Math.sin(2 * TAU * p) * w, 1, 1 + 0.006 * breath);
+  const torso = adj("side", "torso", P.torso, place(P.torso, hip[0] + P.torso.w * 0.04, hipY + len(P.thighNear) * 0.08, lean - 0.015 * Math.sin(2 * TAU * p) * w, 1, 1 + 0.006 * breath));
   const neckPt = local(torso, P.torso, "neck");
   const shoulder = [neckPt[0] - P.torso.w * 0.05, neckPt[1] + P.torso.h * 0.11];
   const waist = local(torso, P.torso, "waist");
   const swing = Math.sin(TAU * p) * w; // near arm forward when far leg forward
-  const armNear = place(P.armNear, shoulder[0], shoulder[1], -0.42 * swing + 0.03 * breath);
-  const armFar = place(P.armFar, shoulder[0] - P.torso.w * 0.06, shoulder[1], 0.42 * swing - 0.03 * breath);
+  const armNear = adj("side", "armNear", P.armNear, place(P.armNear, shoulder[0], shoulder[1], -0.42 * swing + 0.03 * breath));
+  const armFar = adj("side", "armFar", P.armFar, place(P.armFar, shoulder[0] - P.torso.w * 0.06, shoulder[1], 0.42 * swing - 0.03 * breath));
   const chin = [neckPt[0] + P.torso.w * 0.08, neckPt[1] - len(P.neck) * NECK.side.chin];
   const headTilt = lean * 0.5 + 0.012 * Math.sin(2 * TAU * (p - 0.06)) * w + 0.01 * Math.sin(t * TAU / 5.3) * (1 - w);
   const headPart = s.blink ? P.headBlink : P.head;
-  const headM = mul(T(0, -bob * 0.2), place(headPart, chin[0], chin[1], headTilt));
+  const headM = adj("side", "head", headPart, mul(T(0, -bob * 0.2), place(headPart, chin[0], chin[1], headTilt)));
   const hairTop = apply(headM, [headPart.w * 0.38, headPart.h * 0.2]);
   const capeA = 0.05 * w + 0.03 * Math.sin(2 * TAU * (p - 0.12)) * w + 0.01 * Math.sin(t * TAU / 4.4) * (1 - w);
   const bagA = 0.07 * Math.sin(2 * TAU * (p - 0.2)) * w + 0.012 * Math.sin(t * TAU / 3.9) * (1 - w);
   const skirtA = 0.04 * Math.sin(2 * TAU * (p - 0.05)) * w + 0.02 * w;
+  const K = (key, part, m) => [part, adj("side", key, part, m), key];
   const items = [
-    [P.armFar, armFar],
-    [P.cape, place(P.cape, neckPt[0] - P.torso.w * 0.28, neckPt[1] + P.torso.h * 0.02, capeA)],
+    [P.armFar, armFar, "armFar"],
+    K("cape", P.cape, place(P.cape, neckPt[0] - P.torso.w * 0.28, neckPt[1] + P.torso.h * 0.02, capeA)),
     ...legs[0], ...legs[1],
-    [P.skirt, place(P.skirt, waist[0], waist[1], skirtA)],
-    [P.neck, place(P.neck, chin[0] - P.torso.w * 0.06, chin[1] - len(P.neck) * NECK.side.tuck, 0, NECK.side.width, 1)],
-    [P.hair, place(P.hair, hairTop[0], hairTop[1], 0.03 * Math.sin(2 * TAU * (p - 0.15)) * w + 0.015 * w)],
-    [P.torso, torso],
-    [P.bag, place(P.bag, waist[0] - P.torso.w * 0.05, neckPt[1] + P.torso.h * 0.05, bagA, 0.8, 0.8)],
-    [P.capelet, place(P.capelet, neckPt[0] - P.capelet.w * 0.08, neckPt[1] - P.capelet.h * 0.04, 0.02 * Math.sin(2 * TAU * (p - 0.1)) * w)],
-    [headPart, headM],
-    [P.armNear, armNear],
+    K("skirt", P.skirt, place(P.skirt, waist[0], waist[1], skirtA)),
+    K("neck", P.neck, place(P.neck, chin[0] - P.torso.w * 0.06, chin[1] - len(P.neck) * NECK.side.tuck, 0, NECK.side.width, 1)),
+    K("hair", P.hair, place(P.hair, hairTop[0], hairTop[1], 0.03 * Math.sin(2 * TAU * (p - 0.15)) * w + 0.015 * w)),
+    [P.torso, torso, "torso"],
+    K("bag", P.bag, place(P.bag, waist[0] - P.torso.w * 0.05, neckPt[1] + P.torso.h * 0.05, bagA, 0.8, 0.8)),
+    K("capelet", P.capelet, place(P.capelet, neckPt[0] - P.capelet.w * 0.08, neckPt[1] - P.capelet.h * 0.04, 0.02 * Math.sin(2 * TAU * (p - 0.1)) * w)),
+    [headPart, headM, "head"],
+    [P.armNear, armNear, "armNear"],
   ];
-  return { items, shadows: legs.map(l => l.shadow), headM, crownY: apply(headM, headPart.crown)[1] };
+  return { items: order("side", items), shadows: legs.map(l => l.shadow), headM, crownY: apply(headM, headPart.crown)[1] };
 }
 
 export function sideStride(parts = AVATAR_RIG_PARTS.side) {

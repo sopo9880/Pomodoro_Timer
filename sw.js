@@ -28,6 +28,7 @@ const PRECACHE_URLS = [
   "./garden/hires-atlas.mjs",
   "./garden/raster-art.mjs",
   "./garden/avatar-rig.mjs",
+  "./garden/avatar-rig-adjust.mjs",
   "./garden/avatar-rig-data.mjs",
   "./garden/painted-art.mjs",
   "./garden/painted-art-data.mjs",
