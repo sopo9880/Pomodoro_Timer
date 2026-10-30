@@ -10,6 +10,7 @@
  */
 import { PAINTED_ART } from "./painted-art-data.mjs";
 import { RARE_WILDLIFE_ART } from "./rare-art-data.mjs";
+import { resolveAssetUrl, onAssetChange, stripQuery } from "./asset-overrides.mjs";
 import { DECOR_BACK_VIEWS, decorViewFor } from "./decor-views.mjs";
 
 export { PAINTED_ART };
@@ -138,6 +139,8 @@ export function paintedAssetGroups() {
  */
 export function createPaintedArtAtlas({ ImageClass = globalThis.Image, base = "./", concurrency = 6 } = {}) {
   const cache = new Map();
+  // A picture swapped in the studio is picked up on the next draw.
+  onAssetChange((path) => { for (const key of [...cache.keys()]) if (stripQuery(key) === path) cache.delete(key); });
   const queue = [];
   let active = 0;
   const waiters = new Set();
@@ -161,7 +164,7 @@ export function createPaintedArtAtlas({ ImageClass = globalThis.Image, base = ".
       else done(im.naturalWidth > 0);
     };
     im.onerror = () => done(false);
-    im.src = base + src;
+    im.src = resolveAssetUrl(base + src);
     return rec;
   }
   function image(src) {

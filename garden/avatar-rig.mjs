@@ -12,7 +12,9 @@
 import { AVATAR_RIG_PARTS } from "./avatar-rig-data.mjs";
 import { AVATAR_VARIANTS, variantSrc, variantExpressions } from "./avatar-variants.mjs";
 import { hatFor, hatLocalMatrix } from "./avatar-hats.mjs";
+import { resolveAssetUrl, onAssetChange, stripQuery } from "./asset-overrides.mjs";
 import { RIG_ADJUST } from "./avatar-rig-adjust.mjs";
+import { effectiveAdjust, ownersOf, paramsFor, PARAMS_DEFAULT } from "./rig-tuning.mjs";
 
 const TAU = Math.PI * 2;
 const DEG = Math.PI / 180;
@@ -70,8 +72,16 @@ export const NECK = Object.freeze({
 let ADJUST = RIG_ADJUST;
 export function setRigAdjust(next) { ADJUST = next || {}; }
 export function getRigAdjust() { return ADJUST; }
+// What the studio (and committed tuning) changes for the look being drawn right now.
+const CTX = { tuning: null, owners: ["base"], sit: 0, up: 0 };
+let PR = paramsFor(null, ["base"]);
+const EA = (view, key) => effectiveAdjust(CTX.tuning, CTX.owners, CTX, view, key, ADJUST[view]?.[key]);
+function useLook(tuning, equipped, sit = 0, up = 0) {
+  CTX.tuning = tuning || null; CTX.owners = ownersOf(equipped); CTX.sit = sit; CTX.up = up;
+  PR = paramsFor(CTX.tuning, CTX.owners);
+}
 function adj(view, key, part, m) {
-  const a = ADJUST[view]?.[key];
+  const a = EA(view, key);
   if (!a) return m;
   const pv = apply(m, part.pivot);
   const sc = Number.isFinite(a.s) ? a.s : 1;
@@ -83,8 +93,8 @@ const LINING_OF = { capeletInner: "capelet", capeInner: "cape" };
 /** Apply z shifts: each item is [part, matrix, key]. Lining layers have their
  * own keys, so bringing a cape forward never brings its inside with it. */
 function order(view, list) {
-  const z = k => ADJUST[view]?.[k]?.z || 0;
-  const hidden = k => ADJUST[view]?.[k]?.hide || (LINING_OF[k] && ADJUST[view]?.[LINING_OF[k]]?.hide);
+  const z = k => EA(view, k)?.z || 0;
+  const hidden = k => EA(view, k)?.hide || (LINING_OF[k] && EA(view, LINING_OF[k])?.hide);
   return list.filter(it => !hidden(it[2])).map((it, i) => [it, i + z(it[2]) + i * 1e-3]).sort((a, b) => a[1] - b[1]).map(x => x[0]);
 }
 
@@ -105,15 +115,19 @@ function frontBack(parts, back, s) {
   const breath = Math.sin(t * TAU / 3.6) * (1 - w);
   const bob = Math.pow(Math.sin(TAU * p), 2) * shinL * 0.035 * w;
   const sway = Math.sin(TAU * p) * shinL * 0.018 * w;
-  const hipY = -(thighL + shinL) + bob + breath * 0.8;
-  const footX = P.torso.w * 0.17;
+  // Seated (k = 1): the hips drop to the height of the shins, the thighs fold toward the viewer
+  // and disappear under the skirt, which spreads over the lap. Works with any outfit.
+  const k = s.sit || 0, up = s.up || 0;
+  const standHip = -(thighL + shinL) + bob + breath * 0.8;
+  const hipY = standHip + (-(shinL * PR.sit.hip) + breath * 0.4 - standHip) * k;
+  const footX = P.torso.w * (0.17 + 0.03 * k);
   const out = [];
   const fR = footPath(p, stride, lift), fL = footPath(p + 0.5, stride, lift);
   // back view: the planted foot moves *down* the screen (character walks away)
   const dir = back ? -1 : 1;
   const legs = [];
   for (const [side, f, sx] of [["L", fL, -1], ["R", fR, 1]]) {
-    const foot = [sx * footX, -dir * f.x * w - f.lift * w];
+    const foot = [sx * footX, -dir * f.x * w - f.lift * w + dir * shinL * PR.sit.frontFootDrop * k];
     const hip = [sway + sx * footX * 0.86, hipY];
     const shin = P["shin" + side], thigh = P["thigh" + side];
     const knee = [foot[0], foot[1] - shinL];
@@ -121,7 +135,7 @@ function frontBack(parts, back, s) {
     const stretch = Math.min(1.18, Math.max(0.8, Math.hypot(knee[0] - hip[0], knee[1] - hip[1]) / thighL));
     const near = 1 + 0.03 * (f.lift / lift) * w;
     legs.push({ depth: foot[1] * dir, items: [
-      [thigh, adj(V, "thigh" + side, thigh, place(thigh, hip[0], hip[1], -ang, 1, stretch)), "thigh" + side],
+      ...(k > 0.5 ? [] : [[thigh, adj(V, "thigh" + side, thigh, place(thigh, hip[0], hip[1], -ang, 1, stretch)), "thigh" + side]]),
       [shin, adj(V, "shin" + side, shin, mul(T(foot[0], foot[1]), mul(S(near), mul(T(-foot[0], -foot[1]),
         place(shin, foot[0], foot[1] - shinL, 0))))), "shin" + side],
     ], shadow: [foot[0], foot[1], 1 - 0.45 * (f.lift / lift) * w] });
@@ -134,7 +148,7 @@ function frontBack(parts, back, s) {
   const swing = Math.cos(TAU * p) * w;
   const arm = (side, pt, sgn) => {
     const sl = P["sleeve" + side], fa = P["forearm" + side];
-    const a = sgn * (0.07 + 0.02 * breath) + (back ? -1 : 1) * sgn * 0.05 * swing * (side === "L" ? 1 : -1);
+    const a = (sgn * (0.07 + 0.02 * breath) + (back ? -1 : 1) * sgn * 0.05 * swing * (side === "L" ? 1 : -1)) * (1 - up) + sgn * PR.cheer.front * up;
     const m = adj(V, "sleeve" + side, sl, place(sl, pt[0], pt[1], a));
     const elbow = apply(m, [sl.end[0], sl.end[1] - (sl.end[1] - sl.pivot[1]) * 0.2]);
     const bend = (side === "L" ? 1 : -1) * 0.06 * Math.max(0, swing * (side === "L" ? 1 : -1)) * (back ? -1 : 1);
@@ -152,7 +166,7 @@ function frontBack(parts, back, s) {
   const K = (key, part, m) => [part, adj(V, key, part, m), key];
   const items = {
     cape: K("cape", P.cape, place(P.cape, neckPt[0], neckPt[1] + len(neck) * 0.3, capeA, 1, 1 + 0.01 * Math.sin(2 * TAU * (p - 0.15)) * w)),
-    skirt: K("skirt", P.skirt, place(P.skirt, waist[0], waist[1], skirtA, 1 + 0.015 * Math.sin(2 * TAU * p) * w, 1)),
+    skirt: K("skirt", P.skirt, place(P.skirt, waist[0], waist[1], skirtA, (1 + 0.015 * Math.sin(2 * TAU * p) * w) * (1 + PR.sit.skirtWide * k), 1 - PR.sit.skirtShort * k)),
     neck: K("neck", neck, place(neck, chin[0], chin[1] - len(neck) * NECK.front.tuck, 0, NECK.front.width, 1)),
     torso: [P.torso, torso, "torso"],
     capelet: K("capelet", P.capelet, place(P.capelet, neckPt[0], neckPt[1] - P.capelet.h * 0.02, -0.006 * Math.sin(TAU * p) * w)),
@@ -190,17 +204,21 @@ function side(parts, s) {
   const lift = L * 0.1;
   const breath = Math.sin(t * TAU / 3.6) * (1 - w);
   const bob = (1 - Math.abs(Math.cos(TAU * p))) * L * 0.035 * w;
-  const hipY = -L * (0.985 - 0.02 * w) + bob + breath * 0.8;
+  const k = s.sit || 0, up = s.up || 0, kick = s.kick || 0;
+  const standHip = -L * (0.985 - 0.02 * w) + bob + breath * 0.8;
+  const hipY = standHip + (-(l2 * PR.sit.hip) + breath * 0.4 - standHip) * k;
   const hip = [0, hipY];
   const legs = [];
   for (const [nm, ph] of [["Far", p + 0.5], ["Near", p]]) {
     const f = footPath(ph, stride, lift);
-    const foot = [f.x * w, -f.lift * w];
+    // seated: thigh level, shin hanging; a swing kicks the lower legs back and forth
+    const seatFoot = [l1 * (nm === "Near" ? PR.sit.nearFoot : PR.sit.farFoot) + kick * l1 * (nm === "Near" ? PR.swing.near : PR.swing.far), -Math.abs(kick) * l1 * PR.swing.lift];
+    const foot = [f.x * w * (1 - k) + seatFoot[0] * k, -f.lift * w * (1 - k) + seatFoot[1] * k];
     const [ta, sa, knee] = solveLeg(hip, foot, l1, l2, 1);
     const thigh = P["thigh" + nm], shin = P["shin" + nm];
     const tm = adj("side", "thigh" + nm, thigh, place(thigh, hip[0], hip[1], -ta));
     const kn = apply(tm, thigh.end || [thigh.pivot[0], thigh.pivot[1] + len(thigh) / (thigh.scale || 1)]);
-    const moved = ADJUST.side?.["thigh" + nm] ? kn : knee;
+    const moved = EA("side", "thigh" + nm) ? kn : knee;
     legs.push([[thigh, tm, "thigh" + nm],
       [shin, adj("side", "shin" + nm, shin, place(shin, moved[0], moved[1] - len(shin) * 0.035, -sa)), "shin" + nm]]);
     legs[legs.length - 1].shadow = [foot[0], foot[1], 1 - 0.5 * (f.lift / lift) * w];
@@ -211,10 +229,10 @@ function side(parts, s) {
   const shoulder = [neckPt[0] - P.torso.w * 0.05, neckPt[1] + P.torso.h * 0.11];
   const waist = local(torso, P.torso, "waist");
   const swing = Math.sin(TAU * p) * w; // near arm forward when far leg forward
-  const armNear = adj("side", "armNear", P.armNear, place(P.armNear, shoulder[0], shoulder[1], -0.42 * swing + 0.03 * breath));
+  const armNear = adj("side", "armNear", P.armNear, place(P.armNear, shoulder[0], shoulder[1], (-0.42 * swing + 0.03 * breath) * (1 - k) * (1 - up) - PR.sit.armNear * k * (1 - up) - PR.cheer.near * up));
   // far arm: a painting per facing (the left-facing one is stored mirrored)
   const farArm = s.flip && P.armFarL ? P.armFarL : P.armFar;
-  const armFar = adj("side", "armFar", farArm, place(farArm, shoulder[0] - P.torso.w * 0.06, shoulder[1], 0.42 * swing - 0.03 * breath));
+  const armFar = adj("side", "armFar", farArm, place(farArm, shoulder[0] - P.torso.w * 0.06, shoulder[1], (0.42 * swing - 0.03 * breath) * (1 - k) * (1 - up) - PR.sit.armFar * k * (1 - up) - PR.cheer.far * up));
   const chin = [neckPt[0] + P.torso.w * 0.08, neckPt[1] - len(P.neck) * NECK.side.chin];
   const headTilt = lean * 0.5 + 0.012 * Math.sin(2 * TAU * (p - 0.06)) * w + 0.01 * Math.sin(t * TAU / 5.3) * (1 - w);
   const headPart = s.blink ? P.headBlink : P.head;
@@ -226,7 +244,7 @@ function side(parts, s) {
   const capeOut = s.flip && P.capeL ? P.capeL : P.cape;
   const capeM = adj("side", "cape", capeOut, place(capeOut, neckPt[0] - P.torso.w * 0.04, neckPt[1] - P.torso.h * 0.02, capeA * 0.5));
   const bagA = 0.07 * Math.sin(2 * TAU * (p - 0.2)) * w + 0.012 * Math.sin(t * TAU / 3.9) * (1 - w);
-  const skirtA = 0.04 * Math.sin(2 * TAU * (p - 0.05)) * w + 0.02 * w;
+  const skirtA = (0.04 * Math.sin(2 * TAU * (p - 0.05)) * w + 0.02 * w) * (1 - k) - PR.sit.skirtRot * k;
   const K = (key, part, m) => [part, adj("side", key, part, m), key];
   // Walking thighs must never show through the skirt's sides: they are drawn
   // only below the skirt's hem line (the part above is under the skirt anyway).
@@ -236,7 +254,7 @@ function side(parts, s) {
   const ux = hd[0] / hl, uy = hd[1] / hl, far = 4000;
   const below = [[hemA[0] - ux * far, hemA[1] - uy * far], [hemB[0] + ux * far, hemB[1] + uy * far],
     [hemB[0] + ux * far - uy * far, hemB[1] + uy * far + Math.abs(ux) * far], [hemA[0] - ux * far - uy * far, hemA[1] - uy * far + Math.abs(ux) * far]];
-  for (const leg of legs) leg[0][3] = below;
+  if (k < 0.5) for (const leg of legs) leg[0][3] = below;
   const sideCapelet = adj("side", "capelet", P.capelet, place(P.capelet, neckPt[0] - P.capelet.w * 0.08, neckPt[1] - P.capelet.h * 0.04, 0.02 * Math.sin(2 * TAU * (p - 0.1)) * w));
   const items = [
     [farArm, armFar, "armFar"],
@@ -311,12 +329,15 @@ for (const [view, parts] of Object.entries(AVATAR_RIG_PARTS)) {
   if (view === "expressions") continue;
   for (const [key, part] of Object.entries(parts)) PART_INFO.set(part, { view, key });
 }
-export function createAvatarRig({ ImageClass = globalThis.Image, onReady = () => {}, base = "./", variants = AVATAR_VARIANTS } = {}) {
+export function createAvatarRig({ ImageClass = globalThis.Image, onReady = () => {}, base = "./", variants = AVATAR_VARIANTS, getTuning = () => null } = {}) {
   const images = new Map();
+  let drawn = [];            // what the last draw put on screen, for picking parts with the pointer
+  onAssetChange((path) => { for (const key of [...images.keys()]) if (stripQuery(key) === path) images.delete(key); onReady(path); });
   function srcOf(part, equipped) {
     const info = PART_INFO.get(part);
     return (info && equipped && variantSrc(equipped, info.view, info.key, variants)) || part.src;
   }
+  const hatArt = (hat, view) => hat.art[view];
   function img(src) {
     if (typeof ImageClass !== "function") return null;
     let rec = images.get(src);
@@ -327,23 +348,27 @@ export function createAvatarRig({ ImageClass = globalThis.Image, onReady = () =>
       try { im.fetchPriority = "high"; } catch { /* older browsers */ }
       im.onload = () => onReady(src);
       im.onerror = () => { rec.failed = true; };
-      im.src = base + src;
+      im.src = resolveAssetUrl(base + src);
       images.set(src, rec);
     }
     return !rec.failed && rec.im.complete && rec.im.naturalWidth > 0 ? rec.im : null;
   }
   function partsFor(view, equipped) {
     // hidden parts (and their linings / per-facing variants) are never fetched
-    const P = AVATAR_RIG_PARTS[view], A = ADJUST[view] || {};
-    const off = k => A[k]?.hide || (LINING_OF[k] && A[LINING_OF[k]]?.hide) || (k === "capeL" && A.cape?.hide) || (k === "armFarL" && A.armFar?.hide);
+    const P = AVATAR_RIG_PARTS[view];
+    const off = k => EA(view, k)?.hide || (LINING_OF[k] && EA(view, LINING_OF[k])?.hide) || (k === "capeL" && EA(view, "cape")?.hide) || (k === "armFarL" && EA(view, "armFar")?.hide);
     return Object.entries(P).filter(([k]) => !off(k)).map(([, p]) => ({ part: p, src: srcOf(p, equipped) }));
   }
-  function ready(direction = "down", equipped = null) {
+  function ready(direction = "down", equipped = null, tuning = undefined) {
+    useLook(tuning === undefined ? getTuning() : tuning, equipped);
+    return readyNow(direction, equipped);
+  }
+  function readyNow(direction, equipped) {
     const view = RIG_VIEW[direction] || "front";
     let ok = true;
     for (const { src } of partsFor(view, equipped)) if (!img(src)) ok = false;
     const hat = hatFor(equipped?.hat);
-    if (hat && !img(hat.art[view].src)) ok = false;
+    if (hat && !img(hatArt(hat, view).src)) ok = false;
     // Expressions are optional: until one decodes the painted front head is used.
     if (view === "front") for (const src of Object.values(expressionFiles(equipped))) img(src);
     return ok;
@@ -359,13 +384,15 @@ export function createAvatarRig({ ImageClass = globalThis.Image, onReady = () =>
    * expression: neutral | happy | surprised | focused ; blink is automatic.
    */
   function draw(ctx, { x, y, height, direction = "down", phase = 0.25, weight = 0, time = 0,
-    expression = "neutral", reducedMotion = false, shadow = true, equipped = null } = {}) {
+    expression = "neutral", reducedMotion = false, shadow = true, equipped = null, sit = 0, armsUp = 0, kick = 0, tuning = undefined, highlight = null } = {}) {
     const view = RIG_VIEW[direction] || "front";
-    if (!ready(direction, equipped)) return false;
+    useLook(tuning === undefined ? getTuning() : tuning, equipped, sit, armsUp);
+    if (!readyNow(direction, equipped)) return false;
+    drawn = [];
     const t = reducedMotion ? 0 : time;
     const blinkT = (t % 4.2);
     const blink = !reducedMotion && blinkT > 4.04 ? (blinkT > 4.08 && blinkT < 4.16 ? 2 : 1) : 0;
-    const st = { phase, weight: reducedMotion ? 0 : weight, time: t, blink: blink === 2, flip: direction === "left" };
+    const st = { phase, weight: reducedMotion ? 0 : weight, time: t, blink: blink === 2, flip: direction === "left", sit, up: armsUp, kick };
     const pose = view === "side" ? side(AVATAR_RIG_PARTS.side, st) : frontBack(AVATAR_RIG_PARTS[view], view === "back", st);
     const k = height / RIG_BODY_HEIGHT[view];
     const flip = direction === "left" ? -1 : 1;
@@ -390,10 +417,22 @@ export function createAvatarRig({ ImageClass = globalThis.Image, onReady = () =>
     const headPart = P_head(view);
     const drawHat = (a, spec) => {
       const him = a && img(a.src);
-      if (!him) return;
-      const g = mul(baseM, mul(root, mul(pose.headM, hatLocalMatrix(headPart, spec, a.w, a.h))));
+      if (!him || EA(view, "hat")?.hide) return;
+      const w = him.naturalWidth, h = him.naturalHeight;
+      // the hat is nudged around its own centre, like any other part
+      const m = adj(view, "hat", { pivot: [w / 2, h / 2] }, mul(pose.headM, hatLocalMatrix(headPart, spec, w, h)));
+      const g = mul(baseM, mul(root, m));
       ctx.setTransform(g[0], g[1], g[2], g[3], g[4], g[5]);
-      ctx.drawImage(him, 0, 0, a.w, a.h);
+      ctx.drawImage(him, 0, 0, w, h);
+      drawn.push({ key: "hat", g, w, h, im: him });
+      if (highlight === "hat") glow(him, g);
+    };
+    const glow = (im, g) => {
+      ctx.save();
+      ctx.setTransform(g[0], g[1], g[2], g[3], g[4], g[5]);
+      try { ctx.filter = "drop-shadow(0 0 5px #ff5a1f) drop-shadow(0 0 2px #ffd0a8)"; } catch { /* no canvas filters */ }
+      ctx.drawImage(im, 0, 0);
+      ctx.restore();
     };
     for (const [part, m] of pose.items) {
       const bk = (hooks && hooks.back(part)) || (part.back ? img(part.back) : null);
@@ -402,7 +441,7 @@ export function createAvatarRig({ ImageClass = globalThis.Image, onReady = () =>
       ctx.setTransform(g[0], g[1], g[2], g[3], g[4], g[5]);
       ctx.drawImage(bk, 0, 0);
     }
-    for (const [part, m, , clip] of pose.items) {
+    for (const [part, m, itemKey, clip] of pose.items) {
       let im = (hooks && hooks.image(part)) || img(srcOf(part, equipped));
       let mm = m;
       if (view === "front" && part === AVATAR_RIG_PARTS.front.head) {
@@ -425,13 +464,32 @@ export function createAvatarRig({ ImageClass = globalThis.Image, onReady = () =>
       const g = mul(baseM, mul(root, mm));
       ctx.setTransform(g[0], g[1], g[2], g[3], g[4], g[5]);
       ctx.drawImage(im, 0, 0);
+      drawn.push({ key: itemKey, g, w: im.naturalWidth, h: im.naturalHeight, im });
+      if (highlight && highlight === itemKey) glow(im, g);
       if (clipping) ctx.restore();
     }
-    if (hat) drawHat(hat.art[view], hat.spec[view]);
+    if (hat) drawHat(hatArt(hat, view), hat.spec[view]);
     ctx.restore();
     return true;
   }
-  return { draw, ready, preload, stats: () => ({ images: images.size }) };
+  /** Which part of the last drawing is under a canvas point? (front-most first, transparent pixels ignored) */
+  function pick(x, y) {
+    const probe = typeof document !== "undefined" ? (pick.c ||= document.createElement("canvas")) : null;
+    if (!probe) return null;
+    probe.width = probe.height = 1;
+    const pctx = probe.getContext("2d", { willReadFrequently: true });
+    for (let i = drawn.length - 1; i >= 0; i--) {
+      const d = drawn[i], g = d.g, det = g[0] * g[3] - g[1] * g[2];
+      if (!det) continue;
+      const lx = (g[3] * (x - g[4]) - g[2] * (y - g[5])) / det, ly = (-g[1] * (x - g[4]) + g[0] * (y - g[5])) / det;
+      if (lx < 0 || ly < 0 || lx >= d.w || ly >= d.h) continue;
+      pctx.clearRect(0, 0, 1, 1);
+      pctx.drawImage(d.im, Math.floor(lx), Math.floor(ly), 1, 1, 0, 0, 1, 1);
+      if (pctx.getImageData(0, 0, 1, 1).data[3] > 40) return d.key;
+    }
+    return null;
+  }
+  return { draw, ready, preload, pick, stats: () => ({ images: images.size }) };
 }
 
 /**

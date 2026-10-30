@@ -1,5 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { createAvatarRig, RIG_VIEW } from "../garden/avatar-rig.mjs";
 import { AVATAR_RIG_PARTS } from "../garden/avatar-rig-data.mjs";
 import { canUseRig, variantComplete, variantSrc, variantExpressions, VARIANT_SLOTS, DEFAULT_LOOK } from "../garden/avatar-variants.mjs";
@@ -84,4 +85,13 @@ test("every hat is drawn on the rig, and a hat missing a view is not", () => {
   for (const hat of ["hat-straw", "hat-flower", "hat-star"]) assert.equal(canUseRig({ hat }), true, hat);
   assert.equal(canUseRig({ hat: "hat-straw" }, AVATAR_VARIANTS, { "hat-straw": { front: {}, side: {} } }), false);
   assert.equal(canUseRig({ hair: "hair-silver", outfit: "outfit-starlight", shoes: "shoes-sky" }), true);
+});
+
+test("sitting and cheering are rig poses, so they cost no extra art and fit every outfit", () => {
+  const rig = readFileSync(new URL("../garden/avatar-rig.mjs", import.meta.url), "utf8");
+  assert.match(rig, /sit = 0, armsUp = 0, kick = 0/);
+  assert.match(rig, /const k = s\.sit \|\| 0/);
+  const world = readFileSync(new URL("../garden/pixel-world.mjs", import.meta.url), "utf8");
+  assert.match(world, /sit:sitAmt,armsUp:upAmt,kick/);
+  assert.match(world, /cheer:Boolean\(options\.celebration&&options\.celebration\.t<3\.4\)/);
 });

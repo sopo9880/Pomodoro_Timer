@@ -10,6 +10,7 @@ import { createAvatarSpriteAtlas } from "./avatar-art.mjs";
 import { createHighResolutionAtlas } from "./hires-atlas.mjs";
 import { createRasterAvatarAtlas } from "./raster-art.mjs";
 import { canUseRig } from "./avatar-variants.mjs";
+import { getActiveTuning } from "./rig-tuning-store.mjs";
 import { createGroundCache, pickTilePx } from "./ground-cache.mjs";
 import { WORLD_ART } from "./world-art-data.mjs";
 import { earnedMonuments } from "./monuments.mjs";
@@ -208,7 +209,7 @@ export function createPixelGardenRenderer(canvas) {
   const hiresArt = createHighResolutionAtlas();
   const rasterArt = createRasterAvatarAtlas();
   // Phase 4G: painted cutout rig for the default outfit + painted world art.
-  const avatarRig = createAvatarRig();
+  const avatarRig = createAvatarRig({ getTuning: getActiveTuning });
   const walkClock = createWalkClock();
   const painted = createPaintedArtAtlas();
   const TEXTURE_TILES = 6; // one painted ground texture spans 6x6 world tiles
@@ -219,6 +220,7 @@ export function createPixelGardenRenderer(canvas) {
   const dust = createDust();
   let quietNow = false;
   let prebakeQueued = false, groundWaiting = false;
+  let sitAmt = 0, upAmt = 0;
   const OVERLAY_TILES = 6; // seasonal snow / leaves (the leaf overlay is pre-tiled 2x2 at half size)
   const ground = createGroundCache({ document, painted, map, textureTiles: TEXTURE_TILES, overlayTiles: OVERLAY_TILES });
   let lastAvatarClock = null;
@@ -401,7 +403,7 @@ export function createPixelGardenRenderer(canvas) {
   function beginCompanionDrag(id){return companions.beginDrag(id);}
   function dragCompanion(id,x,y){return companions.dragTo(id,x,y);}
   function endCompanionDrag(id,accepted=false,point=null){return companions.endDrag(id,accepted,point);}
-  function drawAvatarSprite(avatar,garden,selected=false,{reducedMotion=false,time=0,reaction=null}={}){
+  function drawAvatarSprite(avatar,garden,selected=false,{reducedMotion=false,time=0,reaction=null,cheer=false}={}){
     const position=worldToScreen(avatar.x,avatar.y),tile=WORLD_SPEC.tileSize*camera.zoom;
     const walking=Boolean(avatar.moving);
     // Painted cutout rig: only for the outfit it was painted in, so a purchased
@@ -429,8 +431,14 @@ export function createPixelGardenRenderer(canvas) {
         }
         ctx.globalAlpha=1;
       }else dust.reset();
+      // Sitting and cheering are poses of the rig itself (eased in and out), so they fit every outfit.
+      const wantSit=avatar.seated?1:0,wantUp=cheer?1:0,ease=reducedMotion?1:Math.min(1,dt*6);
+      sitAmt+=(wantSit-sitAmt)*ease;upAmt+=(wantUp-upAmt)*ease;
+      if(Math.abs(sitAmt-wantSit)<.01)sitAmt=wantSit;
+      if(Math.abs(upAmt-wantUp)<.01)upAmt=wantUp;
+      const kick=avatar.seatAction==="swing"&&sitAmt>.9&&!reducedMotion?Math.sin(clock*2.4):0;
       avatarRig.draw(ctx,{x:position.x,y:position.y+tile*.12,height:h,direction:avatar.direction,
-        phase:gait.phase,weight:gait.weight,time:clock,expression,reducedMotion,equipped:worn});
+        phase:gait.phase,weight:gait.weight,time:clock,expression,reducedMotion,equipped:worn,sit:sitAmt,armsUp:upAmt,kick});
       if(selected){
         ctx.save();
         ctx.strokeStyle="#ffeba2";ctx.lineWidth=2.5;
@@ -732,7 +740,7 @@ export function createPixelGardenRenderer(canvas) {
         continue;
       }
       if(actor.kind==="avatar"){
-        drawAvatarSprite(actor,garden,Boolean(options.avatarSelected),{reducedMotion,time,reaction:options.avatarReaction});
+        drawAvatarSprite(actor,garden,Boolean(options.avatarSelected),{reducedMotion,time,reaction:options.avatarReaction,cheer:Boolean(options.celebration&&options.celebration.t<3.4)});
         continue;
       }
       const def=findGardenItem(actor.itemId);

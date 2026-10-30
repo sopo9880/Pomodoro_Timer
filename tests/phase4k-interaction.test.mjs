@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { decorViewFor, isDirectional, DECOR_DIRECTIONAL } from "../garden/decor-views.mjs";
-import { spotsFor, nearestSpots, createSeatController, hasSpots, readAutoSitPref, writeAutoSitPref, SIT_ART_READY } from "../garden/interaction.mjs";
+import { spotsFor, nearestSpots, createSeatController, hasSpots, readAutoSitPref, writeAutoSitPref, SIT_READY } from "../garden/interaction.mjs";
 
 const items = { "wooden-bench": { sprite: "wooden-bench" }, lantern: { sprite: "lantern" }, campfire: { sprite: "campfire" } };
 const findItem = (id) => items[id];
@@ -26,7 +26,7 @@ test("directional items turn between four steps; symmetric ones never change", (
 test("spots follow the drawn view and are derived, not stored", () => {
   const front = spotsFor(bench(), "wooden-bench");
   assert.equal(front.length, 2);
-  assert.ok(front.every((s) => s.facing === "down" && s.approach.y > 10));
+  assert.ok(front.every((s) => s.facing === "left" && s.approach.y > 10), "people sit sideways, facing the way the bench is drawn");
   const mirrored = spotsFor(bench({ rotation: 90 }), "wooden-bench");
   assert.equal(mirrored[0].x, 10 + .38);          // x flips with the mirrored art
   assert.deepEqual(spotsFor(bench(), "lantern"), []);
@@ -54,8 +54,8 @@ test("seat controller walks, seats, releases and frees the spot", () => {
   assert.equal(seat.phase, "walking");
   assert.equal(seat.occupiedKeys().size, 1);
   moving = false; assert.equal(seat.update(), "seated");
-  // the pose only applies once seated art is wired
-  assert.equal(seat.seatedVisual({ x: 1, y: 1, direction: "down" }) !== null, SIT_ART_READY);
+  const shown = seat.seatedVisual({ x: 1, y: 1, direction: "down" });
+  assert.ok(shown && shown.seated && shown.seatAction === "sit" && shown.moving === false);
   seat.release();
   assert.equal(seat.phase, "idle");
   assert.equal(seat.occupiedKeys().size, 0);
@@ -111,5 +111,5 @@ test("every back view exists and seats follow the turned furniture", () => {
     assert.ok(isDirectional(sprite), sprite);
   }
   const back = spotsFor(bench({ rotation: 180 }), "wooden-bench");
-  assert.ok(back.every((s) => s.facing === "up" && s.approach.y < 10), "seen from behind, people approach from the other side");
+  assert.ok(back.every((s) => s.facing === "right" && s.approach.y < 10), "seen from behind, people approach from the other side");
 });

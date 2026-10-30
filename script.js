@@ -4,6 +4,7 @@ import { collectionSnapshot } from "./garden/life-core.mjs";
 import { ALL_WILDLIFE as WILDLIFE_SPECIES } from "./garden/ecology.mjs";
 import { WORLD_LANDMARKS } from "./garden/world-map.mjs";
 import { growthProgress } from "./garden/longterm.mjs";
+import { watchDom } from "./garden/asset-overrides.mjs";
 import { mountGarden } from "./garden/garden-ui.mjs";
 import { mountGameShell } from "./ui/game-shell.mjs";
 
@@ -172,6 +173,7 @@ function init() {
   bindEvents();
   bindInstallEvents();
   registerServiceWorker();
+  watchDom(document);   // pictures swapped in the studio show up in icons and cards too
   restoreRunningTimer();
   gameShell = mountGameShell({
     getTimerState: () => ({ mode: state.mode, isRunning: state.isRunning }),

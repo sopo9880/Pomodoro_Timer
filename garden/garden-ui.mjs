@@ -10,7 +10,7 @@ import { REGION_SCENES, WORLD_LANDMARKS } from "./world-map.mjs";
 import { ALL_WILDLIFE as WILDLIFE_SPECIES } from "./ecology.mjs";
 import { createAvatarMotion } from "./avatar-motion.mjs";
 import { isDirectional } from "./decor-views.mjs";
-import { actionOf, createSeatController, interactionLine, readAutoSitPref, SIT_ART_READY } from "./interaction.mjs";
+import { actionOf, createSeatController, interactionLine, readAutoSitPref, writeAutoSitPref, SIT_READY, SEATED_ACTIONS } from "./interaction.mjs";
 import { CELEBRATION_SECONDS, FX_IMAGES, readCelebrationPref, writeCelebrationPref } from "./fx.mjs";
 import { createGardenSound } from "./garden-sound.mjs";
 import { canUseRig } from "./avatar-variants.mjs";
@@ -44,8 +44,13 @@ export function mountGarden({ getGarden, setGarden, getTimerState, getEnvironmen
   if (!canvas) return { refresh() {} };
   const renderer = createPixelGardenRenderer(canvas);
   const avatarMotion = createAvatarMotion(renderer.map);
-  // Rest-time seating: at the start of a break the avatar walks to a free seat.
-  // Only active once the seated art ships (SIT_ART_READY); never touches saves.
+  // Rest-time seating: at the start of a break the avatar walks to a free seat and sits (switchable).
+  // The seated look is the rig itself folding up, so it fits every outfit; saves are never touched.
+  const autoSitToggle = document.getElementById("gardenAutoSit");
+  if (autoSitToggle) {
+    autoSitToggle.checked = readAutoSitPref();
+    autoSitToggle.addEventListener("change", () => writeAutoSitPref(autoSitToggle.checked));
+  }
   const seat = createSeatController({ motion: avatarMotion, findItem: findGardenItem, getGarden });
   let wasResting = false;
   const tapCounts = {};
@@ -91,14 +96,14 @@ export function mountGarden({ getGarden, setGarden, getTimerState, getEnvironmen
     return { t, seed: celebration.seed };
   }
   function updateSeat() {
-    if (!SIT_ART_READY) return;
+    if (!SIT_READY) return;
     const timer = getTimerState();
     const resting = timer.isRunning && timer.mode !== "focus";
     if (resting && !wasResting && readAutoSitPref() && !avatarMotion.isControlled()) {
       const at = avatarMotion.visual();
       if (at) seat.seek(at);
     } else if (!resting && wasResting) seat.release();
-    else if (avatarMotion.isControlled()) seat.release();
+    else if (avatarMotion.isControlled() || (seat.phase === "seated" && avatarMotion.isMoving())) seat.release();
     wasResting = resting;
     seat.update();
   }
@@ -804,6 +809,10 @@ export function mountGarden({ getGarden, setGarden, getTimerState, getEnvironmen
       const action=actionOf(findGardenItem(picked.itemId)?.sprite);
       const line=action&&interactionLine(action,tapCounts[action]=(tapCounts[action]??-1)+1);
       if(line){announce(line);sound.play(SOUND_OF[action]||"pop");}
+      // Tapping something to sit on walks over and sits (never during focus, never while editing).
+      if(SEATED_ACTIONS.includes(action)&&currentTool==="inspect"&&avatarMotion.visual()&&seat.seekItem(picked.id,avatarMotion.visual())){
+        announce("앉아서 잠깐 쉬어 가요. 움직이면 일어나요.");
+      }
     }
     selectObject(picked);
   }

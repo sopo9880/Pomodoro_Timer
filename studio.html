@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>리그 스튜디오 · Bloomodoro</title>
+<link rel="stylesheet" href="studio/studio.css">
+</head>
+<body>
+<header class="top">
+  <h1>리그 스튜디오</h1>
+  <p>옷, 머리, 신발, 모자를 입혀 보고 부위를 옮기고, 그림을 직접 갈아 끼워요. 게임과 같은 코드로 그려서 보이는 그대로 게임에 나와요.</p>
+  <a class="back" href="index.html">← 게임으로</a>
+</header>
+<nav class="tabs" id="tabs" role="tablist">
+  <button role="tab" data-page="Char" aria-selected="true">캐릭터 맞추기</button>
+  <button role="tab" data-page="Assets" aria-selected="false">모든 그림 <small id="cntAssets"></small></button>
+  <button role="tab" data-page="Todo" aria-selected="false">만들 것 <small id="cntTodo"></small></button>
+  <button role="tab" data-page="Export" aria-selected="false">내보내기</button>
+</nav>
+<main class="bench" id="pageChar">
+  <section class="stage" id="stageBox">
+    <canvas id="stage" tabindex="0" aria-label="캐릭터 미리보기. 부위를 눌러 고르고 끌어서 옮겨요."></canvas>
+    <div class="hint" id="hint">부위를 눌러 고르고 끌어서 옮기기 · Shift+끌기 회전 · 휠 크기 · 그림 파일을 끌어다 놓으면 고른 부위의 그림이 바뀌어요</div>
+    <div class="stagebar">
+      <button class="chip" id="zoomOut" aria-label="작게">−</button>
+      <output id="zoomOut2">100%</output>
+      <button class="chip" id="zoomIn" aria-label="크게">＋</button>
+      <button class="chip" id="zoomFit">전신</button>
+      <button class="chip" id="zoomHead">머리</button>
+      <button class="chip" id="zoomTorso">상반신</button>
+    </div>
+  </section>
+  <aside class="panel">
+    <details open><summary>착용</summary>
+      <div class="grid2">
+        <label>머리 <select id="selHair"></select></label>
+        <label>옷 <select id="selOutfit"></select></label>
+        <label>모자 <select id="selHat"></select></label>
+        <label>신발 <select id="selShoes"></select></label>
+        <label>표정 <select id="selFace"><option value="neutral">기본</option><option value="happy">웃음</option><option value="surprised">놀람</option><option value="focused">집중</option></select></label>
+      </div>
+    </details>
+    <details open><summary>방향과 포즈</summary>
+      <div class="seg" id="views">
+        <button data-view="front" aria-pressed="true">정면</button><button data-view="right" aria-pressed="false">오른쪽</button>
+        <button data-view="left" aria-pressed="false">왼쪽</button><button data-view="back" aria-pressed="false">뒷면</button>
+      </div>
+      <div class="seg" id="poses">
+        <button data-pose="stand" aria-pressed="true">서기</button><button data-pose="walk" aria-pressed="false">걷기</button>
+        <button data-pose="sit" aria-pressed="false">앉기</button><button data-pose="cheer" aria-pressed="false">만세</button>
+      </div>
+      <label class="check"><input type="checkbox" id="swingToggle"> 그네 타듯 다리 흔들기 (앉기)</label>
+      <p class="note" id="poseNote"></p>
+    </details>
+    <details open><summary>부위 <small>(점 = 고친 부위)</small></summary>
+      <div class="parts" id="parts"></div>
+    </details>
+    <details open id="adjustBox"><summary id="adjustTitle">부위 보정</summary>
+      <div class="scope" id="scope">
+        <label><input type="radio" name="scope" value="look" checked> <span id="scopeLookLabel">이 착용만</span></label>
+        <label><input type="radio" name="scope" value="base"> 모든 착용 공통</label>
+      </div>
+      <p class="note" id="scopeNote"></p>
+      <div class="dial"><span>가로</span><input type="range" id="rDx" min="-150" max="150" step="0.5"><input type="number" id="nDx" step="0.5"></div>
+      <div class="dial"><span>세로</span><input type="range" id="rDy" min="-150" max="150" step="0.5"><input type="number" id="nDy" step="0.5"></div>
+      <div class="dial"><span>회전°</span><input type="range" id="rRot" min="-90" max="90" step="0.5"><input type="number" id="nRot" step="0.5"></div>
+      <div class="dial"><span>크기</span><input type="range" id="rS" min="0.4" max="2" step="0.01"><input type="number" id="nS" step="0.01"></div>
+      <div class="dial"><span>앞뒤</span><div class="zrow"><button class="btn" id="zBack">뒤로</button><output id="zOut">0</output><button class="btn" id="zFront">앞으로</button></div></div>
+      <div class="actions"><button class="btn" id="resetPart">이 부위 되돌리기</button><button class="btn" id="hidePart">숨기기</button><button class="btn" id="undo">실행 취소</button></div>
+    </details>
+    <details open><summary>그림 갈아 끼우기</summary>
+      <p class="note" id="imgNote">부위를 고른 뒤 그림 파일(PNG, WebP)을 고르거나 화면에 끌어다 놓으세요.</p>
+      <label class="check"><input type="checkbox" id="autoFit" checked> 크기와 위치를 원래 부위에 맞춰 넣기</label>
+      <div class="actions"><button class="btn primary" id="pickImage">그림 고르기…</button><button class="btn" id="restoreImage">원래 그림으로</button></div>
+      <input type="file" id="fileInput" accept="image/png,image/webp,image/jpeg" hidden>
+      <p class="note">바꾼 그림은 이 브라우저에 저장돼요. 모두에게 보이게 하려면 아래 내보내기 파일을 채팅에 올려 주세요.</p>
+    </details>
+    <details id="paramBox"><summary>포즈 수치 <small>(앉기·만세·그네)</small></summary>
+      <p class="note">치마가 어색하게 뜨거나 팔이 다리를 뚫으면 여기서 맞춰요. 이 착용만 또는 공통으로 저장돼요.</p>
+      <div id="params"></div>
+      <div class="actions"><button class="btn" id="resetParams">수치 기본값으로</button></div>
+    </details>
+    <details open><summary>저장</summary>
+      <label class="check"><input type="checkbox" id="applyToggle" checked> 이 브라우저의 게임에 바로 적용</label>
+      <p class="note" id="saveNote">수정은 자동으로 이 브라우저에 저장돼요. 모두에게 보이게 하려면 <b>내보내기</b> 탭을 쓰세요.</p>
+      <div class="actions"><button class="btn warn" id="clearAll">내 수정 모두 지우기</button></div>
+    </details>
+    <p class="keys"><kbd>←↑→↓</kbd> 1칸(<kbd>Shift</kbd> 5칸) · <kbd>[</kbd><kbd>]</kbd> 회전 · <kbd>-</kbd><kbd>=</kbd> 크기 · <kbd>Ctrl</kbd>+<kbd>Z</kbd> 실행 취소</p>
+  </aside>
+</main>
+<section class="page" id="pageAssets" hidden>
+  <div class="pagebar">
+    <input type="search" id="aq" placeholder="이름이나 경로로 찾기 (예: 치마, grass, 모닥불)" aria-label="그림 찾기">
+    <select id="aGroup" aria-label="종류"></select>
+    <select id="aFilter" aria-label="보기"><option value="all">전부</option><option value="changed">내가 바꾼 것</option><option value="flag">다시 만들기로 표시한 것</option><option value="unnamed">코드에서 안 보이는 것</option></select>
+    <output id="aCount"></output>
+  </div>
+  <p class="note">그림 하나하나를 바꾸거나 "다시 만들기"로 표시해 둘 수 있어요. 바꾼 그림은 이 브라우저의 게임에 바로 나와요. 모두에게 보이게 하려면 <b>내보내기</b> 탭에서 한 번에 묶어 주세요.</p>
+  <div class="cards" id="cards"></div>
+  <input type="file" id="aFile" accept="image/png,image/webp,image/jpeg,image/svg+xml" hidden>
+</section>
+<section class="page" id="pageTodo" hidden>
+  <p class="note">앞으로 만들어야 할 것을 적어 두는 목록이에요. 자동으로 이 브라우저에 저장되고, 내보내기에 같이 들어가요. 각 항목의 <b>프롬프트 복사</b>를 이미지 도구에 붙여 넣으면 돼요.</p>
+  <div class="todoform">
+    <input id="tTitle" placeholder="만들 것 (예: 겨울 코트)" aria-label="제목">
+    <select id="tGroup" aria-label="분류"></select>
+    <input id="tCount" type="number" min="1" value="1" aria-label="개수" title="개수">
+    <input id="tSize" placeholder="필요한 그림 (예: 13부품 시트)" aria-label="필요한 그림">
+    <input id="tNote" placeholder="메모 (선택)" aria-label="메모">
+    <button class="btn primary" id="tAdd">추가</button>
+  </div>
+  <div id="todoList"></div>
+  <h3>표시한 그림</h3>
+  <div id="flagList" class="note"></div>
+</section>
+<section class="page" id="pageExport" hidden>
+  <p class="note">바꾼 그림, 캐릭터 맞춘 값, 만들 것 목록을 한 파일로 묶어요. 이 파일을 채팅에 올려 주시면 제가 풀어서 게임에 넣어요.</p>
+  <ul id="exportSummary" class="summary"></ul>
+  <div class="actions"><button class="btn primary" id="zipBtn">모두 묶어서 내보내기 (.zip)</button><button class="btn" id="jsonBtn">설정만 내보내기 (.json)</button><button class="btn" id="importJson2">설정 가져오기 (.json)</button></div>
+  <input type="file" id="importInput2" accept="application/json,.json" hidden>
+  <p class="note" id="exportNote"></p>
+</section>
+<script type="module" src="studio/studio.mjs"></script>
+</body>
+</html>
