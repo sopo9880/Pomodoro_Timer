@@ -1,6 +1,6 @@
 """Wardrobe variants (hair, outfit, shoes) from the prompt-pack-3 sheets.
 
-Run: python3 tools/pack5.py <folder with the chosen pack-3 sheets>
+Run: python3 tools/pack5.py <folder with the pack-3 sheets> [<folder with the pack-4 re-rolls>]
 
 Each sheet is keyed, split into parts, ordered (rows top to bottom, left to right)
 and fitted onto the canvas of the default rig part it replaces (same size, same
@@ -17,7 +17,7 @@ from keyer import key, parts
 ROOT = Path(__file__).resolve().parent.parent
 AV = ROOT / "assets/art/avatar"
 OUT = AV / "variants"
-SRC = Path(sys.argv[1])
+SRCS = [Path(a) for a in sys.argv[1:]]
 VER = "1"
 
 # sku -> sheet hash; each sheet's parts, in reading order, map onto these (view, part, default file).
@@ -37,14 +37,18 @@ EXPR = ["neutral", "blink", "halfblink", "happy", "surprised", "focused"]
 
 SHEETS = {
     "hair-chestnut": ("e0ed807a", "hair", 2500), "hair-silver": ("15443005", "hair", 2500), "hair-bloom": ("3991798e", "hair", 2500),
-    "outfit-forest": ("b986d45a", "outfit", 3000), "outfit-garden": ("1fa6c5fd", "outfit", 3000), "outfit-starlight": ("ba10f692", "outfit", 3000),
-    "shoes-boots": ("4dc49093", "shoes6", 3000), "shoes-sky": ("db027b94", "shoes5", 3000),
+    "outfit-forest": ("b986d45a", "outfit", 3000), "outfit-garden": ("ed37439b", "outfit", 3000), "outfit-starlight": ("ba10f692", "outfit", 3000),
+    "shoes-boots": ("4dc49093", "shoes6", 3000), "shoes-sky": ("ae5ced3a", "shoes6grid", 3000),
 }
 EXPRESSIONS = {"hair-chestnut": "d1b16ea2", "hair-silver": "e6f51f0e", "hair-bloom": "4a50684f"}
 
 
 def sheet_path(h):
-    return next(iter(glob.glob(str(SRC / f"*{h}*.jpg"))))
+    for src in SRCS:
+        found = glob.glob(str(src / f"*{h}*.jpg"))
+        if found:
+            return found[0]
+    raise FileNotFoundError(h)
 
 
 def order(ps, gap=.45):
@@ -124,6 +128,10 @@ def cut(sku, h, kind, min_area):
         assert len(order_all := ps) >= 13
     elif kind == "shoes6":
         spec = SHOES6; want = 6
+    elif kind == "shoes6grid":
+        # top row: front L, front R, side near; bottom row: back L, back R, side far
+        spec = SHOES6; want = 6
+        ps = [ps[i] for i in (0, 1, 3, 4, 2, 5)]
     else:  # shoes5: front L, front R, back (single, mirrored for the other), side near, side far
         spec = SHOES6; want = 5
         mirrored = Image.fromarray(ps[2]["img"]).transpose(Image.FLIP_LEFT_RIGHT)
