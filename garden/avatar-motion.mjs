@@ -163,7 +163,9 @@ export function createAvatarMotion(map){
     return {done,moving:!done,changed,position:pointFrom(position),direction};
   }
   function visual(){
-    return position?{...position,direction,frame,moving:isMoving(),pose}:null;
+    // walked = cumulative tiles actually travelled; the painted rig derives
+    // its foot-locked walk phase from it (it does not grow while blocked).
+    return position?{...position,direction,frame,moving:isMoving(),pose,walked}:null;
   }
   function target(){
     return route.length?{...route[route.length-1]}:null;

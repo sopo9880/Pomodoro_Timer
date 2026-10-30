@@ -88,7 +88,8 @@ test("4F: new raster source files are wired into canvas, wardrobe, focus and off
   assert.match(world,/raster\?\.image/);
   assert.match(ui,/rasterAvatarPreviewUrl/);
   assert.match(ui,/rasterAvatarPortraitUrl/);
-  assert.match(sw,/bloomodoro-cache-v18/);
+  const cacheVersion=Number(/bloomodoro-cache-v(\d+)/.exec(sw)?.[1]);
+  assert.ok(cacheVersion>=18,"cache version must be bumped, never rolled back");
   for(const path of [
     "garden/raster-art.mjs",...files.map(x=>x[0]),
     "assets/art/avatar/portraits/portrait.webp",
