@@ -1,4 +1,4 @@
-const CACHE_NAME = "bloomodoro-cache-v22";
+const CACHE_NAME = "bloomodoro-cache-v23";
 // Painted art and fonts are kept across releases (file names change when the
 // art changes), so an app update never makes the player download the garden again.
 const ART_CACHE = "bloomodoro-art-v1";
@@ -57,20 +57,20 @@ const PRECACHE_URLS = [
   "./assets/art/avatar/boots/front_right.webp",
   "./assets/art/avatar/boots/side_far.webp",
   "./assets/art/avatar/boots/side_near.webp",
-  "./assets/art/avatar/expressions/head_blink.webp",
-  "./assets/art/avatar/expressions/head_focused.webp",
-  "./assets/art/avatar/expressions/head_halfblink.webp",
-  "./assets/art/avatar/expressions/head_happy.webp",
-  "./assets/art/avatar/expressions/head_neutral.webp",
-  "./assets/art/avatar/expressions/head_surprised.webp",
+  "./assets/art/avatar/expressions/head_blink.webp?v=2",
+  "./assets/art/avatar/expressions/head_focused.webp?v=2",
+  "./assets/art/avatar/expressions/head_halfblink.webp?v=2",
+  "./assets/art/avatar/expressions/head_happy.webp?v=2",
+  "./assets/art/avatar/expressions/head_neutral.webp?v=2",
+  "./assets/art/avatar/expressions/head_surprised.webp?v=2",
   "./assets/art/avatar/front/bag.webp",
   "./assets/art/avatar/front/cape.webp",
   "./assets/art/avatar/front/capelet.webp",
   "./assets/art/avatar/front/forearm_left.webp",
   "./assets/art/avatar/front/forearm_right.webp",
   "./assets/art/avatar/front/hair_back.webp",
-  "./assets/art/avatar/front/head.webp",
-  "./assets/art/avatar/front/neck.webp",
+  "./assets/art/avatar/front/head.webp?v=2",
+  "./assets/art/avatar/front/neck.webp?v=2",
   "./assets/art/avatar/front/skirt.webp",
   "./assets/art/avatar/front/sleeve_left.webp",
   "./assets/art/avatar/front/sleeve_right.webp",
@@ -85,7 +85,7 @@ const PRECACHE_URLS = [
   "./assets/art/avatar/side/hair_back.webp",
   "./assets/art/avatar/side/head.webp",
   "./assets/art/avatar/side/head_blink.webp",
-  "./assets/art/avatar/side/neck.webp",
+  "./assets/art/avatar/side/neck.webp?v=2",
   "./assets/art/avatar/side/skirt.webp",
   "./assets/art/avatar/side/thigh_far.webp",
   "./assets/art/avatar/side/thigh_near.webp",

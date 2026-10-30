@@ -20,7 +20,7 @@ export const AVATAR_RIG_PARTS = Object.freeze({
    ]
   },
   "neck": {
-   "src": "assets/art/avatar/front/neck.webp",
+   "src": "assets/art/avatar/front/neck.webp?v=2",
    "w": 54,
    "h": 116,
    "pivot": [
@@ -84,7 +84,7 @@ export const AVATAR_RIG_PARTS = Object.freeze({
    ]
   },
   "head": {
-   "src": "assets/art/avatar/front/head.webp",
+   "src": "assets/art/avatar/front/head.webp?v=2",
    "w": 190,
    "h": 166,
    "pivot": [
@@ -232,7 +232,7 @@ export const AVATAR_RIG_PARTS = Object.freeze({
    ]
   },
   "neck": {
-   "src": "assets/art/avatar/side/neck.webp",
+   "src": "assets/art/avatar/side/neck.webp?v=2",
    "w": 51,
    "h": 72,
    "pivot": [
@@ -616,12 +616,12 @@ export const AVATAR_RIG_PARTS = Object.freeze({
  },
  "expressions": {
   "files": {
-   "neutral": "assets/art/avatar/expressions/head_neutral.webp",
-   "blink": "assets/art/avatar/expressions/head_blink.webp",
-   "halfblink": "assets/art/avatar/expressions/head_halfblink.webp",
-   "happy": "assets/art/avatar/expressions/head_happy.webp",
-   "surprised": "assets/art/avatar/expressions/head_surprised.webp",
-   "focused": "assets/art/avatar/expressions/head_focused.webp"
+   "neutral": "assets/art/avatar/expressions/head_neutral.webp?v=2",
+   "blink": "assets/art/avatar/expressions/head_blink.webp?v=2",
+   "halfblink": "assets/art/avatar/expressions/head_halfblink.webp?v=2",
+   "happy": "assets/art/avatar/expressions/head_happy.webp?v=2",
+   "surprised": "assets/art/avatar/expressions/head_surprised.webp?v=2",
+   "focused": "assets/art/avatar/expressions/head_focused.webp?v=2"
   },
   "scale": 0.496,
   "pivot": [

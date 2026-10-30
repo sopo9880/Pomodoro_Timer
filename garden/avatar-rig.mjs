@@ -51,6 +51,13 @@ export function solveLeg(hip, foot, l1, l2, bendForward = 1) {
   return [thigh, shin, knee];
 }
 
+/** Neck fit: how far above the collar the chin sits (in neck lengths), how far
+ * the neck piece tucks up under the head, and its width against the jaw. */
+export const NECK = Object.freeze({
+  front: Object.freeze({ chin: 0.2, tuck: 0.12, width: 1.18 }),
+  side: Object.freeze({ chin: 0.16, tuck: 0.2, width: 1.2 }),
+});
+
 // ------------------------------------------------------------------ poses
 /** Walk phase p in [0,1): 0 = right foot planted under the hip, moving back. */
 function footPath(p, stride, lift) {
@@ -104,14 +111,17 @@ function frontBack(parts, back, s) {
   };
   const head = P.head;
   const neck = P.neck;
-  const chin = [neckPt[0], neckPt[1] - len(neck) * 0.42];
+  // The head picture already carries the top of the neck under the chin, so
+  // the head sits low and the separate neck piece only fills the gap to the
+  // collar, widened to the jaw so the two read as one neck.
+  const chin = [neckPt[0], neckPt[1] - len(neck) * NECK.front.chin];
   const headTilt = -0.012 * Math.sin(TAU * p) * w + 0.01 * Math.sin(t * TAU / 5.3) * (1 - w);
   const capeA = -0.02 * Math.sin(TAU * (p - 0.12)) * w + 0.008 * Math.sin(t * TAU / 4.4) * (1 - w);
   const skirtA = -0.016 * Math.sin(TAU * (p - 0.07)) * w;
   const items = {
     cape: [P.cape, place(P.cape, neckPt[0], neckPt[1] + len(neck) * 0.3, capeA, 1, 1 + 0.01 * Math.sin(2 * TAU * (p - 0.15)) * w)],
     skirt: [P.skirt, place(P.skirt, waist[0], waist[1], skirtA, 1 + 0.015 * Math.sin(2 * TAU * p) * w, 1)],
-    neck: [neck, place(neck, neckPt[0], neckPt[1] - len(neck) * 0.62, 0)],
+    neck: [neck, place(neck, chin[0], chin[1] - len(neck) * NECK.front.tuck, 0, NECK.front.width, 1)],
     torso: [P.torso, torso],
     capelet: [P.capelet, place(P.capelet, neckPt[0], neckPt[1] - P.capelet.h * 0.02, -0.006 * Math.sin(TAU * p) * w)],
   };
@@ -161,7 +171,7 @@ function side(parts, s) {
   const swing = Math.sin(TAU * p) * w; // near arm forward when far leg forward
   const armNear = place(P.armNear, shoulder[0], shoulder[1], -0.42 * swing + 0.03 * breath);
   const armFar = place(P.armFar, shoulder[0] - P.torso.w * 0.06, shoulder[1], 0.42 * swing - 0.03 * breath);
-  const chin = [neckPt[0] + P.torso.w * 0.08, neckPt[1] - len(P.neck) * 0.38];
+  const chin = [neckPt[0] + P.torso.w * 0.08, neckPt[1] - len(P.neck) * NECK.side.chin];
   const headTilt = lean * 0.5 + 0.012 * Math.sin(2 * TAU * (p - 0.06)) * w + 0.01 * Math.sin(t * TAU / 5.3) * (1 - w);
   const headPart = s.blink ? P.headBlink : P.head;
   const headM = mul(T(0, -bob * 0.2), place(headPart, chin[0], chin[1], headTilt));
@@ -174,7 +184,7 @@ function side(parts, s) {
     [P.cape, place(P.cape, neckPt[0] - P.torso.w * 0.28, neckPt[1] + P.torso.h * 0.02, capeA)],
     ...legs[0], ...legs[1],
     [P.skirt, place(P.skirt, waist[0], waist[1], skirtA)],
-    [P.neck, place(P.neck, neckPt[0] + P.torso.w * 0.02, neckPt[1] - len(P.neck) * 0.5, 0)],
+    [P.neck, place(P.neck, chin[0] - P.torso.w * 0.06, chin[1] - len(P.neck) * NECK.side.tuck, 0, NECK.side.width, 1)],
     [P.hair, place(P.hair, hairTop[0], hairTop[1], 0.03 * Math.sin(2 * TAU * (p - 0.15)) * w + 0.015 * w)],
     [P.torso, torso],
     [P.bag, place(P.bag, waist[0] - P.torso.w * 0.05, neckPt[1] + P.torso.h * 0.05, bagA, 0.8, 0.8)],

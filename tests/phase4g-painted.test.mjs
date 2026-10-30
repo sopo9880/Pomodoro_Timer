@@ -131,7 +131,7 @@ test("atlases fall back cleanly where Image is unavailable (Node, before decode)
 test("service worker precaches the rig modules and parts", () => {
   const sw = readFileSync(new URL("sw.js", root), "utf8");
   for (const f of ["./garden/avatar-rig.mjs", "./garden/painted-art.mjs", "./garden/painted-art-data.mjs",
-    "./assets/art/avatar/front/torso.webp", "./assets/art/avatar/side/head.webp", "./assets/art/avatar/expressions/head_blink.webp"]) {
+    "./assets/art/avatar/front/torso.webp", "./assets/art/avatar/side/head.webp", "./assets/art/avatar/expressions/head_blink.webp?v=2"]) {
     assert.ok(sw.includes('"' + f + '"'), f);
   }
 });
