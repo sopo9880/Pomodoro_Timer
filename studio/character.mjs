@@ -21,9 +21,10 @@ const POSE_NOTE = { stand: "서 있을 때 쓰는 값이에요. 걸을 때도 �
 const PARAM_LABELS = {
   sit: { hip: ["엉덩이 높이", .5, 1.5], skirtRot: ["치마 앞으로 접기", 0, 1.6], nearFoot: ["가까운 발 앞으로", 0, 1.4], farFoot: ["먼 발 앞으로", 0, 1.4], armNear: ["가까운 손 앞으로", 0, 1.6], armFar: ["먼 손 앞으로", 0, 1.6], skirtWide: ["치마 넓히기(정면)", 0, .5], skirtShort: ["치마 줄이기(정면)", 0, .5], frontFootDrop: ["정면 발 앞으로", 0, .5] },
   cheer: { front: ["정면 팔 올리기", 1, 3.1], near: ["가까운 팔 올리기", 1, 3.1], far: ["먼 팔 올리기", 1, 3.1] },
+  walk: { armSide: ["옆모습 팔 흔들기", 0, 1.2], armFront: ["정면·뒷모습 팔 흔들기", 0, .4], elbow: ["팔꿈치 굽힘", 0, .5], nearBack: ["가까운 팔이 뒤로 갈 때 층 (음수=몸 뒤)", -6, 6], nearFore: ["가까운 팔이 앞으로 갈 때 층", -6, 6], farBack: ["먼 팔이 뒤로 갈 때 층", -6, 6], farFore: ["먼 팔이 앞으로 갈 때 층 (양수=몸 앞)", -6, 6] },
   swing: { near: ["가까운 다리 흔들기", 0, .8], far: ["먼 다리 흔들기", 0, .8], lift: ["발 들어올리기", 0, .5] },
 };
-const POSE_KR = { sit: "앉기", cheer: "만세", swing: "그네" };
+const POSE_KR = { sit: "앉기", cheer: "만세", walk: "걷기 팔", swing: "그네" };
 
 export function mountCharacter({ say }) {
   const $ = (id) => document.getElementById(id);

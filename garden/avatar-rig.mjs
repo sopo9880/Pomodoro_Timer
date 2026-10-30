@@ -92,8 +92,8 @@ function adj(view, key, part, m) {
 const LINING_OF = { capeletInner: "capelet", capeInner: "cape" };
 /** Apply z shifts: each item is [part, matrix, key]. Lining layers have their
  * own keys, so bringing a cape forward never brings its inside with it. */
-function order(view, list) {
-  const z = k => EA(view, k)?.z || 0;
+function order(view, list, extra) {
+  const z = k => (EA(view, k)?.z || 0) + (extra?.[k] || 0);
   const hidden = k => EA(view, k)?.hide || (LINING_OF[k] && EA(view, LINING_OF[k])?.hide);
   return list.filter(it => !hidden(it[2])).map((it, i) => [it, i + z(it[2]) + i * 1e-3]).sort((a, b) => a[1] - b[1]).map(x => x[0]);
 }
@@ -148,10 +148,10 @@ function frontBack(parts, back, s) {
   const swing = Math.cos(TAU * p) * w;
   const arm = (side, pt, sgn) => {
     const sl = P["sleeve" + side], fa = P["forearm" + side];
-    const a = (sgn * (0.07 + 0.02 * breath) + (back ? -1 : 1) * sgn * 0.05 * swing * (side === "L" ? 1 : -1)) * (1 - up) + sgn * PR.cheer.front * up;
+    const a = (sgn * (0.07 + 0.02 * breath) + (back ? -1 : 1) * sgn * PR.walk.armFront * swing * (side === "L" ? 1 : -1)) * (1 - up) + sgn * PR.cheer.front * up;
     const m = adj(V, "sleeve" + side, sl, place(sl, pt[0], pt[1], a));
     const elbow = apply(m, [sl.end[0], sl.end[1] - (sl.end[1] - sl.pivot[1]) * 0.2]);
-    const bend = (side === "L" ? 1 : -1) * 0.06 * Math.max(0, swing * (side === "L" ? 1 : -1)) * (back ? -1 : 1);
+    const bend = (side === "L" ? 1 : -1) * PR.walk.elbow * Math.max(0, swing * (side === "L" ? 1 : -1)) * (back ? -1 : 1);
     return [[fa, adj(V, "forearm" + side, fa, place(fa, elbow[0], elbow[1], a + sgn * 0.03 + bend)), "forearm" + side], [sl, m, "sleeve" + side]];
   };
   const head = P.head;
@@ -229,10 +229,10 @@ function side(parts, s) {
   const shoulder = [neckPt[0] - P.torso.w * 0.05, neckPt[1] + P.torso.h * 0.11];
   const waist = local(torso, P.torso, "waist");
   const swing = Math.sin(TAU * p) * w; // near arm forward when far leg forward
-  const armNear = adj("side", "armNear", P.armNear, place(P.armNear, shoulder[0], shoulder[1], (-0.42 * swing + 0.03 * breath) * (1 - k) * (1 - up) - PR.sit.armNear * k * (1 - up) - PR.cheer.near * up));
+  const armNear = adj("side", "armNear", P.armNear, place(P.armNear, shoulder[0], shoulder[1], (-PR.walk.armSide * swing + 0.03 * breath) * (1 - k) * (1 - up) - PR.sit.armNear * k * (1 - up) - PR.cheer.near * up));
   // far arm: a painting per facing (the left-facing one is stored mirrored)
   const farArm = s.flip && P.armFarL ? P.armFarL : P.armFar;
-  const armFar = adj("side", "armFar", farArm, place(farArm, shoulder[0] - P.torso.w * 0.06, shoulder[1], (0.42 * swing - 0.03 * breath) * (1 - k) * (1 - up) - PR.sit.armFar * k * (1 - up) - PR.cheer.far * up));
+  const armFar = adj("side", "armFar", farArm, place(farArm, shoulder[0] - P.torso.w * 0.06, shoulder[1], (PR.walk.armSide * swing - 0.03 * breath) * (1 - k) * (1 - up) - PR.sit.armFar * k * (1 - up) - PR.cheer.far * up));
   const chin = [neckPt[0] + P.torso.w * 0.08, neckPt[1] - len(P.neck) * NECK.side.chin];
   const headTilt = lean * 0.5 + 0.012 * Math.sin(2 * TAU * (p - 0.06)) * w + 0.01 * Math.sin(t * TAU / 5.3) * (1 - w);
   const headPart = s.blink ? P.headBlink : P.head;
@@ -271,7 +271,10 @@ function side(parts, s) {
     [headPart, headM, "head"],
     [P.armNear, armNear, "armNear"],
   ];
-  return { items: order("side", items), shadows: legs.map(l => l.shadow), headM, crownY: apply(headM, headPart.crown)[1] };
+  // layer while swinging: positive swing = near arm back / far arm forward (blended so it never pops)
+  const lean2 = Math.max(-1, Math.min(1, swing * 3)), pw = PR.walk;
+  const depth = { armNear: lean2 > 0 ? pw.nearBack * lean2 : -pw.nearFore * lean2, armFar: lean2 > 0 ? pw.farFore * lean2 : -pw.farBack * lean2 };
+  return { items: order("side", items, { armNear: Math.round(depth.armNear), armFar: Math.round(depth.armFar) }), shadows: legs.map(l => l.shadow), headM, crownY: apply(headM, headPart.crown)[1] };
 }
 
 export function sideStride(parts = AVATAR_RIG_PARTS.side) {

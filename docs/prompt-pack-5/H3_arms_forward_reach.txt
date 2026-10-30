@@ -1,0 +1,7 @@
+# H3 앞으로 내미는 팔 (손바닥 위·아래)
+
+첨부할 기준 그림(refs 폴더): side_arm_near.png, side_arm_far.png, front_sleeve_left.png, front_sleeve_right.png, rig_side.png, rig_front.png
+
+## 프롬프트
+
+The character is the attached reference: a TALL young-adult anime-style girl (about 7 heads tall, NOT chibi), amber eyes, a cream dress with gold embroidery and green puff sleeves. NO cape. Soft painterly anime shading with clean thin warm-brown outlines, same style and proportions as the attached reference arm parts. Flat solid pure magenta background (#FF00FF), no gradient, no floor, no cast shadow, no text, no labels, no frame, no props. Every piece is a separate image with a wide magenta gap around it; pieces must NOT touch each other. Same scale as the reference arm pieces. Draw in the order listed, left to right, top to bottom. ARM ONLY: sleeve + bare forearm + hand, no body, no head, no torso. SIX pieces in a 3x2 grid. Arms stretched FORWARD (for offering, handing over, petting). Top row: (1) right-facing SIDE view near arm, palm facing UP, (2) SIDE near arm palm facing DOWN, (3) SIDE far arm palm up. Bottom row: (4) FRONT view left arm pointing toward the viewer (foreshortened) palm up, (5) FRONT view right arm pointing toward the viewer palm up, (6) FRONT view both hands cupped together holding nothing, at chest height (one piece, hands only with the two sleeves).

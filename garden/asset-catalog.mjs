@@ -71,43 +71,9 @@ export function fitModeFor(path) {
 
 export const catalog = () => ASSET_MANIFEST.map((a) => ({ path: a.p, w: a.w, h: a.h, bytes: a.b, named: a.u === 1, ...describeAsset(a.p) }));
 
-/** Things that would make the game better and have no (good) picture yet. The person edits this list in the studio. */
-export const TODO_DEFAULTS = Object.freeze([
-  { id: "wear-hair", title: "새 머리 모양", group: "wardrobe", count: 3, size: "정면·옆모습·뒷모습 머리 6부품 + 표정 6장 (시트 1장 + 표정 시트 1장)", note: "기존 3종(밤색 단발, 은빛, 꽃빛) 말고 추가. 상점 이름과 가격도 같이 정해 주세요.", status: "todo" },
-  { id: "wear-outfit", title: "새 옷", group: "wardrobe", count: 3, size: "13부품 시트 (몸통·치마·소매·팔 3개)", note: "계절옷(겨울 코트, 여름 원피스) 같은 것. 치마 길이는 기본과 같게.", status: "todo" },
-  { id: "wear-shoes", title: "새 신발", group: "wardrobe", count: 2, size: "6부품 (정면 좌우, 뒷면 좌우, 옆 가까운/먼)", note: "", status: "todo" },
-  { id: "wear-hat", title: "새 모자", group: "wardrobe", count: 3, size: "정면·옆·뒷 3장", note: "머리띠, 베레모, 겨울 털모자 등", status: "todo" },
-  { id: "terrain-blend", title: "바닥 전환 타일 (부드러운 화풍)", group: "world", count: 1, size: "풀↔흙길, 풀↔돌길, 풀↔물가, 흙↔돌 × (변 4 + 모서리 4)", note: "지금 게임의 부드러운 바닥 그림과 화풍을 맞춰서. 이전 결과는 선이 굵어서 못 썼어요.", status: "todo" },
-  { id: "sign-link", title: "지역 표지판 연결", group: "world", count: 3, size: "이미 있음(assets/art/ui/signs): 열림·잠김·기본", note: "그림은 있는데 게임에 아직 안 붙었어요. 붙이는 건 제 몫이에요.", status: "doing" },
-  { id: "companion-rest", title: "동료 쉬기·낮잠 연결", group: "companion", count: 6, size: "이미 있음(꾸러미 3 F5): 6마리 × 낮잠/앉기/기지개", note: "그림은 있는데 아직 안 잘랐어요. 자르고 연결하는 건 제 몫이에요.", status: "doing" },
-  { id: "mail-open", title: "우편함 열린 그림", group: "decor", count: 1, size: "우편함과 같은 크기, 문이 열리고 편지가 보이는 그림", note: "누르면 편지가 나오는 연출용", status: "todo" },
-  { id: "night-glow", title: "밤 조명 글로우 (그림 버전)", group: "world", count: 1, size: "랜턴 작/중/대, 모닥불, 창문 빛, 달빛, 반딧불", note: "이미 있음(꾸러미 3 B5). 지금은 코드로 그린 빛을 쓰고 있어서, 그림 쪽이 더 낫다고 보면 알려 주세요.", status: "doing" },
-  { id: "season-decor", title: "계절 소품 (겨울·가을)", group: "world", count: 10, size: "소품 64px 안팎: 눈사람, 낙엽 더미, 호박, 장식 등", note: "계절 설정에 따라 정원에 나오게", status: "todo" },
-]);
-
-export const TODO_GROUPS = Object.freeze({ wardrobe: "옷장", world: "월드", companion: "동료", decor: "장식", other: "기타" });
-export const TODO_STATUS = Object.freeze({ todo: "만들 것", doing: "만드는 중 / 연결 대기", done: "완료" });
-
-/** A prompt a person can paste into an image tool for one to-make entry. */
-export function promptFor(todo) {
-  return [
-    `Cute botanical-fantasy game art, soft painterly shading, clean thin warm-brown outlines, muted natural palette (forest green, cream, warm brown, dusty rose).`,
-    `Match the existing Bloomodoro art: a tall young-adult anime-style girl character, painterly world props.`,
-    `Flat solid pure magenta background (#FF00FF), no gradient, no floor, no cast shadow, no text. Every piece separate with a wide magenta gap; pieces must not touch.`,
-    `Subject: ${todo.title}. ${todo.size ? "Pieces: " + todo.size + "." : ""} ${todo.note || ""}`.trim(),
-  ].join("\n");
-}
-
-/** A readable summary for the person (and for me) of what is left to make and what was flagged. */
-export function buildTodoMarkdown({ todos = [], notes = {}, replaced = [], catalogRows = catalog() } = {}) {
-  const lines = ["# 만들 것 목록", ""];
-  for (const status of ["todo", "doing", "done"]) {
-    const rows = todos.filter((t) => t.status === status);
-    if (!rows.length) continue;
-    lines.push(`## ${TODO_STATUS[status]}`, "");
-    for (const t of rows) lines.push(`- [${status === "done" ? "x" : " "}] **${t.title}** (${t.count}개) — ${t.size || ""}${t.note ? " — " + t.note : ""}`);
-    lines.push("");
-  }
+/** A readable summary of the pictures the person flagged or swapped. */
+export function buildPicturesMarkdown({ notes = {}, replaced = [], catalogRows = catalog() } = {}) {
+  const lines = ["# 표시하거나 바꾼 그림", ""];
   const byPath = Object.fromEntries(catalogRows.map((r) => [r.path, r]));
   const flagged = Object.entries(notes).filter(([, n]) => n && (n.flag || n.memo));
   if (flagged.length) {

@@ -7,6 +7,7 @@
 <link rel="stylesheet" href="studio/studio.css">
 </head>
 <body>
+<div id="problem" role="alert" hidden></div>
 <header class="top">
   <h1>리그 스튜디오</h1>
   <p>옷, 머리, 신발, 모자를 입혀 보고 부위를 옮기고, 그림을 직접 갈아 끼워요. 게임과 같은 코드로 그려서 보이는 그대로 게임에 나와요.</p>
@@ -101,18 +102,9 @@
   <input type="file" id="aFile" accept="image/png,image/webp,image/jpeg,image/svg+xml" hidden>
 </section>
 <section class="page" id="pageTodo" hidden>
-  <p class="note">앞으로 만들어야 할 것을 적어 두는 목록이에요. 자동으로 이 브라우저에 저장되고, 내보내기에 같이 들어가요. 각 항목의 <b>프롬프트 복사</b>를 이미지 도구에 붙여 넣으면 돼요.</p>
-  <div class="todoform">
-    <input id="tTitle" placeholder="만들 것 (예: 겨울 코트)" aria-label="제목">
-    <select id="tGroup" aria-label="분류"></select>
-    <input id="tCount" type="number" min="1" value="1" aria-label="개수" title="개수">
-    <input id="tSize" placeholder="필요한 그림 (예: 13부품 시트)" aria-label="필요한 그림">
-    <input id="tNote" placeholder="메모 (선택)" aria-label="메모">
-    <button class="btn primary" id="tAdd">추가</button>
-  </div>
-  <div id="todoList"></div>
-  <h3>표시한 그림</h3>
-  <div id="flagList" class="note"></div>
+  <p class="note">만들 것 목록은 항상 여기 있어요(지워지지 않아요). 항목을 누르면 오른쪽에 칸이 열려요. 만든 그림을 칸마다 올리고 <b>저장</b>을 누르면 <b>완료</b>로 옮겨져요. 다 만들면 <b>내보내기</b> 탭에서 한꺼번에 받으세요. 진행 상황은 이 브라우저에 저장돼요.</p>
+  <div class="pagebar"><select id="mGroup" aria-label="분류"></select><label class="check"><input type="checkbox" id="mDone" checked> 완료도 보기</label><output id="makeSummary"></output></div>
+  <div class="makegrid"><div class="makelist" id="makeList"></div><div class="makedetail" id="makeDetail"></div></div>
 </section>
 <section class="page" id="pageExport" hidden>
   <p class="note">바꾼 그림, 캐릭터 맞춘 값, 만들 것 목록을 한 파일로 묶어요. 이 파일을 채팅에 올려 주시면 제가 풀어서 게임에 넣어요.</p>

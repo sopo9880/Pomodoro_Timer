@@ -1,4 +1,4 @@
-const CACHE_NAME = "bloomodoro-cache-v33";
+const CACHE_NAME = "bloomodoro-cache-v34";
 // Painted art and fonts are kept across releases (file names change when the
 // art changes), so an app update never makes the player download the garden again.
 const ART_CACHE = "bloomodoro-art-v1";
@@ -172,7 +172,7 @@ self.addEventListener("fetch", (event) => {
 
   if (request.mode === "navigate") {
     event.respondWith(
-      fetch(request)
+      fetch(request, { cache: "no-cache" })
         .then((response) => {
           if (response.ok) {
             const copy = response.clone();
@@ -190,7 +190,7 @@ self.addEventListener("fetch", (event) => {
   // offline fallback. Pictures, fonts and audio stay cache-first for speed.
   if (/\.(?:m?js|css|json|webmanifest|html?)$/.test(url.pathname) || url.pathname.endsWith("/")) {
     event.respondWith(
-      fetch(request)
+      fetch(request, { cache: "no-cache" })
         .then((response) => {
           if (response.ok) {
             const copy = response.clone();
