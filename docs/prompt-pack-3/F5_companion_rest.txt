@@ -1,0 +1,8 @@
+# F5 동료 쉬기·낮잠 포즈 (6종)
+
+첨부할 기준 그림(refs 폴더): companion_cat_idle.png, companion_fox_idle.png, companion_mushroom_idle.png, companion_sparrow_idle.png, companion_sprout_idle.png, companion_turtle_idle.png
+
+## 프롬프트
+
+Cute chibi botanical-fantasy game art, soft painterly shading, clean thin warm-brown outlines, same style, proportions, face, hair and default green linen outfit as the attached reference character. Flat solid pure magenta background (#FF00FF), no gradient, no floor, no cast shadow, no text, no frame. Every piece is a separate full-body image with a wide magenta gap around it; pieces must NOT touch each other. Same character scale in every piece. Draw in the order listed, left to right, top to bottom. 
+Rest poses for each of the SIX attached companions (cat, fox, mushroom, sparrow, sprout, turtle), each keeping its exact design, colors and size from its reference; pieces are the companion only. For each companion draw 3 pieces in this order: (1) curled up asleep with a tiny closed-eye smile, (2) sitting still and calm, looking at the viewer, (3) a small happy stretch or wiggle. 18 pieces in total, grouped by companion (cat 3, fox 3, mushroom 3, sparrow 3, sprout 3, turtle 3). The mushroom companion also gets (4) sitting reading a tiny book, and the cat also gets (4) a loaf pose with tucked paws.

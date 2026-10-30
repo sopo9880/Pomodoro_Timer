@@ -1,0 +1,12 @@
+# E1b 설치물 뒷면 (아치·새집·그네·우편함)
+
+첨부할 기준 그림(refs 폴더): furniture_archway_front.png, furniture_birdhouse_front.png, furniture_swing_front.png, furniture_mailbox_front.png
+
+## 프롬프트
+
+Cozy painterly botanical-fantasy garden furniture illustration, soft shading, thin warm-brown outlines, same style, materials, colors and isometric 3/4 camera angle as the attached reference objects. Flat solid pure magenta background (#FF00FF), no gradient, no floor, no cast shadow, no text, no frame. Each object is a separate piece with a wide magenta gap around it; objects must NOT touch each other. Draw them in the order listed, left to right, top to bottom. 
+For EACH attached reference object, draw the SAME object seen from the OPPOSITE side: the exact same camera angle (isometric 3/4, looking slightly down) but rotated 180 degrees, so we see its BACK. Keep identical size, proportions, materials, colors, wear and decorations, and the same ground footprint and bottom-center position as the reference so the two can be swapped in place. Do not add new details that are not in the reference. One piece per reference, same order as the attachments:
+(1) 꽃 아치
+(2) 새집
+(3) 정원 그네
+(4) 숲속 우편함

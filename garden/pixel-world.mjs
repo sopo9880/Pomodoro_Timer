@@ -8,7 +8,10 @@ import { createWildlifeEcology } from "./ecology.mjs";
 import { createWildlifeSpriteAtlas } from "./wildlife-art.mjs";
 import { createAvatarSpriteAtlas } from "./avatar-art.mjs";
 import { createHighResolutionAtlas } from "./hires-atlas.mjs";
-import { createRasterAvatarAtlas, canUseRasterAvatar } from "./raster-art.mjs";
+import { createRasterAvatarAtlas } from "./raster-art.mjs";
+import { canUseRig } from "./avatar-variants.mjs";
+import { createGroundCache, pickTilePx } from "./ground-cache.mjs";
+import { sceneryInRect, clearOfPlacements, PLACEMENT_LIGHTS } from "./scenery.mjs";
 import { createAvatarRig, createWalkClock, RIG_HEIGHT_TILES } from "./avatar-rig.mjs";
 import { createPaintedArtAtlas, COMPANION_HEIGHT_TILES, WILDLIFE_HEIGHT_TILES,
   DECOR_WIDTH_TILES, PLANT_WIDTH_TILES, PAINTED_ART, paintedAssetGroups } from "./painted-art.mjs";
@@ -210,6 +213,7 @@ export function createPixelGardenRenderer(canvas) {
   const LANDMARK_SCALE = Object.freeze({ greenhouse: 1.55, "tree-library": 1.5, workshop: 1.45, observatory: 1.6,
     gazebo: 1.5, "wishing-tree": 1.35, fountain: 1.3, "flower-arch": 1.25, "market-stall": 1.3 });
   const OVERLAY_TILES = 6; // seasonal snow / leaves (the leaf overlay is pre-tiled 2x2 at half size)
+  const ground = createGroundCache({ document, painted, map, textureTiles: TEXTURE_TILES, overlayTiles: OVERLAY_TILES });
   let lastAvatarClock = null;
   let timerState = null;
   // Invisible loading: nothing older than the painted art is ever shown. Until
@@ -395,8 +399,9 @@ export function createPixelGardenRenderer(canvas) {
     const walking=Boolean(avatar.moving);
     // Painted cutout rig: only for the outfit it was painted in, so a purchased
     // costume is never shown as the default one (it keeps the previous art).
-    const defaultOutfit=canUseRasterAvatar(garden.avatar?.equipped);
-    if(defaultOutfit&&!avatarRig.ready(avatar.direction))return;
+    const worn=garden.avatar?.equipped;
+    const defaultOutfit=canUseRig(worn);
+    if(defaultOutfit&&!avatarRig.ready(avatar.direction,worn))return;
     if(defaultOutfit){
       const clock=typeof performance!=="undefined"?performance.now()/1000:time;
       const dt=lastAvatarClock===null?0:Math.min(.25,Math.max(0,clock-lastAvatarClock));
@@ -407,7 +412,7 @@ export function createPixelGardenRenderer(canvas) {
       const focusing=Boolean(timerState?.isRunning&&timerState.mode==="focus");
       const expression=reaction==="surprised"?"surprised":reaction==="happy"?"happy":focusing?"focused":"neutral";
       avatarRig.draw(ctx,{x:position.x,y:position.y+tile*.12,height:h,direction:avatar.direction,
-        phase:gait.phase,weight:gait.weight,time:clock,expression,reducedMotion});
+        phase:gait.phase,weight:gait.weight,time:clock,expression,reducedMotion,equipped:worn});
       if(selected){
         ctx.save();
         ctx.strokeStyle="#ffeba2";ctx.lineWidth=2.5;
@@ -464,6 +469,26 @@ export function createPixelGardenRenderer(canvas) {
     ctx.fillText(goal?"⌖":allowed?"✓":"×",position.x,position.y-tile*.46);
     ctx.restore();
   }
+  // Soft round glow, one small canvas per colour; drawn additively at night.
+  const glows = new Map();
+  function glowFor(rgb) {
+    const key = rgb.join(",");
+    let g = glows.get(key);
+    if (!g) {
+      g = document.createElement("canvas"); g.width = g.height = 96;
+      const c = g.getContext("2d"), grad = c.createRadialGradient(48, 48, 0, 48, 48, 48);
+      grad.addColorStop(0, `rgba(${key},1)`); grad.addColorStop(.35, `rgba(${key},.42)`); grad.addColorStop(1, `rgba(${key},0)`);
+      c.fillStyle = grad; c.fillRect(0, 0, 96, 96);
+      glows.set(key, g);
+    }
+    return g;
+  }
+  function drawGlow(x, y, radiusTiles, rgb, alpha) {
+    const tile = WORLD_SPEC.tileSize * camera.zoom, r = radiusTiles * tile;
+    if (x < -r || y < -r || x > width + r || y > height + r) return;
+    ctx.globalAlpha = Math.min(1, alpha);
+    ctx.drawImage(glowFor(rgb), x - r, y - r, r * 2, r * 2);
+  }
   function draw(garden, timer, options = {}) {
     if (!garden) return;
     timerState = timer || null;
@@ -495,7 +520,31 @@ export function createPixelGardenRenderer(canvas) {
     let missingGround = 0, missingActors = 0;
     const needOverlay = PAINTED_ART.terrain[season === "winter" ? "snow_overlay" : season === "autumn" ? "autumn_overlay" : ""];
     if (needOverlay && !painted.isReady(needOverlay)) { painted.overlay(season); missingGround++; }
+    ground.beginFrame();
+    const tilePx = pickTilePx(tile);
     for (const chunk of map.getVisibleChunks(visible)) {
+      // One pre-merged canvas per chunk (feathered borders, shore foam, tone drift).
+      const baked = ground.get(chunk, { season, unlocked, tilePx });
+      if (baked) {
+        const cx = Math.floor(width / 2 + (chunk.x - camera.x) * tile), cy = Math.floor(height / 2 + (chunk.y - camera.y) * tile);
+        const cw = Math.ceil(chunk.width * tile) + 1, ch = Math.ceil(chunk.height * tile) + 1;
+        ctx.imageSmoothingEnabled = true;
+        ctx.drawImage(baked.canvas, cx, cy, cw, ch);
+        if (!reducedMotion && baked.water.length) {
+          // A few glints drift across the open water.
+          ctx.fillStyle = "rgba(255,255,255,.75)";
+          for (const [wx, wy, ph] of baked.water) {
+            const a = Math.sin(time * 1.5 + ph * 6.283) - .86;
+            if (a <= 0) continue;
+            const gx = Math.floor(width / 2 + (wx + .2 + ph * .6 - camera.x) * tile), gy = Math.floor(height / 2 + (wy + .3 + ph * .4 - camera.y) * tile);
+            const r = Math.max(1, Math.round(tile * .05 * (1 + a * 5)));
+            ctx.globalAlpha = Math.min(.85, a * 5);
+            ctx.fillRect(gx - r, gy, r * 2 + 1, 1); ctx.fillRect(gx, gy - r, 1, r * 2 + 1);
+          }
+          ctx.globalAlpha = 1;
+        }
+        continue;
+      }
       for (const cell of chunk.tiles) {
         if (cell.x < visible.left || cell.x > visible.right || cell.y < visible.top || cell.y > visible.bottom) continue;
         const sx = Math.floor(width / 2 + (cell.x - camera.x) * tile);
@@ -579,7 +628,10 @@ export function createPixelGardenRenderer(canvas) {
     visibleWildlifeCount = wildlife.length;
     visibleWildlife = wildlife;
     avatarVisual = options.avatar || garden.avatar;
+    const scenery = clearOfPlacements(sceneryInRect(map, visible), garden)
+      .filter(spot => unlocked.has(spot.zoneId));
     const actors = [
+      ...scenery.map(spot=>({ id:"s:"+spot.key,x:spot.x,y:spot.y,kind:"scenery",def:spot.def })),
       ...garden.placements.map(object=>({ ...object,kind:"decor" })),
       ...garden.plants.map(object=>({ ...object,kind:"plant" })),
       ...visibleFriends.map(object=>({ ...object,kind:"companion" })),
@@ -589,6 +641,12 @@ export function createPixelGardenRenderer(canvas) {
       actor.y>visible.top-3&&actor.y<visible.bottom+3)
      .sort((a,b)=>a.y-b.y);
     for (const actor of actors) {
+      if (actor.kind === "scenery") {
+        const img = painted.scenery(actor.def.src);
+        if (img) drawPainted({ image: img, sx: 0, sy: 0, sw: img.naturalWidth, sh: img.naturalHeight, ref: img.naturalHeight },
+          actor.x, actor.y, 0, { widthTiles: actor.def.w, shadow: !actor.def.light && actor.def.w > .7 });
+        continue;
+      }
       if (actor.kind === "wildlife") {
         const pw = remember("w:" + actor.id, painted.wildlife(actor.speciesId,reducedMotion?0:actor.frame));
         if (!pw) missingActors++;
@@ -623,8 +681,9 @@ export function createPixelGardenRenderer(canvas) {
         drawPainted(pp, actor.x, actor.y, 0, { widthTiles: PLANT_WIDTH_TILES, rotation: sway * .5 });
       } else {
         const sprite = def?.sprite || "flower-pot";
-        const pd = painted.decor(sprite);
-        const art = pd && { image: pd, sx: 0, sy: 0, sw: pd.naturalWidth, sh: pd.naturalHeight, ref: pd.naturalHeight };
+        const dv = painted.decorView(sprite, actor.rotation);
+        const pd = dv?.image;
+        const art = pd && { image: pd, sx: 0, sy: 0, sw: pd.naturalWidth, sh: pd.naturalHeight, ref: pd.naturalHeight, flipX: dv.flipX };
         if (art) drawPainted(art, actor.x, actor.y, 0, { widthTiles: DECOR_WIDTH_TILES[sprite] || 1.2 });
         else if (painted.hasDecor(sprite)) missingActors++;
         else if (!painted.hasDecor(sprite)) drawSprite(sprite,actor.x,actor.y,1.5,actor.rotation||0);
@@ -638,6 +697,24 @@ export function createPixelGardenRenderer(canvas) {
     if (environment.time === "night") {
       ctx.fillStyle = "rgba(10,22,48,.27)";
       ctx.fillRect(0, 0, width, height);
+      // Lamps, fires and star props light their surroundings; reduced motion holds them steady.
+      ctx.save();
+      ctx.globalCompositeOperation = "lighter";
+      for (const spot of scenery) {
+        const light = spot.def.light;
+        if (!light) continue;
+        const p = worldToScreen(spot.x, spot.y);
+        const breath = reducedMotion ? 1 : 1 + Math.sin(time * 1.6 + spot.x * 3.1) * .07;
+        drawGlow(p.x, p.y - tile * (spot.def.w * .55), light.r, light.rgb, light.a * breath);
+      }
+      for (const object of garden.placements) {
+        const light = PLACEMENT_LIGHTS[findGardenItem(object.itemId)?.sprite];
+        if (!light) continue;
+        const p = worldToScreen(object.x, object.y);
+        const flick = reducedMotion ? 1 : light.flicker ? 1 + Math.sin(time * 9 + object.x) * .09 + Math.sin(time * 5.3) * .05 : 1 + Math.sin(time * 1.4 + object.x) * .05;
+        drawGlow(p.x, p.y - tile * light.lift, light.r, light.rgb, light.a * flick);
+      }
+      ctx.restore();
       // Low-cost twinkling fireflies are deterministic per scene and intentionally sparse.
       for (let i = 0; i < 22; i++) {
         const x = noise(i, 7) * width, y = noise(i, 19) * height;
@@ -665,9 +742,10 @@ export function createPixelGardenRenderer(canvas) {
     if (options.ghost) {
       const g = options.ghost;
       const plantArt = painted.plant(g.sprite, 3, 0);
-      const decorImg = painted.decor(g.sprite);
+      const ghostView = painted.decorView(g.sprite, g.rotation);
+      const decorImg = ghostView?.image;
       if (plantArt) drawPainted(plantArt, g.x, g.y, 0, { widthTiles: PLANT_WIDTH_TILES, opacity: .6 });
-      else if (decorImg) drawPainted({ image: decorImg, sx: 0, sy: 0, sw: decorImg.naturalWidth, sh: decorImg.naturalHeight, ref: decorImg.naturalHeight },
+      else if (decorImg) drawPainted({ image: decorImg, sx: 0, sy: 0, sw: decorImg.naturalWidth, sh: decorImg.naturalHeight, ref: decorImg.naturalHeight, flipX: ghostView.flipX },
         g.x, g.y, 0, { widthTiles: DECOR_WIDTH_TILES[g.sprite] || 1.2, opacity: .6 });
       else if (!PAINTED_ART.plants[g.sprite] && !painted.hasDecor(g.sprite)) drawSprite(g.sprite,g.x,g.y,1.5,g.rotation||0,.65);
     }

@@ -1,0 +1,8 @@
+# A5 (선택) 머리 표정 6종 — bloom
+
+첨부할 기준 그림(refs 폴더): face_neutral.png, face_blink.png, face_halfblink.png, face_happy.png, face_surprised.png, face_focused.png
+
+## 프롬프트
+
+Cute chibi botanical-fantasy game character art, soft painterly shading with clean thin warm-brown outlines, same style, proportions and face as the attached reference character. Muted natural palette. Flat solid pure magenta background (#FF00FF), no gradient, no floor, no cast shadow, no text, no frame. Every piece is a separate image with a wide magenta gap; pieces must NOT touch. Same scale as the reference. Draw in the order listed, left to right, top to bottom. 
+Redraw the FRONT-VIEW head six times with the SAME face expressions as the six attached references (neutral, blink, half-blink, happy, surprised, focused), same framing and size, but with the new hair: long soft cherry-blossom pink hair. Keep the face, eyes, skin and the small leaf-and-flower hair ornament identical to the references; only the hair changes. Six pieces in the order: neutral, blink, half-blink, happy, surprised, focused.

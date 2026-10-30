@@ -1,0 +1,8 @@
+# F2 모닥불 앞 바닥에 앉기
+
+첨부할 기준 그림(refs 폴더): character_full.png
+
+## 프롬프트
+
+Cute chibi botanical-fantasy game art, soft painterly shading, clean thin warm-brown outlines, same style, proportions, face, hair and default green linen outfit as the attached reference character. Flat solid pure magenta background (#FF00FF), no gradient, no floor, no cast shadow, no text, no frame. Every piece is a separate full-body image with a wide magenta gap around it; pieces must NOT touch each other. Same character scale in every piece. Draw in the order listed, left to right, top to bottom. 
+Full-body character sitting on the ground by a campfire (draw NO fire), knees up and hugged with both arms, in a 3/4 front view, warm relaxed expression. Five pieces: (1) sitting hugging knees, (2) the same pose with eyes closed and gentle smile, (3) holding both hands out to warm them toward the left, (4) same but toward the right, (5) leaning back on both hands looking up at the sky.

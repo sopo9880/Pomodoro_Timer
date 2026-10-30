@@ -1,0 +1,9 @@
+# A3 신발 — shoes-sky
+
+첨부할 기준 그림(refs 폴더): boot_front_left.png, boot_front_right.png, boot_back_left.png, boot_back_right.png, boot_side_near.png, boot_side_far.png
+
+## 프롬프트
+
+Cute chibi botanical-fantasy game character art, soft painterly shading with clean thin warm-brown outlines, same style, proportions and face as the attached reference character. Muted natural palette (forest green, cream, warm brown, dusty rose). Flat solid pure magenta background (#FF00FF), no gradient, no floor, no cast shadow, no text, no frame. Every part is a separate piece with a wide magenta gap around it; parts must NOT touch or overlap each other. Draw each part flat and un-posed, at the same scale as the reference part, in the order listed, in a grid, left to right and top to bottom. 
+Make the SHOE VARIANT: soft sky-blue / teal (#507b80) canvas shoes with pale (#acd1cf) toes and cream laces. Same height and shape as the reference parts (each part is a tall piece that includes the lower leg/sock above the shoe, like the reference).
+Six parts, in this order: (1) front view left, (2) front view right, (3) back view left, (4) back view right, (5) right-facing side view near foot, (6) side view far foot.

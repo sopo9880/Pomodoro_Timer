@@ -1,0 +1,8 @@
+# D3 요일 배지·공유 카드 (선택)
+
+첨부할 기준 그림: character_full.png (화풍 참고)
+
+## 프롬프트
+
+Cute chibi botanical-fantasy game character art, soft painterly shading with clean thin warm-brown outlines, same style, proportions and face as the attached reference character. Muted natural palette (forest green, cream, warm brown, dusty rose). Flat solid pure magenta background (#FF00FF), no gradient, no floor, no cast shadow, no text, no frame. Every part is a separate piece with a wide magenta gap around it; parts must NOT touch or overlap each other. Draw each part flat and un-posed, at the same scale as the reference part, in the order listed, in a grid, left to right and top to bottom. 
+7 round weekday badges (Mon-Sun) as small botanical icons (no letters: leaf, sprout, bud, flower, fruit, star, moon) in a round wooden medallion; and 2 decorative share-card borders (botanical vine frame with empty center, no text).
