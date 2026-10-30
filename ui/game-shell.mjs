@@ -1,3 +1,4 @@
+import { weeklyRhythm, monumentProgress, shareText } from "../garden/longterm.mjs";
 // Pure UI shell: navigation and local presentation preferences only.
 // Timer and garden state remain owned by their respective existing controllers.
 const PREFS_KEY = "bloomodoro-world-display-v1";
@@ -40,7 +41,7 @@ export function buildWeekFocusSummary(dailyStats, at = new Date()) {
   }
   return { days, totalMinutes: days.reduce((total, day) => total + day.minutes, 0) };
 }
-export function mountGameShell({ getTimerState, getDailyStats = () => ({}) }) {
+export function mountGameShell({ getTimerState, getDailyStats = () => ({}), getShareStats = () => ({}) }) {
   const app = document.getElementById("gameApp");
   if (!app) throw new Error("Bloomodoro game shell was not found");
   const links = [...app.querySelectorAll(".screen-link")];
@@ -87,6 +88,31 @@ export function mountGameShell({ getTimerState, getDailyStats = () => ({}) }) {
       fragment.append(column);
     });
     bars.replaceChildren(fragment);
+    const stats = getShareStats() || {};
+    const rhythm = document.getElementById("journalRhythm");
+    if (rhythm) rhythm.textContent = weeklyRhythm(summary);
+    const monument = document.getElementById("journalMonument");
+    if (monument && Number.isFinite(stats.focusSeconds)) {
+      const m = monumentProgress(stats.focusSeconds);
+      monument.textContent = m.next
+        ? `다음 기념물 '${m.next.name}'까지 집중 ${Math.max(1, Math.ceil(m.remainingSeconds / 3600))}시간`
+        : "모든 기념물을 모았어요. 정원이 오래 기억할 거예요.";
+    }
+  }
+  const shareButton = document.getElementById("journalShare");
+  if (shareButton) {
+    shareButton.addEventListener("click", async () => {
+      const summary = buildWeekFocusSummary(getDailyStats());
+      const stats = getShareStats() || {};
+      const text = shareText({ weekMinutes: summary.totalMinutes, activeDays: summary.days.filter((d) => d.minutes > 0).length,
+        plantsBloomed: stats.plantsBloomed || 0, discovered: stats.discovered || 0, total: stats.total || 0 });
+      try {
+        if (navigator.share) { await navigator.share({ text }); return; }
+        await navigator.clipboard.writeText(text);
+        shareButton.textContent = "복사했어요! 어디든 붙여넣어 보세요";
+      } catch { /* the person closed the share sheet, or clipboard is blocked */ }
+      setTimeout(() => { shareButton.textContent = "정원 일기 공유하기"; }, 2600);
+    });
   }
   const getEnvironment = () => resolveWorldDisplayPreferences(preferences);
   function updateEnvironment() {

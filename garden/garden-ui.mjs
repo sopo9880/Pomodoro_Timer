@@ -13,6 +13,8 @@ import { isDirectional } from "./decor-views.mjs";
 import { actionOf, createSeatController, interactionLine, readAutoSitPref, SIT_ART_READY } from "./interaction.mjs";
 import { CELEBRATION_SECONDS, FX_IMAGES, readCelebrationPref, writeCelebrationPref } from "./fx.mjs";
 import { createGardenSound } from "./garden-sound.mjs";
+import { hintFor, discoveredOnLabel, welcomeBack, growthProgress, growthLabel } from "./longterm.mjs";
+import { localDayKey } from "../core/focus-core.mjs";
 import { avatarIllustrationUri, companionIllustrationUri, wildlifeIllustrationUri } from "./hires-atlas.mjs";
 import { rasterAvatarPreviewUrl, rasterAvatarPortraitUrl, canUseRasterAvatar } from "./raster-art.mjs";
 import { renderRigPortrait } from "./avatar-rig.mjs";
@@ -60,6 +62,22 @@ export function mountGarden({ getGarden, setGarden, getTimerState, getEnvironmen
     avatarMotion.cancel();
     announce("집중 완료! 정원이 함께 기뻐해요.");
   });
+  // A welcome back that never counts what was missed (device-local, not saved in the garden).
+  try {
+    const today = localDayKey(), last = localStorage.getItem("bloomodoro-last-visit");
+    const greeting = welcomeBack(last, today);
+    if (greeting) setTimeout(() => announce(greeting), 1400);
+    localStorage.setItem("bloomodoro-last-visit", today);
+  } catch { /* storage may be blocked; no greeting then */ }
+  // Walking up to a creature records it in the codex, once (never during focus).
+  let lastNotice = 0;
+  function noticeNearby(now, player) {
+    if (!player || now - lastNotice < 1500 || editingLocked()) return;
+    lastNotice = now;
+    const creature = renderer.getWildlifeAt(player.x, player.y, 3.4);
+    if (!creature || (getGarden().discovery?.wildlife || []).includes(creature.speciesId)) return;
+    mutate((garden) => discover(garden, "wildlife", creature.speciesId), creature.name + "을(를) 만났어요! 도감에 기록했어요.", false);
+  }
   const SOUND_OF = { mail: "ding", listen: "chime", well: "splash", watch: "splash", warm: "warm", sit: "sit", swing: "pop", tea: "pop" };
   const sound = createGardenSound({
     getSettings: getSoundSettings,
@@ -295,7 +313,7 @@ export function mountGarden({ getGarden, setGarden, getTimerState, getEnvironmen
     const stage = selected.kind === "plant" ? getPlantGrowthStage(object, getGarden().progress.focusSeconds) : null;
     view.selectionTitle.textContent = definition?.name || "정원 아이템";
     view.selectionDetail.textContent = selected.kind === "plant"
-      ? "성장 " + (stage + 1) + " / 4단계 · 실제 집중 시간에 따라 자라요."
+      ? "성장 " + (stage + 1) + " / 4단계 · " + growthLabel(growthProgress(object, getGarden().progress.focusSeconds))
       : isDirectional(definition?.sprite)
         ? "배치 위치를 이동하거나 돌려서 바라보는 방향을 바꿀 수 있어요."
         : "배치 위치를 이동할 수 있어요. 어느 쪽에서 봐도 같아서 돌리지 않아요.";
@@ -448,15 +466,18 @@ export function mountGarden({ getGarden, setGarden, getTimerState, getEnvironmen
         const codexId=category==="plants"||category==="decorations"?findGardenItem(entry.id)?.sprite
           :category==="landmarks"?WORLD_LANDMARKS.find(x=>x.id===entry.id)?.sprite:entry.id;
         const codexSrc=paintedThumb(codexKind,codexId);
-        if(entry.discovered&&(codexSrc||category==="companions"||category==="wildlife")){
+        // Undiscovered entries keep their silhouette (CSS darkens it) and a hint.
+        if(codexSrc||category==="companions"||category==="wildlife"){
           const picture=document.createElement("img");
           picture.alt="";picture.loading="lazy";picture.decoding="async";
           picture.src=codexSrc||(category==="companions"?companionIllustrationUri(entry.id):wildlifeIllustrationUri(entry.id));
           tile.append(picture);
         }
         const label=document.createElement("span");
-        label.textContent=entry.discovered?entry.name:"??? · 미발견";
+        label.textContent=entry.discovered?entry.name:"???";
         tile.append(label);
+        const note=entry.discovered?discoveredOnLabel(garden,category,entry.id):hintFor(category,entry.id);
+        if(note){const small=document.createElement("small");small.textContent=note;tile.append(small);}
         cards.append(tile);
       }
       details.append(sum,cards);fragment.append(details);
@@ -1072,6 +1093,7 @@ export function mountGarden({ getGarden, setGarden, getTimerState, getEnvironmen
         if(step.done)saveAvatarPosition(true);
       }
       updateSeat();
+      noticeNearby(timestamp,avatarMotion.visual());
       const player=seat.seatedVisual(avatarMotion.visual())||avatarMotion.visual();
       cameraSettling=followCamera(player,elapsed,timestamp);
       const celebrating=celebrationState(timestamp);

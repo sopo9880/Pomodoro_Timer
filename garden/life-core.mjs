@@ -123,11 +123,23 @@ export function normalizeDiscovery(raw){
   }
   return result;
 }
-export function discover(garden,category,id){
+/** First-seen days, an optional additive map such as {"wildlife:owl":"2026-10-30"}. */
+export function normalizeDiscoveryDates(raw){
+  const out={};
+  if(!raw||typeof raw!=="object"||Array.isArray(raw))return out;
+  for(const [key,day] of Object.entries(raw).slice(0,1024)){
+    if(/^[a-z]+:[\w-]{1,90}$/.test(key)&&typeof day==="string"&&/^\d{4}-\d{2}-\d{2}$/.test(day))out[key]=day;
+  }
+  return out;
+}
+export function discover(garden,category,id,at=Date.now()){
   if(!CATEGORIES.includes(category)||!validId(id))throw new Error("알 수 없는 도감 항목이에요.");
   const existing=garden.discovery?.[category]||[];
   if(existing.includes(id))return garden;
-  return {...garden,discovery:{...normalizeDiscovery(garden.discovery),[category]:[...existing,id].slice(0,256)}};
+  const d=new Date(at),day=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+  const dates=garden.discoveryDates&&typeof garden.discoveryDates==="object"?garden.discoveryDates:{};
+  return {...garden,discovery:{...normalizeDiscovery(garden.discovery),[category]:[...existing,id].slice(0,256)},
+    discoveryDates:{...dates,[`${category}:${id}`]:day}};
 }
 export function collectionSnapshot(garden,{items=[],companions=[],wildlife=[],landmarks=[]}={}){
   const found={

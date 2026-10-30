@@ -232,3 +232,8 @@ body[data-mode="shortBreak"] .timer-ring, body[data-mode="longBreak"] .timer-rin
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
 }
+
+/* Phase 4N: calm weekly rhythm, monument ledger and share */
+.journal-rhythm { margin: 10px 2px 0; font-size: var(--step--1); color: var(--ink-soft); line-height: 1.5; }
+.journal-monument { color: var(--moss); }
+.journal-share { margin-top: 12px; }
