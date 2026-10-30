@@ -254,5 +254,232 @@ export const WORLD_ART = {
     "h": 31
    }
   ]
- }
+ },
+ "props": [
+  {
+   "src": "assets/art/world/props2/p_00.webp?v=1",
+   "w": 135,
+   "h": 129
+  },
+  {
+   "src": "assets/art/world/props2/p_01.webp?v=1",
+   "w": 96,
+   "h": 131
+  },
+  {
+   "src": "assets/art/world/props2/p_02.webp?v=1",
+   "w": 78,
+   "h": 138
+  },
+  {
+   "src": "assets/art/world/props2/p_03.webp?v=1",
+   "w": 81,
+   "h": 140
+  },
+  {
+   "src": "assets/art/world/props2/p_04.webp?v=1",
+   "w": 127,
+   "h": 79
+  },
+  {
+   "src": "assets/art/world/props2/p_05.webp?v=1",
+   "w": 99,
+   "h": 145
+  },
+  {
+   "src": "assets/art/world/props2/p_06.webp?v=1",
+   "w": 96,
+   "h": 137
+  },
+  {
+   "src": "assets/art/world/props2/p_07.webp?v=1",
+   "w": 73,
+   "h": 126
+  },
+  {
+   "src": "assets/art/world/props2/p_08.webp?v=1",
+   "w": 86,
+   "h": 108
+  },
+  {
+   "src": "assets/art/world/props2/p_09.webp?v=1",
+   "w": 106,
+   "h": 110
+  },
+  {
+   "src": "assets/art/world/props2/p_10.webp?v=1",
+   "w": 126,
+   "h": 102
+  },
+  {
+   "src": "assets/art/world/props2/p_11.webp?v=1",
+   "w": 91,
+   "h": 126
+  },
+  {
+   "src": "assets/art/world/props2/p_12.webp?v=1",
+   "w": 125,
+   "h": 86
+  },
+  {
+   "src": "assets/art/world/props2/p_13.webp?v=1",
+   "w": 127,
+   "h": 99
+  },
+  {
+   "src": "assets/art/world/props2/p_14.webp?v=1",
+   "w": 78,
+   "h": 117
+  },
+  {
+   "src": "assets/art/world/props2/p_15.webp?v=1",
+   "w": 78,
+   "h": 123
+  },
+  {
+   "src": "assets/art/world/props2/p_16.webp?v=1",
+   "w": 97,
+   "h": 96
+  },
+  {
+   "src": "assets/art/world/props2/p_17.webp?v=1",
+   "w": 114,
+   "h": 124
+  },
+  {
+   "src": "assets/art/world/props2/p_18.webp?v=1",
+   "w": 88,
+   "h": 119
+  },
+  {
+   "src": "assets/art/world/props2/p_19.webp?v=1",
+   "w": 101,
+   "h": 113
+  },
+  {
+   "src": "assets/art/world/props2/p_20.webp?v=1",
+   "w": 122,
+   "h": 124
+  },
+  {
+   "src": "assets/art/world/props2/p_21.webp?v=1",
+   "w": 91,
+   "h": 120
+  },
+  {
+   "src": "assets/art/world/props2/p_22.webp?v=1",
+   "w": 87,
+   "h": 124
+  },
+  {
+   "src": "assets/art/world/props2/p_23.webp?v=1",
+   "w": 92,
+   "h": 109
+  },
+  {
+   "src": "assets/art/world/props2/p_24.webp?v=1",
+   "w": 91,
+   "h": 117
+  },
+  {
+   "src": "assets/art/world/props2/p_25.webp?v=1",
+   "w": 89,
+   "h": 127
+  },
+  {
+   "src": "assets/art/world/props2/p_26.webp?v=1",
+   "w": 120,
+   "h": 127
+  },
+  {
+   "src": "assets/art/world/props2/p_27.webp?v=1",
+   "w": 99,
+   "h": 102
+  },
+  {
+   "src": "assets/art/world/props2/p_28.webp?v=1",
+   "w": 92,
+   "h": 131
+  },
+  {
+   "src": "assets/art/world/props2/p_29.webp?v=1",
+   "w": 81,
+   "h": 128
+  },
+  {
+   "src": "assets/art/world/props2/p_30.webp?v=1",
+   "w": 117,
+   "h": 92
+  },
+  {
+   "src": "assets/art/world/props2/p_31.webp?v=1",
+   "w": 127,
+   "h": 83
+  },
+  {
+   "src": "assets/art/world/props2/p_32.webp?v=1",
+   "w": 57,
+   "h": 94
+  },
+  {
+   "src": "assets/art/world/props2/p_33.webp?v=1",
+   "w": 63,
+   "h": 78
+  },
+  {
+   "src": "assets/art/world/props2/p_34.webp?v=1",
+   "w": 65,
+   "h": 77
+  },
+  {
+   "src": "assets/art/world/props2/p_35.webp?v=1",
+   "w": 90,
+   "h": 113
+  },
+  {
+   "src": "assets/art/world/props2/p_36.webp?v=1",
+   "w": 137,
+   "h": 119
+  },
+  {
+   "src": "assets/art/world/props2/p_37.webp?v=1",
+   "w": 90,
+   "h": 85
+  },
+  {
+   "src": "assets/art/world/props2/p_38.webp?v=1",
+   "w": 100,
+   "h": 109
+  },
+  {
+   "src": "assets/art/world/props2/p_39.webp?v=1",
+   "w": 88,
+   "h": 95
+  },
+  {
+   "src": "assets/art/world/props2/p_40.webp?v=1",
+   "w": 141,
+   "h": 94
+  },
+  {
+   "src": "assets/art/world/props2/p_41.webp?v=1",
+   "w": 93,
+   "h": 124
+  },
+  {
+   "src": "assets/art/world/props2/p_42.webp?v=1",
+   "w": 115,
+   "h": 130
+  },
+  {
+   "src": "assets/art/world/props2/p_43.webp?v=1",
+   "w": 96,
+   "h": 102
+  },
+  {
+   "src": "assets/art/world/props2/p_44.webp?v=1",
+   "w": 88,
+   "h": 123
+  }
+ ]
 };
