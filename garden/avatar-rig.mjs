@@ -76,7 +76,8 @@ function adj(view, key, part, m) {
   return mul(T(pv[0] + (a.dx || 0), pv[1] + (a.dy || 0)),
     mul(R((a.rot || 0) * DEG), mul(S(sc), mul(T(-pv[0], -pv[1]), m))));
 }
-/** Apply z shifts: each item is [part, matrix, key]. */
+/** Apply z shifts: each item is [part, matrix, key]. Lining layers have their
+ * own keys, so bringing a cape forward never brings its inside with it. */
 function order(view, list) {
   const z = k => ADJUST[view]?.[k]?.z || 0;
   return list.map((it, i) => [it, i + z(it[2]) + i * 1e-3]).sort((a, b) => a[1] - b[1]).map(x => x[0]);
@@ -153,10 +154,10 @@ function frontBack(parts, back, s) {
   };
   // The collar's inside back (lining + back rim) sits behind the neck, so the
   // neck reads as going down into the collar; it moves with the capelet.
-  if (P.capeletInner) items.capeletInner = [P.capeletInner, items.capelet[1], "capelet"];
+  if (P.capeletInner) items.capeletInner = [P.capeletInner, items.capelet[1], "capeletInner"];
   // Long cape, front view: the lining seen through the opening hangs behind
   // the body; the outer drape falls in front of the body's sides.
-  if (P.capeInner) items.capeInner = [P.capeInner, items.cape[1], "cape"];
+  if (P.capeInner) items.capeInner = [P.capeInner, items.cape[1], "capeInner"];
   const headM = adj(V, "head", head, mul(T(0, -bob * 0.25), place(head, chin[0], chin[1] + (back ? head.h * 0.42 : 0), headTilt)));
   items.head = [head, headM, "head"];
   if (!back) {
@@ -224,7 +225,7 @@ function side(parts, s) {
     ...legs[0], ...legs[1],
     K("skirt", P.skirt, place(P.skirt, waist[0], waist[1], skirtA)),
     // capelet lining (inside of the front opening) belongs behind the body
-    ...(P.capeletInner ? [[P.capeletInner, sideCapelet, "capelet"]] : []),
+    ...(P.capeletInner ? [[P.capeletInner, sideCapelet, "capeletInner"]] : []),
     K("neck", P.neck, place(P.neck, chin[0] - P.torso.w * 0.06, chin[1] - len(P.neck) * NECK.side.tuck, 0, NECK.side.width, 1)),
     K("hair", P.hair, place(P.hair, hairTop[0], hairTop[1], 0.03 * Math.sin(2 * TAU * (p - 0.15)) * w + 0.015 * w)),
     [P.torso, torso, "torso"],
