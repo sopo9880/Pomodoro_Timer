@@ -56,6 +56,13 @@ h1{font-family:var(--display);font-size:1.35rem;margin:0;text-wrap:balance}
 .actions{display:flex;gap:6px;flex-wrap:wrap}
 pre{margin:0;max-height:150px;overflow:auto;background:var(--paper);border-radius:8px;padding:8px;font-family:var(--mono);font-size:11.5px;white-space:pre-wrap;word-break:break-all;user-select:all}
 .note{font-size:12px;color:var(--ink-soft);margin:0}
+.parts button.hidden{text-decoration:line-through;opacity:.6}
+.seg button.tool{white-space:nowrap;font-size:12.5px}
+.seg button.tool[aria-pressed="true"]{background:var(--sel);color:#fff}
+.brushrow{display:grid;grid-template-columns:62px minmax(0,1fr) 40px;gap:8px;align-items:center}
+.brushrow span{color:var(--ink-soft);font-size:13px}
+.legend{display:flex;gap:12px;font-size:12px;color:var(--ink-soft)}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:4px;vertical-align:-1px}
 .keys{font-size:12px;color:var(--ink-soft);margin:0;display:grid;gap:2px}
 kbd{font-family:var(--mono);font-size:11px;border:1px solid var(--line);border-bottom-width:2px;border-radius:4px;padding:0 4px;background:var(--sheet)}
 @media (max-width:820px){.bench{grid-template-columns:1fr;height:auto}.stage{height:62vh}}
@@ -63,7 +70,7 @@ kbd{font-family:var(--mono);font-size:11px;border:1px solid var(--line);border-b
 
 <div class="top">
   <h1>리그 조립대</h1>
-  <p>부위를 끌어서 옮기고, 다 맞추면 값을 복사해 채팅에 붙여 줘.</p>
+  <p>부위를 끌어서 옮기고, 필요하면 칠해서 지우거나 몸 뒤로 보내. 다 되면 값을 복사해 채팅에 붙여 줘.</p>
 </div>
 <div class="bench">
   <div class="stage"><canvas id="stage" aria-label="캐릭터 조립 화면" tabindex="0"></canvas>
@@ -91,7 +98,20 @@ kbd{font-family:var(--mono);font-size:11px;border:1px solid var(--line);border-b
       <div class="row"><span>회전°</span><input type="range" id="rRot" min="-60" max="60" step="0.5"><input type="number" id="nRot" step="0.5"></div>
       <div class="row"><span>크기</span><input type="range" id="rS" min="0.6" max="1.6" step="0.01"><input type="number" id="nS" step="0.01"></div>
       <div class="row"><span>앞뒤</span><div class="zrow"><button class="btn" id="zBack">뒤로</button><output id="zOut">0</output><button class="btn" id="zFront">앞으로</button></div></div>
-      <div class="actions"><button class="btn" id="resetPart">이 부위 되돌리기</button><button class="btn" id="undo">실행 취소</button></div>
+      <div class="actions"><button class="btn" id="resetPart">이 부위 되돌리기</button><button class="btn" id="undo">실행 취소</button><button class="btn" id="hidePart">이 부위 숨기기</button></div>
+    </div>
+    <div class="dials">
+      <h2>부위 다듬기</h2>
+      <p class="note">고른 부위 위를 칠하면 그 부분만 지우거나 몸 뒤로 보낼 수 있어. 칠은 고른 부위에만 묻어.</p>
+      <div class="seg" id="tools">
+        <button class="tool" data-tool="move" aria-pressed="true">이동</button>
+        <button class="tool" data-tool="erase" aria-pressed="false">지우기</button>
+        <button class="tool" data-tool="back" aria-pressed="false">뒤로 보내기</button>
+        <button class="tool" data-tool="unpaint" aria-pressed="false">칠 지우개</button>
+      </div>
+      <div class="brushrow"><span>붓 크기</span><input type="range" id="brush" min="4" max="80" value="22"><output id="brushOut">22</output></div>
+      <div class="legend"><span><i style="background:rgba(230,40,40,.7)"></i>지울 부분</span><span><i style="background:rgba(40,110,240,.7)"></i>몸 뒤로 갈 부분</span></div>
+      <div class="actions"><button class="btn" id="clearPaint">이 부위 칠 초기화</button></div>
     </div>
     <div><div class="label">결과 값</div>
       <pre id="out"></pre>
@@ -121,6 +141,53 @@ let adjust = {front:{},side:{},back:{}};
 try { const s = JSON.parse(localStorage.getItem(STORE) || "null"); if (s && s.front) adjust = s; } catch {}
 let view = "front", flip = false, selected = "neck", walking = false, ghost = false, zoom = false, guide = true;
 const undoStack = [];
+let tool = "move", brush = 22, hover = null;
+// ---- paint masks per asset (part.name): erase = removed, back = drawn behind the body
+const masks = {};
+const MASK_STORE = "bloomodoro-rig-editor-masks-v1";
+function canvasOf(w, h) { const c = document.createElement("canvas"); c.width = w; c.height = h; return c; }
+function partsByName() { const o = {}; for (const v of ["front", "side", "back"]) for (const p of Object.values(AVATAR_RIG_PARTS[v])) if (p && p.name) o[p.name] = p; return o; }
+function maskFor(part, create) {
+  let m = masks[part.name];
+  if (!m && create) {
+    const W = part.w, H = part.h;
+    m = masks[part.name] = { erase: canvasOf(W, H), back: canvasOf(W, H), comp: canvasOf(W, H), bk: canvasOf(W, H), tE: canvasOf(W, H), tB: canvasOf(W, H), dirty: true, hasErase: false, hasBack: false };
+  }
+  return m;
+}
+function originalOf(part) { const a = alphaOf(part.src); return a && a.im; }
+function refresh(m, part) {
+  if (!m.dirty) return true;
+  const im = originalOf(part); if (!im) return false;
+  const W = m.comp.width, H = m.comp.height;
+  let c = m.comp.getContext("2d"); c.globalCompositeOperation = "source-over"; c.clearRect(0, 0, W, H); c.drawImage(im, 0, 0, W, H);
+  c.globalCompositeOperation = "destination-out"; c.drawImage(m.erase, 0, 0); c.drawImage(m.back, 0, 0); c.globalCompositeOperation = "source-over";
+  c = m.bk.getContext("2d"); c.clearRect(0, 0, W, H); c.drawImage(im, 0, 0, W, H); c.globalCompositeOperation = "destination-in"; c.drawImage(m.back, 0, 0); c.globalCompositeOperation = "source-over";
+  for (const [t, src, col] of [[m.tE, m.erase, "rgba(230,40,40,.55)"], [m.tB, m.back, "rgba(40,110,240,.55)"]]) {
+    c = t.getContext("2d"); c.clearRect(0, 0, W, H); c.fillStyle = col; c.fillRect(0, 0, W, H); c.globalCompositeOperation = "destination-in"; c.drawImage(src, 0, 0); c.globalCompositeOperation = "source-over";
+  }
+  m.dirty = false; return true;
+}
+globalThis.__bloomodoroRigEdit = {
+  image(part) { const m = masks[part.name]; return m && (m.hasErase || m.hasBack) && refresh(m, part) ? m.comp : null; },
+  back(part) { const m = masks[part.name]; return m && m.hasBack && refresh(m, part) ? m.bk : null; },
+};
+function saveMasks() {
+  const o = {};
+  for (const [n, m] of Object.entries(masks)) if (m.hasErase || m.hasBack) o[n] = { erase: m.hasErase ? m.erase.toDataURL() : null, back: m.hasBack ? m.back.toDataURL() : null };
+  try { localStorage.setItem(MASK_STORE, JSON.stringify(o)); } catch {}
+  return o;
+}
+function loadMasks() {
+  let o = null; try { o = JSON.parse(localStorage.getItem(MASK_STORE) || "null"); } catch {}
+  if (!o) return;
+  const byName = partsByName();
+  for (const [n, d] of Object.entries(o)) {
+    const part = byName[n]; if (!part) continue;
+    const m = maskFor(part, true);
+    for (const k of ["erase", "back"]) if (d[k]) { const im = new Image(); im.onload = () => { m[k].getContext("2d").drawImage(im, 0, 0); m.dirty = true; m[k === "erase" ? "hasErase" : "hasBack"] = true; paint(); }; im.src = d[k]; }
+  }
+}
 const rig = createAvatarRig({ base: "", onReady: () => paint() });
 rig.preload();
 const cv = document.getElementById("stage"), ctx = cv.getContext("2d");
@@ -170,6 +237,15 @@ function paint() {
     const pv = apply(g, p.pivot);
     ctx.fillStyle = css("--sel"); ctx.beginPath(); ctx.arc(pv[0], pv[1], 4, 0, Math.PI * 2); ctx.fill();
     ctx.strokeStyle = "#fff"; ctx.lineWidth = 1.5; ctx.stroke();
+    const mk = masks[p.name];
+    if (tool !== "move" && mk && refresh(mk, p)) {
+      ctx.save(); ctx.setTransform(dpr * g[0], dpr * g[1], dpr * g[2], dpr * g[3], dpr * g[4], dpr * g[5]);
+      ctx.drawImage(mk.tE, 0, 0); ctx.drawImage(mk.tB, 0, 0); ctx.restore(); ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    }
+  }
+  if (tool !== "move" && hover) {
+    ctx.strokeStyle = tool === "erase" ? "rgba(230,40,40,.9)" : tool === "back" ? "rgba(40,110,240,.9)" : "rgba(255,255,255,.9)";
+    ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(hover[0], hover[1], brush / 2, 0, Math.PI * 2); ctx.stroke();
   }
 }
 function loop(t) {
@@ -184,7 +260,7 @@ function alphaOf(src) {
   let a = alphaCache.get(src);
   if (a) return a.ready ? a : null;
   a = { ready: false }; alphaCache.set(src, a);
-  const im = new Image(); im.onload = () => { const c = document.createElement("canvas"); c.width = im.naturalWidth; c.height = im.naturalHeight;
+  const im = new Image(); a.im = null; im.onload = () => { a.im = im; const c = document.createElement("canvas"); c.width = im.naturalWidth; c.height = im.naturalHeight;
     const x = c.getContext("2d"); x.drawImage(im, 0, 0); a.data = x.getImageData(0, 0, c.width, c.height).data; a.w = c.width; a.h = c.height; a.ready = true; };
   im.src = src; return null;
 }
@@ -211,7 +287,7 @@ function snapshot() { undoStack.push(JSON.stringify(adjust)); if (undoStack.leng
 function tidy() {
   for (const v of Object.keys(adjust)) for (const k of Object.keys(adjust[v])) {
     const a = adjust[v][k];
-    for (const f of ["dx", "dy", "rot", "z"]) if (!a[f]) delete a[f];
+    for (const f of ["dx", "dy", "rot", "z", "hide"]) if (!a[f]) delete a[f];
     if (a.s !== undefined && Math.abs(a.s - 1) < 1e-4) delete a.s;
     if (!Object.keys(a).length) delete adjust[v][k];
   }
@@ -223,8 +299,13 @@ function exportText() {
   const out = {};
   for (const v of ["front", "side", "back"]) { out[v] = {}; for (const [k, a] of Object.entries(adjust[v])) {
     const o = {}; if (a.dx) o.dx = r1(a.dx); if (a.dy) o.dy = r1(a.dy); if (a.rot) o.rot = r1(a.rot);
-    if (a.s !== undefined) o.s = Math.round(a.s * 1000) / 1000; if (a.z) o.z = a.z; out[v][k] = o; } }
-  return "RIG_ADJUST " + JSON.stringify(out);
+    if (a.s !== undefined) o.s = Math.round(a.s * 1000) / 1000; if (a.z) o.z = a.z; if (a.hide) o.hide = true; out[v][k] = o; } }
+  return out;
+}
+function exportFull() { return "RIG_EDIT " + JSON.stringify({ adjust: exportText(), masks: saveMasks() }); }
+function exportShort() {
+  const n = Object.keys(saveMasks()).length;
+  return "RIG_ADJUST " + JSON.stringify(exportText()) + (n ? "\n+ 칠한 부위 " + n + "개 (복사하면 같이 들어가)" : "");
 }
 function sync() {
   save();
@@ -234,10 +315,11 @@ function sync() {
   set("rDx", a.dx || 0); set("nDx", r1(a.dx || 0)); set("rDy", a.dy || 0); set("nDy", r1(a.dy || 0));
   set("rRot", a.rot || 0); set("nRot", r1(a.rot || 0)); set("rS", a.s ?? 1); set("nS", Math.round((a.s ?? 1) * 100) / 100);
   document.getElementById("zOut").textContent = a.z || 0;
+  document.getElementById("hidePart").textContent = a.hide ? "다시 보이기" : "이 부위 숨기기";
   const box = document.getElementById("parts"); box.textContent = "";
   for (const k of KEYS[view]) { const b = document.createElement("button"); b.textContent = LABELS[k]; b.setAttribute("aria-pressed", String(k === selected));
-    if (adjust[view][k]) b.classList.add("changed"); b.onclick = () => { selected = k; sync(); }; box.append(b); }
-  document.getElementById("out").textContent = exportText();
+    if (adjust[view][k]) b.classList.add("changed"); if (adjust[view][k]?.hide) b.classList.add("hidden"); b.onclick = () => { selected = k; sync(); }; box.append(b); }
+  document.getElementById("out").textContent = exportShort();
   paint();
 }
 
@@ -262,6 +344,20 @@ function bindPair(r, n, field, toNum = parseFloat) {
 bindPair("rDx", "nDx", "dx"); bindPair("rDy", "nDy", "dy"); bindPair("rRot", "nRot", "rot"); bindPair("rS", "nS", "s");
 document.getElementById("zBack").onclick = () => { snapshot(); cur().z = (cur().z || 0) - 1; sync(); };
 document.getElementById("zFront").onclick = () => { snapshot(); cur().z = (cur().z || 0) + 1; sync(); };
+document.querySelectorAll("#tools button").forEach(b => b.onclick = () => {
+  tool = b.dataset.tool; document.querySelectorAll("#tools button").forEach(x => x.setAttribute("aria-pressed", String(x === b)));
+  document.getElementById("hint").textContent = tool === "move" ? "부위를 눌러 고르고 끌어서 옮기기 · Shift+끌기로 회전 · 휠로 회전, Shift+휠로 크기"
+    : "고른 부위(" + (LABELS[selected] || selected) + ") 위를 끌어서 칠하기 · 다른 부위는 오른쪽 목록에서 고르기";
+  paint();
+});
+document.getElementById("brush").oninput = e => { brush = +e.target.value; document.getElementById("brushOut").textContent = brush; paint(); };
+document.getElementById("clearPaint").onclick = () => {
+  const it = poseNow(adjust).items.find(i => i[2] === selected); if (!it) return;
+  const m = masks[it[0].name]; if (!m) return;
+  for (const c of [m.erase, m.back]) c.getContext("2d").clearRect(0, 0, c.width, c.height);
+  m.hasErase = m.hasBack = false; m.dirty = true; sync();
+};
+document.getElementById("hidePart").onclick = () => { snapshot(); cur().hide = !cur().hide; sync(); };
 document.getElementById("resetPart").onclick = () => { snapshot(); delete adjust[view][selected]; sync(); };
 function undo() { const s = undoStack.pop(); if (s) { adjust = JSON.parse(s); sync(); } }
 document.getElementById("undo").onclick = undo;
@@ -271,16 +367,45 @@ resetAll.onclick = () => {
   snapshot(); adjust = { front: {}, side: {}, back: {} }; resetAll.textContent = "전체 되돌리기"; armed = 0; sync();
 };
 document.getElementById("copy").onclick = async () => {
-  const txt = exportText(), note = document.getElementById("copyNote");
+  const txt = exportFull(), note = document.getElementById("copyNote");
   try { await navigator.clipboard.writeText(txt); note.textContent = "복사했어. 채팅에 붙여 넣어 줘."; }
-  catch { const r = document.createRange(); r.selectNodeContents(document.getElementById("out")); const s = getSelection(); s.removeAllRanges(); s.addRange(r);
+  catch { const out = document.getElementById("out"); out.textContent = txt; const r = document.createRange(); r.selectNodeContents(out); const s = getSelection(); s.removeAllRanges(); s.addRange(r);
     note.textContent = "자동 복사가 막혀 있어서 글자를 선택해 뒀어. Ctrl+C로 복사해 줘."; }
 };
 
 // ---- stage interaction
 let drag = null;
 function pt(e) { const r = cv.getBoundingClientRect(); return [e.clientX - r.left, e.clientY - r.top]; }
+let painting = null;
+function selectedItem() {
+  const R0 = rootM(); setRigAdjust(adjust);
+  const it = poseNow(adjust).items.find(i => i[2] === selected);
+  return it ? { part: it[0], g: mul(R0.m, it[1]) } : null;
+}
+function dab(x, y) {
+  const s = painting; if (!s) return;
+  const l = apply(inv(s.g), [x, y]);
+  const sc = Math.sqrt(Math.abs(s.g[0] * s.g[3] - s.g[1] * s.g[2]));
+  const rad = brush / 2 / sc;
+  const m = s.m;
+  const draw = (c, mode) => { const x2 = c.getContext("2d"); x2.globalCompositeOperation = mode; x2.fillStyle = "#fff";
+    x2.beginPath(); x2.arc(l[0], l[1], rad, 0, Math.PI * 2); x2.fill(); x2.globalCompositeOperation = "source-over"; };
+  if (tool === "erase") { draw(m.erase, "source-over"); draw(m.back, "destination-out"); m.hasErase = true; }
+  else if (tool === "back") { draw(m.back, "source-over"); draw(m.erase, "destination-out"); m.hasBack = true; }
+  else { draw(m.erase, "destination-out"); draw(m.back, "destination-out"); }
+  m.dirty = true;
+}
+function stroke(x, y) {
+  const p0 = painting.last || [x, y], d = Math.hypot(x - p0[0], y - p0[1]), n = Math.max(1, Math.ceil(d / (brush / 4)));
+  for (let i = 1; i <= n; i++) dab(p0[0] + (x - p0[0]) * i / n, p0[1] + (y - p0[1]) * i / n);
+  painting.last = [x, y]; paint();
+}
 cv.addEventListener("pointerdown", e => {
+  if (tool !== "move") {
+    const [x, y] = pt(e); const s = selectedItem(); if (!s) return;
+    painting = { g: s.g, m: maskFor(s.part, true), last: null };
+    cv.setPointerCapture(e.pointerId); stroke(x, y); return;
+  }
   const [x, y] = pt(e); const k = hit(x, y);
   if (k) { selected = k; sync(); }
   if (!k && !e.shiftKey) return;
@@ -291,12 +416,14 @@ cv.addEventListener("pointerdown", e => {
   cv.setPointerCapture(e.pointerId); cv.classList.add("dragging"); cv.focus({ preventScroll: true });
 });
 cv.addEventListener("pointermove", e => {
+  if (tool !== "move") { hover = pt(e); if (painting) stroke(hover[0], hover[1]); else paint(); return; }
   if (!drag) return; const [x, y] = pt(e); const a = cur();
   if (drag.rot) { const ang = Math.atan2(y - drag.pv[1], x - drag.pv[0]); a.rot = (drag.a.rot || 0) + (ang - drag.ang) * 180 / Math.PI * drag.f; }
   else { a.dx = (drag.a.dx || 0) + (x - drag.x) / (drag.k * drag.f); a.dy = (drag.a.dy || 0) + (y - drag.y) / drag.k; }
   sync();
 });
-const end = () => { drag = null; cv.classList.remove("dragging"); };
+const end = () => { drag = null; cv.classList.remove("dragging"); if (painting) { painting = null; sync(); } };
+cv.addEventListener("pointerleave", () => { hover = null; paint(); });
 cv.addEventListener("pointerup", end); cv.addEventListener("pointercancel", end);
 cv.addEventListener("wheel", e => { e.preventDefault(); snapshot(); const a = cur(); const s = Math.sign(e.deltaY);
   if (e.shiftKey) a.s = Math.max(.3, (a.s ?? 1) - s * .01); else a.rot = (a.rot || 0) - s * .5; sync(); }, { passive: false });
@@ -310,6 +437,7 @@ document.addEventListener("keydown", e => {
     "-": () => a().s = (a().s ?? 1) - .01, "=": () => a().s = (a().s ?? 1) + .01 };
   const fn = map[e.key]; if (!fn) return; e.preventDefault(); snapshot(); fn(); sync();
 });
+loadMasks();
 sync();
 })();
 </script>

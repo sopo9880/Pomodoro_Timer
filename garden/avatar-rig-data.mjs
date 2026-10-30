@@ -2,16 +2,7 @@
 export const AVATAR_RIG_PARTS = Object.freeze({
  "front": {
   "cape": {
-   "src": "assets/art/avatar/front/cape.webp?v=3",
-   "w": 366,
-   "h": 391,
-   "pivot": [
-    181.0,
-    8.0
-   ]
-  },
-  "capeInner": {
-   "src": "assets/art/avatar/front/cape_inner.webp?v=1",
+   "src": "assets/art/avatar/front/cape.webp?v=4",
    "w": 366,
    "h": 391,
    "pivot": [
@@ -232,16 +223,7 @@ export const AVATAR_RIG_PARTS = Object.freeze({
  },
  "side": {
   "cape": {
-   "src": "assets/art/avatar/side/cape.webp?v=2",
-   "w": 322,
-   "h": 391,
-   "pivot": [
-    157.5,
-    6.0
-   ]
-  },
-  "capeInner": {
-   "src": "assets/art/avatar/side/cape_inner.webp?v=1",
+   "src": "assets/art/avatar/side/cape.webp?v=3",
    "w": 322,
    "h": 391,
    "pivot": [
@@ -250,16 +232,7 @@ export const AVATAR_RIG_PARTS = Object.freeze({
    ]
   },
   "capeL": {
-   "src": "assets/art/avatar/side/cape_left.webp?v=1",
-   "w": 325,
-   "h": 391,
-   "pivot": [
-    156.5,
-    6.0
-   ]
-  },
-  "capeLInner": {
-   "src": "assets/art/avatar/side/cape_left_inner.webp?v=1",
+   "src": "assets/art/avatar/side/cape_left.webp?v=2",
    "w": 325,
    "h": 391,
    "pivot": [

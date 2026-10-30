@@ -12,7 +12,10 @@ def uri(rel):
     return "data:image/webp;base64," + base64.b64encode(p.read_bytes()).decode()
 
 data = (ROOT / "garden/avatar-rig-data.mjs").read_text()
-data = re.sub(r'"(assets/art/[^"]+\.webp(?:\?v=\d+)?)"', lambda m: '"' + uri(m.group(1)) + '"', data)
+# each part keeps its file name ("name") so edits can be mapped back to the asset
+data = re.sub(r'"src": "(assets/art/[^"]+\.webp(?:\?v=\d+)?)"',
+              lambda m: '"src": "' + uri(m.group(1)) + '", "name": "' + m.group(1).split("?")[0] + '"', data)
+data = re.sub(r'(?<!"name": )"(assets/art/[^"]+\.webp(?:\?v=\d+)?)"', lambda m: '"' + uri(m.group(1)) + '"', data)
 rig = (ROOT / "garden/avatar-rig.mjs").read_text()
 code = "\n".join(l for l in (data + "\nconst RIG_ADJUST = { front: {}, side: {}, back: {} };\n" + rig).splitlines()
                  if not l.startswith("import "))

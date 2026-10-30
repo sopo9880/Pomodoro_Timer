@@ -62,7 +62,7 @@ export const NECK = Object.freeze({
 /**
  * Hand-tuned fit from the rig editor (tools/rig-editor): per view and part, a
  * nudge around the part's own pivot — dx/dy in part pixels, rot in degrees,
- * s scale — and z, a shift in drawing order. Parts that hang off an adjusted
+ * s scale — z, a shift in drawing order, and hide to leave a part out. Parts that hang off an adjusted
  * part (forearm on sleeve, hair on head, everything on torso) follow it.
  */
 let ADJUST = RIG_ADJUST;
@@ -80,7 +80,7 @@ function adj(view, key, part, m) {
  * own keys, so bringing a cape forward never brings its inside with it. */
 function order(view, list) {
   const z = k => ADJUST[view]?.[k]?.z || 0;
-  return list.map((it, i) => [it, i + z(it[2]) + i * 1e-3]).sort((a, b) => a[1] - b[1]).map(x => x[0]);
+  return list.filter(it => !ADJUST[view]?.[it[2]]?.hide).map((it, i) => [it, i + z(it[2]) + i * 1e-3]).sort((a, b) => a[1] - b[1]).map(x => x[0]);
 }
 
 // ------------------------------------------------------------------ poses
@@ -155,9 +155,8 @@ function frontBack(parts, back, s) {
   // The collar's inside back (lining + back rim) sits behind the neck, so the
   // neck reads as going down into the collar; it moves with the capelet.
   if (P.capeletInner) items.capeletInner = [P.capeletInner, items.capelet[1], "capeletInner"];
-  // Long cape, front view: the lining seen through the opening hangs behind
-  // the body; the outer drape falls in front of the body's sides.
-  if (P.capeInner) items.capeInner = [P.capeInner, items.cape[1], "capeInner"];
+  // Long cape: hangs behind the body by default. Pieces can be erased or
+  // marked "behind the body" in the rig editor, and z brings it forward.
   const headM = adj(V, "head", head, mul(T(0, -bob * 0.25), place(head, chin[0], chin[1] + (back ? head.h * 0.42 : 0), headTilt)));
   items.head = [head, headM, "head"];
   if (!back) {
@@ -171,9 +170,9 @@ function frontBack(parts, back, s) {
     : place(P.bag, hipRight[0] + P.torso.w * 0.32, hipRight[1] - P.bag.h * 0.42, bagA, 0.78, 0.78));
   const armsL = arm("L", shL, 1), armsR = arm("R", shR, -1);
   const legItems = legs.flatMap(l => l.items);
-  if (!back) out.push(...(items.capeInner ? [items.capeInner] : [items.cape]), items.hair, ...legItems, items.skirt,
+  if (!back) out.push(items.cape, items.hair, ...legItems, items.skirt,
     ...(items.capeletInner ? [items.capeletInner] : []), items.neck, items.torso,
-    ...(items.capeInner ? [items.cape] : []), items.bag, ...armsL, ...armsR, items.capelet, items.head);
+    items.bag, ...armsL, ...armsR, items.capelet, items.head);
   else out.push(...legItems, items.skirt, items.neck, items.torso, items.bag, ...armsL, ...armsR, items.cape, items.capelet, items.head);
   return { items: order(V, out), shadows: legs.map(l => l.shadow), headM, crownY: apply(headM, head.crown)[1] };
 }
@@ -216,25 +215,22 @@ function side(parts, s) {
   const hairTop = apply(headM, [headPart.w * 0.38, headPart.h * 0.2]);
   const capeA = 0.05 * w + 0.03 * Math.sin(2 * TAU * (p - 0.12)) * w + 0.01 * Math.sin(t * TAU / 4.4) * (1 - w);
   // Long cape: a painting per facing (the rig mirrors the side view, so the
-  // left-facing painting is stored mirrored). Its lining shows at the front
-  // opening and hangs behind the body; the drape covers the body's near side.
+  // left-facing painting is stored mirrored). Behind the body by default.
   const capeOut = s.flip && P.capeL ? P.capeL : P.cape;
-  const capeIn = s.flip && P.capeLInner ? P.capeLInner : P.capeInner;
   const capeM = adj("side", "cape", capeOut, place(capeOut, neckPt[0] - P.torso.w * 0.04, neckPt[1] - P.torso.h * 0.02, capeA * 0.5));
   const bagA = 0.07 * Math.sin(2 * TAU * (p - 0.2)) * w + 0.012 * Math.sin(t * TAU / 3.9) * (1 - w);
   const skirtA = 0.04 * Math.sin(2 * TAU * (p - 0.05)) * w + 0.02 * w;
   const K = (key, part, m) => [part, adj("side", key, part, m), key];
   const sideCapelet = adj("side", "capelet", P.capelet, place(P.capelet, neckPt[0] - P.capelet.w * 0.08, neckPt[1] - P.capelet.h * 0.04, 0.02 * Math.sin(2 * TAU * (p - 0.1)) * w));
   const items = [
-    ...(capeIn ? [[capeIn, capeM, "capeInner"]] : []),
     [P.armFar, armFar, "armFar"],
+    [capeOut, capeM, "cape"],
     ...legs[0], ...legs[1],
     K("skirt", P.skirt, place(P.skirt, waist[0], waist[1], skirtA)),
     // capelet lining (inside of the front opening) belongs behind the body
     ...(P.capeletInner ? [[P.capeletInner, sideCapelet, "capeletInner"]] : []),
     K("neck", P.neck, place(P.neck, chin[0] - P.torso.w * 0.06, chin[1] - len(P.neck) * NECK.side.tuck, 0, NECK.side.width, 1)),
     [P.torso, torso, "torso"],
-    [capeOut, capeM, "cape"],
     K("hair", P.hair, place(P.hair, hairTop[0], hairTop[1], 0.03 * Math.sin(2 * TAU * (p - 0.15)) * w + 0.015 * w)),
     K("bag", P.bag, place(P.bag, waist[0] - P.torso.w * 0.05, neckPt[1] + P.torso.h * 0.05, bagA, 0.8, 0.8)),
     [P.capelet, sideCapelet, "capelet"],
@@ -352,8 +348,18 @@ export function createAvatarRig({ ImageClass = globalThis.Image, onReady = () =>
       }
     }
     ctx.imageSmoothingEnabled = true;
+    // Back layers: pieces of a part marked "behind the body" (part.back) draw
+    // before everything else. The two hooks let the rig editor preview edits.
+    const hooks = globalThis.__bloomodoroRigEdit;
     for (const [part, m] of pose.items) {
-      let im = img(part.src);
+      const bk = (hooks && hooks.back(part)) || (part.back ? img(part.back) : null);
+      if (!bk) continue;
+      const g = mul(baseM, mul(root, m));
+      ctx.setTransform(g[0], g[1], g[2], g[3], g[4], g[5]);
+      ctx.drawImage(bk, 0, 0);
+    }
+    for (const [part, m] of pose.items) {
+      let im = (hooks && hooks.image(part)) || img(part.src);
       let mm = m;
       if (view === "front" && part === AVATAR_RIG_PARTS.front.head) {
         const key = blink === 2 ? "blink" : blink === 1 ? "halfblink" : expression in EXPRESSIONS.files ? expression : "neutral";
