@@ -2,7 +2,8 @@
 export const AVATAR_RIG_PARTS = Object.freeze({
  "front": {
   "cape": {
-   "src": "assets/art/avatar/front/cape.webp?v=4",
+   "src": "assets/art/avatar/front/cape.webp?v=5",
+   "back": "assets/art/avatar/front/cape_back.webp?v=14134",
    "w": 366,
    "h": 391,
    "pivot": [
@@ -75,7 +76,7 @@ export const AVATAR_RIG_PARTS = Object.freeze({
    ]
   },
   "capelet": {
-   "src": "assets/art/avatar/front/capelet.webp?v=2",
+   "src": "assets/art/avatar/front/capelet.webp?v=3",
    "w": 238,
    "h": 143,
    "pivot": [
@@ -349,7 +350,8 @@ export const AVATAR_RIG_PARTS = Object.freeze({
    ]
   },
   "bag": {
-   "src": "assets/art/avatar/side/bag.webp",
+   "src": "assets/art/avatar/side/bag.webp?v=2",
+   "back": "assets/art/avatar/side/bag_back.webp?v=7391",
    "w": 164,
    "h": 304,
    "pivot": [
@@ -526,7 +528,8 @@ export const AVATAR_RIG_PARTS = Object.freeze({
    ]
   },
   "bag": {
-   "src": "assets/art/avatar/back/bag.webp",
+   "src": "assets/art/avatar/back/bag.webp?v=2",
+   "back": "assets/art/avatar/back/bag_back.webp?v=40872",
    "w": 138,
    "h": 256,
    "pivot": [
@@ -587,7 +590,7 @@ export const AVATAR_RIG_PARTS = Object.freeze({
    ]
   },
   "thighL": {
-   "src": "assets/art/avatar/back/leg_left.webp",
+   "src": "assets/art/avatar/back/leg_left.webp?v=2",
    "w": 70,
    "h": 310,
    "pivot": [
@@ -600,7 +603,7 @@ export const AVATAR_RIG_PARTS = Object.freeze({
    ]
   },
   "thighR": {
-   "src": "assets/art/avatar/back/leg_right.webp",
+   "src": "assets/art/avatar/back/leg_right.webp?v=2",
    "w": 71,
    "h": 308,
    "pivot": [
@@ -627,7 +630,7 @@ export const AVATAR_RIG_PARTS = Object.freeze({
    "scale": 0.77
   },
   "shinR": {
-   "src": "assets/art/avatar/boots/back_right.webp",
+   "src": "assets/art/avatar/boots/back_right.webp?v=2",
    "w": 82,
    "h": 301,
    "pivot": [

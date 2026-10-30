@@ -76,11 +76,14 @@ function adj(view, key, part, m) {
   return mul(T(pv[0] + (a.dx || 0), pv[1] + (a.dy || 0)),
     mul(R((a.rot || 0) * DEG), mul(S(sc), mul(T(-pv[0], -pv[1]), m))));
 }
+/** A lining is hidden with the garment it belongs to. */
+const LINING_OF = { capeletInner: "capelet", capeInner: "cape" };
 /** Apply z shifts: each item is [part, matrix, key]. Lining layers have their
  * own keys, so bringing a cape forward never brings its inside with it. */
 function order(view, list) {
   const z = k => ADJUST[view]?.[k]?.z || 0;
-  return list.filter(it => !ADJUST[view]?.[it[2]]?.hide).map((it, i) => [it, i + z(it[2]) + i * 1e-3]).sort((a, b) => a[1] - b[1]).map(x => x[0]);
+  const hidden = k => ADJUST[view]?.[k]?.hide || (LINING_OF[k] && ADJUST[view]?.[LINING_OF[k]]?.hide);
+  return list.filter(it => !hidden(it[2])).map((it, i) => [it, i + z(it[2]) + i * 1e-3]).sort((a, b) => a[1] - b[1]).map(x => x[0]);
 }
 
 // ------------------------------------------------------------------ poses
@@ -221,12 +224,21 @@ function side(parts, s) {
   const bagA = 0.07 * Math.sin(2 * TAU * (p - 0.2)) * w + 0.012 * Math.sin(t * TAU / 3.9) * (1 - w);
   const skirtA = 0.04 * Math.sin(2 * TAU * (p - 0.05)) * w + 0.02 * w;
   const K = (key, part, m) => [part, adj("side", key, part, m), key];
+  // Walking thighs must never show through the skirt's sides: they are drawn
+  // only below the skirt's hem line (the part above is under the skirt anyway).
+  const skirtM = adj("side", "skirt", P.skirt, place(P.skirt, waist[0], waist[1], skirtA));
+  const hemA = apply(skirtM, [0, P.skirt.h * 0.88]), hemB = apply(skirtM, [P.skirt.w, P.skirt.h * 0.88]);
+  const hd = [hemB[0] - hemA[0], hemB[1] - hemA[1]], hl = Math.hypot(hd[0], hd[1]) || 1;
+  const ux = hd[0] / hl, uy = hd[1] / hl, far = 4000;
+  const below = [[hemA[0] - ux * far, hemA[1] - uy * far], [hemB[0] + ux * far, hemB[1] + uy * far],
+    [hemB[0] + ux * far - uy * far, hemB[1] + uy * far + Math.abs(ux) * far], [hemA[0] - ux * far - uy * far, hemA[1] - uy * far + Math.abs(ux) * far]];
+  for (const leg of legs) leg[0][3] = below;
   const sideCapelet = adj("side", "capelet", P.capelet, place(P.capelet, neckPt[0] - P.capelet.w * 0.08, neckPt[1] - P.capelet.h * 0.04, 0.02 * Math.sin(2 * TAU * (p - 0.1)) * w));
   const items = [
     [P.armFar, armFar, "armFar"],
     [capeOut, capeM, "cape"],
     ...legs[0], ...legs[1],
-    K("skirt", P.skirt, place(P.skirt, waist[0], waist[1], skirtA)),
+    [P.skirt, skirtM, "skirt"],
     // capelet lining (inside of the front opening) belongs behind the body
     ...(P.capeletInner ? [[P.capeletInner, sideCapelet, "capeletInner"]] : []),
     K("neck", P.neck, place(P.neck, chin[0] - P.torso.w * 0.06, chin[1] - len(P.neck) * NECK.side.tuck, 0, NECK.side.width, 1)),
@@ -306,8 +318,10 @@ export function createAvatarRig({ ImageClass = globalThis.Image, onReady = () =>
     return !rec.failed && rec.im.complete && rec.im.naturalWidth > 0 ? rec.im : null;
   }
   function partsFor(view) {
-    const P = AVATAR_RIG_PARTS[view];
-    return Object.values(P);
+    // hidden parts (and their linings / per-facing variants) are never fetched
+    const P = AVATAR_RIG_PARTS[view], A = ADJUST[view] || {};
+    const off = k => A[k]?.hide || (LINING_OF[k] && A[LINING_OF[k]]?.hide) || (k === "capeL" && A.cape?.hide);
+    return Object.entries(P).filter(([k]) => !off(k)).map(([, p]) => p);
   }
   function ready(direction = "down") {
     const view = RIG_VIEW[direction] || "front";
@@ -358,7 +372,7 @@ export function createAvatarRig({ ImageClass = globalThis.Image, onReady = () =>
       ctx.setTransform(g[0], g[1], g[2], g[3], g[4], g[5]);
       ctx.drawImage(bk, 0, 0);
     }
-    for (const [part, m] of pose.items) {
+    for (const [part, m, , clip] of pose.items) {
       let im = (hooks && hooks.image(part)) || img(part.src);
       let mm = m;
       if (view === "front" && part === AVATAR_RIG_PARTS.front.head) {
@@ -371,9 +385,16 @@ export function createAvatarRig({ ImageClass = globalThis.Image, onReady = () =>
         }
       }
       if (!im) continue;
+      const clipping = clip && typeof ctx.clip === "function";
+      if (clipping) {
+        const c = mul(baseM, root);
+        ctx.save(); ctx.setTransform(c[0], c[1], c[2], c[3], c[4], c[5]);
+        ctx.beginPath(); clip.forEach(([px, py], i) => i ? ctx.lineTo(px, py) : ctx.moveTo(px, py)); ctx.closePath(); ctx.clip();
+      }
       const g = mul(baseM, mul(root, mm));
       ctx.setTransform(g[0], g[1], g[2], g[3], g[4], g[5]);
       ctx.drawImage(im, 0, 0);
+      if (clipping) ctx.restore();
     }
     ctx.restore();
     return true;

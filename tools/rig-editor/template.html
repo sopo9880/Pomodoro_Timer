@@ -117,7 +117,7 @@ kbd{font-family:var(--mono);font-size:11px;border:1px solid var(--line);border-b
       <pre id="out"></pre>
       <div class="actions" style="margin-top:8px">
         <button class="btn primary" id="copy">값 복사</button>
-        <button class="btn warn" id="resetAll">전체 되돌리기</button>
+        <button class="btn warn" id="resetAll">게임 값으로 되돌리기</button>
       </div>
       <p class="note" id="copyNote">세 방향을 다 맞춘 뒤 한 번에 복사해도 돼. 작업은 이 브라우저에 자동 저장돼.</p></div>
     <div class="keys"><span><kbd>←↑→↓</kbd> 1칸 이동 (<kbd>Shift</kbd> 5칸) · <kbd>[</kbd> <kbd>]</kbd> 회전 · <kbd>-</kbd> <kbd>=</kbd> 크기</span><span><kbd>Ctrl</kbd>+<kbd>Z</kbd> 실행 취소</span></div>
@@ -136,15 +136,15 @@ const KEYS = {
   front:["head","hair","neck","torso","capelet","cape","sleeveL","forearmL","sleeveR","forearmR","bag","skirt","thighL","shinL","thighR","shinR"],
   side:["head","hair","neck","torso","capelet","cape","armNear","armFar","bag","skirt","thighNear","shinNear","thighFar","shinFar"],
   back:["head","neck","torso","capelet","cape","sleeveL","forearmL","sleeveR","forearmR","bag","skirt","thighL","shinL","thighR","shinR"]};
-const STORE = "bloomodoro-rig-editor-v1";
-let adjust = {front:{},side:{},back:{}};
+const STORE = "bloomodoro-rig-editor-v2";
+let adjust = JSON.parse(JSON.stringify(RIG_ADJUST)); // starts from what the game uses
 try { const s = JSON.parse(localStorage.getItem(STORE) || "null"); if (s && s.front) adjust = s; } catch {}
 let view = "front", flip = false, selected = "neck", walking = false, ghost = false, zoom = false, guide = true;
 const undoStack = [];
 let tool = "move", brush = 22, hover = null;
 // ---- paint masks per asset (part.name): erase = removed, back = drawn behind the body
 const masks = {};
-const MASK_STORE = "bloomodoro-rig-editor-masks-v1";
+const MASK_STORE = "bloomodoro-rig-editor-masks-v2";
 function canvasOf(w, h) { const c = document.createElement("canvas"); c.width = w; c.height = h; return c; }
 function partsByName() { const o = {}; for (const v of ["front", "side", "back"]) for (const p of Object.values(AVATAR_RIG_PARTS[v])) if (p && p.name) o[p.name] = p; return o; }
 function maskFor(part, create) {
@@ -363,8 +363,8 @@ function undo() { const s = undoStack.pop(); if (s) { adjust = JSON.parse(s); sy
 document.getElementById("undo").onclick = undo;
 const resetAll = document.getElementById("resetAll"); let armed = 0;
 resetAll.onclick = () => {
-  if (Date.now() - armed > 3000) { armed = Date.now(); resetAll.textContent = "한 번 더 누르면 전부 되돌려"; setTimeout(() => resetAll.textContent = "전체 되돌리기", 3000); return; }
-  snapshot(); adjust = { front: {}, side: {}, back: {} }; resetAll.textContent = "전체 되돌리기"; armed = 0; sync();
+  if (Date.now() - armed > 3000) { armed = Date.now(); resetAll.textContent = "한 번 더 누르면 전부 되돌려"; setTimeout(() => resetAll.textContent = "게임 값으로 되돌리기", 3000); return; }
+  snapshot(); adjust = JSON.parse(JSON.stringify(RIG_ADJUST)); resetAll.textContent = "게임 값으로 되돌리기"; armed = 0; sync();
 };
 document.getElementById("copy").onclick = async () => {
   const txt = exportFull(), note = document.getElementById("copyNote");
