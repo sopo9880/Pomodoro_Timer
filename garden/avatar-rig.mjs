@@ -15,7 +15,7 @@ const TAU = Math.PI * 2;
 const DEG = Math.PI / 180;
 export const RIG_VIEW = Object.freeze({ down: "front", up: "back", left: "side", right: "side" });
 /** Character height on screen, crown to sole, in world tiles. */
-export const RIG_HEIGHT_TILES = 3.4;
+export const RIG_HEIGHT_TILES = 3.0;
 const EXPRESSIONS = AVATAR_RIG_PARTS.expressions;
 
 // ------------------------------------------------------------------ affine math
@@ -312,4 +312,18 @@ export function createAvatarRig({ ImageClass = globalThis.Image, onReady = () =>
     return true;
   }
   return { draw, ready, preload, stats: () => ({ images: images.size }) };
+}
+
+/**
+ * Still portrait of the rig (front, idle) as a data URL for the wardrobe card.
+ * Returns null until every part has decoded; callers retry on the next paint.
+ */
+export function renderRigPortrait(rig, { width = 320, height = 440, expression = "neutral" } = {}) {
+  if (typeof document === "undefined" || !rig?.ready("down")) return null;
+  const canvas = document.createElement("canvas");
+  canvas.width = width; canvas.height = height;
+  const ctx = canvas.getContext("2d");
+  rig.draw(ctx, { x: width / 2, y: height - 16, height: height - 30, direction: "down",
+    phase: .25, weight: 0, time: 0, expression, reducedMotion: true, shadow: true });
+  try { return canvas.toDataURL("image/webp", .92); } catch { return null; }
 }

@@ -136,6 +136,28 @@ export function mountGameShell({ getTimerState, getDailyStats = () => ({}) }) {
   for (const link of links) {
     link.addEventListener("click", () => selectScreen(link.dataset.screen, true));
   }
+  // Collection drawer (a bottom sheet on phones). Opening it never pauses the timer.
+  const collectionToggle = document.getElementById("collectionToggle");
+  const collectionClose = document.getElementById("collectionClose");
+  const narrow = window.matchMedia("(max-width: 900px)");
+  function setCollection(open) {
+    app.classList.toggle("collection-open", open);
+    collectionToggle?.setAttribute("aria-expanded", String(open));
+    try { localStorage.setItem(PREFS_KEY + ":collection", open && !narrow.matches ? "1" : "0"); } catch { /* optional */ }
+  }
+  collectionToggle?.addEventListener("click", () => setCollection(!app.classList.contains("collection-open")));
+  collectionClose?.addEventListener("click", () => { setCollection(false); collectionToggle?.focus(); });
+  app.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && app.classList.contains("collection-open")) setCollection(false);
+  });
+  // On phones the sheet covers the map, so step aside as soon as something is picked to place.
+  app.addEventListener("click", (event) => {
+    if (narrow.matches && event.target.closest?.('[data-garden-action="place"]')) setCollection(false);
+  });
+  app.addEventListener("pointerdown", (event) => {
+    if (narrow.matches && app.classList.contains("collection-open") && !event.target.closest?.(".world-right-dock, #collectionToggle")) setCollection(false);
+  });
+  try { if (!narrow.matches && localStorage.getItem(PREFS_KEY + ":collection") === "1") setCollection(true); } catch { /* optional */ }
   app.querySelector("[data-home]")?.addEventListener("click", (event) => {
     event.preventDefault();
     selectScreen("world", true);
@@ -143,7 +165,7 @@ export function mountGameShell({ getTimerState, getDailyStats = () => ({}) }) {
   function refresh() {
     const mode = getTimerState();
     const status = document.getElementById("hudStatusLabel");
-    status.textContent = mode.isRunning ? (mode.mode === "focus" ? "FOCUS IN PROGRESS" : "TAKE A LITTLE BREAK") : "READY TO GROW";
+    status.textContent = mode.isRunning ? (mode.mode === "focus" ? "집중하는 중" : "쉬는 중") : "준비됐어요";
     app.classList.toggle("timer-is-running", Boolean(mode.isRunning));
     if (currentScreen === "journal") renderWeekSummary();
   }

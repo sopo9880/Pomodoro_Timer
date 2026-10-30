@@ -179,3 +179,12 @@ The image assets are reference-derived with consent from the supplied conversati
 - **Pipeline:** `tools/` holds the scripts that turned the AI-generated sheets into these assets (magenta keying with local un-mixing, watermark removal, part splitting, frame baseline alignment, expression face-swaps that keep identical hair, seamless texture blending, rig joint measurement).
 - **Offline:** rig parts are precached (`sw.js` v19); the rest of the painted art is cached on first view.
 - **Not painted yet:** cottage, gazebo, mushroom house and windmill landmarks keep the pixel versions; equipment pieces in `assets/art/avatar/equipment/` are processed but not yet attached to the rig.
+
+## Phase 4H — invisible loading and the field-notebook UI
+
+- **Loading you don't notice:** painted images count as available only after `image.decode()`. The garden shows a soft wash until the visible ground, the season overlay, the character view and every on-screen actor are decoded, then fades in once (7 s safety timeout). After that, an actor whose next frame is still loading keeps its last painted frame; older pixel/SVG art is never shown in between. The current and next zone are prefetched first, everything else in idle time (skipped on Save-Data), and the service worker keeps what was fetched for instant later visits. Ground textures are 640 px.
+- **Layout:** rail | full-height garden | timer column on wide screens. Map controls float over the painted world; the collection is a drawer (a bottom sheet on phones). On phones the timer is a slim bar above the map and becomes the whole page on the focus tab, so nothing covers the character.
+- **Painted UI art:** wardrobe (rig portrait plus a painted preview per wearable), companion cards, inventory, codex, focus illustration and menu icons all use the painted set.
+- **Fonts:** Gowun Batang and Gowun Dodum are self-hosted in `assets/fonts` (SIL OFL) in unicode-range slices, so they also work offline.
+- **Feel:** character height 3 tiles, painted buildings scaled up, walking speed 3.5 tiles/s.
+- **Still pixel art:** cottage, mushroom house, windmill and six shop items (apple tree, star crystal, campfire, mailbox, swing, wind chime) wait for painted versions.

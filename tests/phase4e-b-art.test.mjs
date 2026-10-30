@@ -109,8 +109,9 @@ test("full premium interface is linked, mobile-aware, self-contained, and cached
   assert.match(ui,/companionIllustrationUri/);
   assert.match(ui,/wildlifeIllustrationUri/);
   assert.match(runner,/hiresArt\.avatar/);
-  assert.match(runner,/hiresArt\.companion/);
-  assert.match(runner,/hiresArt\.wildlife/);
+  // Phase 4H: companions are drawn only from painted art (never the older SVG mid-animation).
+  assert.match(runner,/painted\.companion/);
+  assert.match(runner,/painted\.wildlife/);
   // A previous phase must not block forward-compatible PWA cache updates.
   assert.match(sw,/bloomodoro-cache-v\d+/);
   for(const asset of ["garden/hires-avatar.mjs","garden/hires-companions.mjs",

@@ -571,6 +571,22 @@ export const PAINTED_ART = Object.freeze({
   "flower-archway": "assets/art/world/landmarks/decor_01/prop_07.webp",
   "tiny-pond": "assets/art/world/landmarks/central_garden/prop_07.webp",
   "star-bench": "assets/art/world/landmarks/starry_hill/prop_03.webp",
-  "flower-pot": "assets/art/world/landmarks/greenhouse/prop_06.webp"
+  "flower-pot": "assets/art/world/landmarks/greenhouse/prop_06.webp",
+  "birdbath": "assets/art/world/landmarks/central_garden/prop_07.webp",
+  "flower-bed": "assets/art/world/landmarks/greenhouse/prop_02.webp",
+  "wooden-lamp": "assets/art/world/landmarks/starry_hill/prop_08.webp"
+ },
+ "terrainColor": {
+  "grass": "#5e8543",
+  "dirt_path": "#ac8c60",
+  "stone_path": "#b6ad84",
+  "wood_deck": "#b08b61",
+  "pond_water": "#6e9b83",
+  "flowerbed_soil": "#4c3b2c",
+  "forest_floor": "#606330",
+  "greenhouse_tile": "#ab713d",
+  "starhill_grass": "#245754",
+  "snow_cover": "#e3e4d4",
+  "autumn_leaves": "#895825"
  }
 });

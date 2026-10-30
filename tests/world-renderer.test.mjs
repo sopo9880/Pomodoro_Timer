@@ -63,7 +63,8 @@ test("renderer paints only visible chunks and keeps zoom anchor stable", () => {
       environment: { season: "spring", weather: "clear", time: "day" },
       reduceMotion: true, time: 0,
     });
-    assert.ok(counts.drawImage > 50, "Expected tiles and sprites to be rendered");
+    // Without decoded images (Node) each visible cell gets its texture's placeholder colour.
+    assert.ok(counts.drawImage + counts.fillRect > 50, "Expected visible tiles to be painted");
     assert.ok(renderer.map.getCachedChunkCount() < 20, "Scene should not render the full world");
     const anchorBefore = renderer.screenToWorld(210, 130);
     renderer.zoomBy(1.3, 210, 130);
