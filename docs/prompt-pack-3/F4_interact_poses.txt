@@ -1,0 +1,8 @@
+# F4 설치물 상호작용 포즈
+
+첨부할 기준 그림(refs 폴더): character_full.png
+
+## 프롬프트
+
+Cute chibi botanical-fantasy game art, soft painterly shading, clean thin warm-brown outlines, same style, proportions, face, hair and default green linen outfit as the attached reference character. Flat solid pure magenta background (#FF00FF), no gradient, no floor, no cast shadow, no text, no frame. Every piece is a separate full-body image with a wide magenta gap around it; pieces must NOT touch each other. Same character scale in every piece. Draw in the order listed, left to right, top to bottom. 
+Full-body character interaction poses without props (draw NO props): (1) right-facing side view, reaching one arm forward to open a mailbox (palm out), (2) side view, holding a small letter in both hands and reading it, happy, (3) side view, leaning over and peering down to look into a well with hands on the rim (no rim drawn), (4) side view, drawing up a bucket with both hands, (5) front view, head tilted up listening to wind chimes with a gentle smile and closed eyes, (6) front view, bending down to sniff a flower, (7) front view, holding a tea cup in both hands, sipping, (8) side view, sitting on a stool-height seat (no stool) reading a book, (9) front view, waving hello with one hand.
