@@ -8,7 +8,7 @@
  * `discoveryDates` map.
  */
 import { WORLD_SPEC, findGardenItem, GARDEN_COMPANIONS } from "./garden-core.mjs";
-import { WILDLIFE_SPECIES } from "./ecology.mjs";
+import { ALL_WILDLIFE } from "./ecology.mjs";
 import { WORLD_LANDMARKS } from "./world-map.mjs";
 import { normalizeDiscoveryDates } from "./life-core.mjs";
 
@@ -26,12 +26,13 @@ export function wildlifeHint(species) {
   if (species.seasons && species.seasons.length < 4) parts.push(species.seasons.map((s) => SEASON[s]).join("·"));
   if (species.weathers && species.weathers.length < 3) parts.push(species.weathers.map((w) => WEATHER[w]).join("·"));
   parts.push(species.terrain === "water" ? `${zoneName(species.zone)}의 물속` : `${zoneName(species.zone)}에서`);
+  if (species.needsFocusSeconds) parts.push(`${hoursLabel(species.needsFocusSeconds)} 뒤부터`);
   return parts.join(" · ");
 }
 
 /** A hint for an undiscovered codex entry, or "" when there is nothing useful to say. */
 export function hintFor(category, id) {
-  if (category === "wildlife") return wildlifeHint(WILDLIFE_SPECIES.find((s) => s.id === id));
+  if (category === "wildlife") return wildlifeHint(ALL_WILDLIFE.find((s) => s.id === id));
   if (category === "plants" || category === "decorations") {
     const item = findGardenItem(id);
     if (!item) return "";
@@ -119,24 +120,6 @@ export function monumentProgress(focusSeconds) {
   const earned = MONUMENTS.filter((m) => focusSeconds >= m.atSeconds);
   const next = MONUMENTS.find((m) => focusSeconds < m.atSeconds) || null;
   return { earned, next, remainingSeconds: next ? next.atSeconds - focusSeconds : 0 };
-}
-
-/** Rare creatures met by conditions, not by chance. Gated until their art ships. */
-export const RARE_ART_READY = false;
-export const RARE_WILDLIFE = Object.freeze([
-  { id: "white-fawn", name: "하얀 새끼 사슴", zone: "forest", period: "night", weathers: ["snow"], needsFocusSeconds: 12 * 3600 },
-  { id: "moon-rabbit", name: "달토끼", zone: "starlight", period: "night", weathers: ["clear"], needsFocusSeconds: 35 * 3600 },
-  { id: "golden-chick", name: "금빛 꿩 병아리", zone: "central", period: "day", seasons: ["spring"], needsFocusSeconds: 6 * 3600 },
-  { id: "blue-newt", name: "푸른 점 도롱뇽", zone: "pond", weathers: ["rain"], needsFocusSeconds: 6 * 3600 },
-]);
-/** Is a rare creature meetable right now? Same conditions every time. */
-export function rareAvailable(rare, environment, focusSeconds) {
-  if (!RARE_ART_READY || !rare || focusSeconds < rare.needsFocusSeconds) return false;
-  const e = environment || {};
-  if (rare.period && rare.period !== (e.time || "day")) return false;
-  if (rare.seasons && !rare.seasons.includes(e.season || "spring")) return false;
-  if (rare.weathers && !rare.weathers.includes(e.weather || "clear")) return false;
-  return true;
 }
 
 /** Plain text to paste anywhere. Nothing is uploaded; the person chooses where it goes. */

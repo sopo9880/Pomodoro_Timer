@@ -7,7 +7,7 @@ import { WILDLIFE_SPECIES } from "../garden/ecology.mjs";
 import { WORLD_LANDMARKS } from "../garden/world-map.mjs";
 import {
   hintFor, wildlifeHint, noteDiscoveryDate, discoveredOnLabel, daysBetween, welcomeBack, weeklyRhythm,
-  growthProgress, growthLabel, MONUMENTS, monumentProgress, RARE_WILDLIFE, rareAvailable, shareText, RARE_ART_READY,
+  growthProgress, growthLabel, MONUMENTS, monumentProgress, shareText,
 } from "../garden/longterm.mjs";
 import { buildWeekFocusSummary } from "../ui/game-shell.mjs";
 
@@ -81,13 +81,11 @@ test("plants grow across days from earned focus time, with a clear next step", (
   assert.equal(growthProgress(plant, 0).nextInSeconds, 600, "time before planting never counts as negative growth");
 });
 
-test("monuments are a ledger of total focus; rare creatures wait for their art", () => {
+test("monuments are a ledger of total focus", () => {
   assert.ok(MONUMENTS.every((m, i) => i === 0 || m.atSeconds > MONUMENTS[i - 1].atSeconds));
   assert.equal(monumentProgress(0).next.id, "stele");
   assert.equal(monumentProgress(11 * 3600).earned.length, 1);
   assert.equal(monumentProgress(999 * 3600).next, null);
-  assert.equal(RARE_ART_READY, false);
-  for (const rare of RARE_WILDLIFE) assert.equal(rareAvailable(rare, { time: rare.period || "day", season: "spring", weather: "snow" }, 999 * 3600), false, "off until the art ships");
 });
 
 test("sharing is plain text the person chooses to paste", () => {
@@ -108,4 +106,74 @@ test("the new surfaces are wired and quiet during focus", () => {
   const html = read("index.html");
   for (const id of ["journalRhythm", "journalMonument", "journalShare"]) assert.ok(html.includes(`id="${id}"`), id);
   assert.match(read("script.js"), /getShareStats/);
+});
+
+import { createWildlifeEcology, RARE_WILDLIFE_SPECIES, ALL_WILDLIFE, wildlifeAvailable } from "../garden/ecology.mjs";
+import { createWorldMap } from "../garden/world-map.mjs";
+import { WORLD_SPEC } from "../garden/garden-core.mjs";
+import { WILDLIFE_ART } from "../garden/painted-art.mjs";
+import { existsSync } from "node:fs";
+
+test("rare creatures appear only when time, weather, season and earned focus all match", () => {
+  const eco = createWildlifeEcology(createWorldMap(WORLD_SPEC));
+  const all = WORLD_SPEC.zones.map((z) => z.id), view = { left: 0, top: 0, right: 160, bottom: 160 };
+  const ids = (environment) => eco.visibleWildlife({ unlockedZones: all, environment, viewport: view, elapsedSeconds: 3 }).map((w) => w.speciesId);
+  const fawn = { time: "night", season: "winter", weather: "snow", focusSeconds: 13 * 3600 };
+  assert.ok(ids(fawn).includes("white-fawn"));
+  assert.ok(!ids({ ...fawn, focusSeconds: 3600 }).includes("white-fawn"), "not before the focus is earned");
+  assert.ok(!ids({ ...fawn, time: "day" }).includes("white-fawn"));
+  assert.ok(!ids({ ...fawn, weather: "clear" }).includes("white-fawn"));
+  assert.ok(ids({ time: "night", season: "summer", weather: "clear", focusSeconds: 40 * 3600 }).includes("moon-rabbit"));
+  assert.ok(ids({ time: "day", season: "spring", weather: "clear", focusSeconds: 7 * 3600 }).includes("golden-chick"));
+  assert.ok(!ids({ time: "day", season: "autumn", weather: "clear", focusSeconds: 7 * 3600 }).includes("golden-chick"));
+  assert.ok(ids({ time: "day", season: "spring", weather: "rain", focusSeconds: 7 * 3600 }).includes("blue-newt"));
+  assert.equal(wildlifeAvailable("blue-newt", { weather: "rain", focusSeconds: 0 }), false);
+  assert.deepEqual(ids({ time: "day", season: "summer", weather: "clear" }).filter((id) => RARE_WILDLIFE_SPECIES.some((r) => r.id === id)), [], "none without focus");
+});
+
+test("rare creatures have art, a codex card, and a hint that names the focus needed", () => {
+  assert.equal(ALL_WILDLIFE.length, 18);
+  for (const r of RARE_WILDLIFE_SPECIES) {
+    assert.ok(WILDLIFE_ART[r.id], r.id);
+    for (const f of [WILDLIFE_ART[r.id].frames, WILDLIFE_ART[r.id].codex]) assert.ok(existsSync(new URL("../" + f, import.meta.url)), f);
+    assert.match(hintFor("wildlife", r.id), /집중 \d+시간 뒤부터/);
+  }
+  assert.match(hintFor("wildlife", "white-fawn"), /밤에 · 눈 오는 날 · 숲속 서재에서 · 집중 12시간 뒤부터/);
+});
+
+import { earnedMonuments, MONUMENT_SPOTS } from "../garden/monuments.mjs";
+import { PACK3_ART } from "../garden/pack3-art-data.mjs";
+import { renderShareCard, shareCardLines, weekdayIndex, CARD_SIZE } from "../ui/share-card.mjs";
+
+test("monuments appear in the central garden as focus passes each milestone", () => {
+  assert.equal(earnedMonuments(0).length, 0);
+  assert.deepEqual(earnedMonuments(10 * 3600).map((m) => m.id), ["stele"]);
+  assert.equal(earnedMonuments(999 * 3600).length, MONUMENTS.length);
+  for (const m of earnedMonuments(999 * 3600)) {
+    assert.ok(existsSync(new URL("../" + m.src.split("?")[0], import.meta.url)), m.src);
+    assert.ok(m.x >= 64 && m.x < 96 && m.y >= 64 && m.y < 96, m.id + " stands in the central garden");
+  }
+  assert.equal(Object.keys(MONUMENT_SPOTS).length, 4);
+});
+
+test("weekday badges and share frames ship, and the share card says only kind things", () => {
+  assert.equal(PACK3_ART.badges.length, 7);
+  assert.ok(PACK3_ART.frames.length >= 2);
+  for (const a of [...PACK3_ART.badges, ...PACK3_ART.frames]) assert.ok(existsSync(new URL("../" + a.src.split("?")[0], import.meta.url)), a.src);
+  assert.equal(weekdayIndex("2026-10-26"), 0, "Monday first");
+  assert.equal(weekdayIndex("2026-11-01"), 6);
+  const quiet = shareCardLines({});
+  assert.match(quiet.headline, /쉬었어요/);
+  assert.doesNotMatch(JSON.stringify([quiet, shareCardLines({ weekMinutes: 5, activeDays: 1 })]), /못|부족|실패|연속/);
+  assert.match(shareCardLines({ weekMinutes: 135, activeDays: 4, plantsBloomed: 2, discovered: 12, total: 60 }).detail, /꽃이 2송이.*12\/60/);
+});
+
+test("the share card draws on a canvas without touching the network", async () => {
+  const drawn = [];
+  const ctx = new Proxy({}, { get: (t, k) => k === "createLinearGradient" ? () => ({ addColorStop() {} }) : k === "drawImage" ? (...a) => drawn.push(a) : t[k] ?? (() => {}), set: (t, k, v) => (t[k] = v, true) });
+  const doc = { createElement: () => ({ width: 0, height: 0, getContext: () => ctx }) };
+  const img = { naturalWidth: 10 };
+  const canvas = await renderShareCard(doc, { stats: { weekMinutes: 90, activeDays: 3 }, days: [{ day: "2026-10-26", minutes: 30 }, { day: "2026-10-28", minutes: 60 }], images: { frame: img, badges: Array(7).fill(img) } });
+  assert.equal(canvas.width, CARD_SIZE.width);
+  assert.equal(drawn.length, 8, "one frame and seven badges");
 });

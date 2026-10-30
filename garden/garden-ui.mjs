@@ -7,7 +7,7 @@ import {
 import { createPixelGardenRenderer, drawGardenThumbnail } from "./pixel-world.mjs";
 import { createWorldMinimap } from "./minimap.mjs";
 import { REGION_SCENES, WORLD_LANDMARKS } from "./world-map.mjs";
-import { WILDLIFE_SPECIES } from "./ecology.mjs";
+import { ALL_WILDLIFE as WILDLIFE_SPECIES } from "./ecology.mjs";
 import { createAvatarMotion } from "./avatar-motion.mjs";
 import { isDirectional } from "./decor-views.mjs";
 import { actionOf, createSeatController, interactionLine, readAutoSitPref, SIT_ART_READY } from "./interaction.mjs";
@@ -19,14 +19,14 @@ import { localDayKey } from "../core/focus-core.mjs";
 import { avatarIllustrationUri, companionIllustrationUri, wildlifeIllustrationUri } from "./hires-atlas.mjs";
 import { rasterAvatarPreviewUrl, rasterAvatarPortraitUrl, canUseRasterAvatar } from "./raster-art.mjs";
 import { renderRigPortrait } from "./avatar-rig.mjs";
-import { PAINTED_ART } from "./painted-art.mjs";
+import { PAINTED_ART, WILDLIFE_ART } from "./painted-art.mjs";
 
 /** Painted pictures for the collection cards (the world uses the same files). */
 const WARDROBE_ART = id => "assets/art/avatar/wardrobe/" + id + ".webp";
 const FOCUS_ART = "assets/art/avatar/portraits/focus_reading.webp";
 function paintedThumb(kind, id) {
   if (kind === "companion") return PAINTED_ART.companions[id]?.portrait || null;
-  if (kind === "wildlife") return PAINTED_ART.wildlife[id]?.codex || null;
+  if (kind === "wildlife") return WILDLIFE_ART[id]?.codex || null;
   if (kind === "plant") return PAINTED_ART.plants[id]?.bloom || null;
   if (kind === "decor") return PAINTED_ART.decor[id] || null;
   if (kind === "landmark") return PAINTED_ART.landmarks[id] || null;

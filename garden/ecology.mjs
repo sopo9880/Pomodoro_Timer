@@ -21,11 +21,23 @@ export const WILDLIFE_SPECIES = Object.freeze([
   {id:"lunamoth",name:"달빛 나방",zone:"starlight",motion:"flutter",count:2,period:"night",weathers:["clear"]},
   {id:"glowbug",name:"별빛 벌레",zone:"starlight",motion:"glow",count:3,period:"night"},
 ]);
+/**
+ * Rare creatures are met by conditions, never by chance: the same time, season,
+ * weather and earned focus always bring the same visitor.
+ */
+export const RARE_WILDLIFE_SPECIES = Object.freeze([
+  {id:"white-fawn",name:"하얀 새끼 사슴",zone:"forest",motion:"hop",count:1,period:"night",weathers:["snow"],needsFocusSeconds:12*3600,rare:true},
+  {id:"moon-rabbit",name:"달토끼",zone:"starlight",motion:"hop",count:1,period:"night",weathers:["clear"],needsFocusSeconds:35*3600,rare:true},
+  {id:"golden-chick",name:"금빛 병아리",zone:"central",motion:"hop",count:1,period:"day",seasons:["spring"],needsFocusSeconds:6*3600,rare:true},
+  {id:"blue-newt",name:"푸른 점 도롱뇽",zone:"pond",motion:"crawl",count:1,weathers:["rain"],needsFocusSeconds:6*3600,rare:true},
+]);
+export const ALL_WILDLIFE = Object.freeze([...WILDLIFE_SPECIES,...RARE_WILDLIFE_SPECIES]);
 const SAFE_WEATHER = new Set(["clear","rain","snow"]);
 const EMPTY = Object.freeze([]);
 function allows(spec, environment){
   const season=environment.season||"spring",weather=SAFE_WEATHER.has(environment.weather)?environment.weather:"clear";
   const period=environment.time||"day";
+  if(spec.needsFocusSeconds && (Number(environment.focusSeconds)||0)<spec.needsFocusSeconds)return false;
   if(spec.period && spec.period!==period)return false;
   if(spec.seasons && !spec.seasons.includes(season))return false;
   if(spec.weathers && !spec.weathers.includes(weather))return false;
@@ -34,7 +46,7 @@ function allows(spec, environment){
   return true;
 }
 export function wildlifeAvailable(speciesId,environment={}){
-  const species=WILDLIFE_SPECIES.find(entry=>entry.id===speciesId);
+  const species=ALL_WILDLIFE.find(entry=>entry.id===speciesId);
   return Boolean(species&&allows(species,environment));
 }
 function visible(x,y,rect,padding=1){
@@ -60,7 +72,7 @@ export function createWildlifeEcology(map,{maxVisible=20}={}){
   if(!map?.getTile||!map.getZones)throw new TypeError("World map required");
   const origins=new Map();
   const limit=Math.max(0,Math.min(48,Math.floor(maxVisible)));
-  for(const species of WILDLIFE_SPECIES){
+  for(const species of ALL_WILDLIFE){
     origins.set(species.id,Array.from({length:species.count},(_,index)=>originFor(species,index,map)).filter(Boolean));
   }
   function visibleWildlife({unlockedZones=EMPTY,environment={},viewport,elapsedSeconds=0,reducedMotion=false}={}){
@@ -68,7 +80,7 @@ export function createWildlifeEcology(map,{maxVisible=20}={}){
     const unlocked=new Set(unlockedZones);
     const t=Number.isFinite(elapsedSeconds)?Math.max(0,elapsedSeconds):0;
     const result=[];
-    for(const species of WILDLIFE_SPECIES){
+    for(const species of ALL_WILDLIFE){
       if(!unlocked.has(species.zone)||!allows(species,environment))continue;
       for(const [index,home] of (origins.get(species.id)||[]).entries()){
         const cycle=t*.5+home.seed*7.5+index;
@@ -88,5 +100,5 @@ export function createWildlifeEcology(map,{maxVisible=20}={}){
     return result;
   }
   function getPopulation(){return [...origins.values()].reduce((sum,list)=>sum+list.length,0);}
-  return {visibleWildlife,getPopulation,getSpecies:()=>WILDLIFE_SPECIES};
+  return {visibleWildlife,getPopulation,getSpecies:()=>ALL_WILDLIFE};
 }

@@ -12,6 +12,7 @@ import { createRasterAvatarAtlas } from "./raster-art.mjs";
 import { canUseRig } from "./avatar-variants.mjs";
 import { createGroundCache, pickTilePx } from "./ground-cache.mjs";
 import { WORLD_ART } from "./world-art-data.mjs";
+import { earnedMonuments } from "./monuments.mjs";
 import { celebrationItems, createDust, companionEmote, EMOTE_DIR } from "./fx.mjs";
 import { sceneryInRect, clearOfPlacements, PLACEMENT_LIGHTS } from "./scenery.mjs";
 import { createAvatarRig, createWalkClock, RIG_HEIGHT_TILES } from "./avatar-rig.mjs";
@@ -650,7 +651,7 @@ export function createPixelGardenRenderer(canvas) {
     // companions and biome wildlife: the lower actor appears in the foreground.
     const wildlife = ecology.visibleWildlife({
       unlockedZones: garden.unlockedZones,
-      environment,
+      environment: { ...environment, focusSeconds: garden.progress?.focusSeconds || 0 },
       viewport: visible,
       elapsedSeconds: time,
       reducedMotion,
@@ -662,6 +663,7 @@ export function createPixelGardenRenderer(canvas) {
       .filter(spot => unlocked.has(spot.zoneId));
     const actors = [
       ...scenery.map(spot=>({ id:"s:"+spot.key,x:spot.x,y:spot.y,kind:"scenery",def:spot.def })),
+      ...earnedMonuments(garden.progress?.focusSeconds||0).map(m=>({ id:"m:"+m.id,x:m.x,y:m.y,kind:"monument",def:m })),
       ...garden.placements.map(object=>({ ...object,kind:"decor" })),
       ...garden.plants.map(object=>({ ...object,kind:"plant" })),
       ...visibleFriends.map(object=>({ ...object,kind:"companion" })),
@@ -671,6 +673,12 @@ export function createPixelGardenRenderer(canvas) {
       actor.y>visible.top-3&&actor.y<visible.bottom+3)
      .sort((a,b)=>a.y-b.y);
     for (const actor of actors) {
+      if (actor.kind === "monument") {
+        const img = painted.art(actor.def.src);
+        if (img) drawPainted({ image: img, sx: 0, sy: 0, sw: img.naturalWidth, sh: img.naturalHeight, ref: img.naturalHeight },
+          actor.x, actor.y, 0, { widthTiles: actor.def.w });
+        continue;
+      }
       if (actor.kind === "scenery") {
         const img = painted.scenery(actor.def.src);
         if (img) drawPainted({ image: img, sx: 0, sy: 0, sw: img.naturalWidth, sh: img.naturalHeight, ref: img.naturalHeight },

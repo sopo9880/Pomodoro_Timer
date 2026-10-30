@@ -5,11 +5,13 @@
  * Nothing here is saved and none of it touches focus time or rewards.
  */
 import { worldHash } from "./world-map.mjs";
+import { PACK3_ART } from "./pack3-art-data.mjs";
 
 const FX = "assets/art/ui/fx/";
 const P = (n) => FX + "particles/" + n + ".webp";
-const SPARKLES = ["r2_00", "r2_01", "r2_02", "r2_03", "r2_04", "r2_05"].map(P);
-const PETALS = ["r0_00", "r0_01", "r0_02", "r0_03", "r0_04", "r0_05", "r0_06"].map(P);
+const X = (...ns) => ns.map((n) => PACK3_ART.extras[n].src);
+const SPARKLES = [...["r2_00", "r2_01", "r2_02", "r2_03", "r2_04", "r2_05"].map(P), ...X(6, 8, 9, 10, 11, 12)];
+const PETALS = [...["r0_00", "r0_01", "r0_02", "r0_03", "r0_04", "r0_05", "r0_06"].map(P), ...X(0, 1, 2, 4, 5)];
 const BURST = FX + "celebration/r2_00.webp";
 const PUFFS = ["r1_00", "r1_01", "r1_02"].map(P);
 export const EMOTE_DIR = "assets/art/ui/emotes/";

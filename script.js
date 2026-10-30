@@ -1,7 +1,7 @@
 import { normalizeSettings as normalizeSavedSettings, normalizeDailyStats, creditFocusInterval, creditCompletedSession, recoverCheckpoint, localDayKey } from "./core/focus-core.mjs";
 import { createGardenState, normalizeGardenState, creditGardenFocus, GARDEN_ITEMS, GARDEN_COMPANIONS } from "./garden/garden-core.mjs";
 import { collectionSnapshot } from "./garden/life-core.mjs";
-import { WILDLIFE_SPECIES } from "./garden/ecology.mjs";
+import { ALL_WILDLIFE as WILDLIFE_SPECIES } from "./garden/ecology.mjs";
 import { WORLD_LANDMARKS } from "./garden/world-map.mjs";
 import { growthProgress } from "./garden/longterm.mjs";
 import { mountGarden } from "./garden/garden-ui.mjs";

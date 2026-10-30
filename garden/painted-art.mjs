@@ -9,6 +9,7 @@
  * last painted frame or a soft placeholder rather than older artwork.
  */
 import { PAINTED_ART } from "./painted-art-data.mjs";
+import { RARE_WILDLIFE_ART } from "./rare-art-data.mjs";
 import { DECOR_BACK_VIEWS, decorViewFor } from "./decor-views.mjs";
 
 export { PAINTED_ART };
@@ -16,7 +17,10 @@ export { PAINTED_ART };
 export const COMPANION_HEIGHT_TILES = Object.freeze({
   sprout: 1.2, mushroom: 1.45, cat: 1.25, sparrow: 1.05, turtle: 1.1, fox: 1.45,
 });
+/** Painted creature strips: the common fourteen plus the rare four. */
+export const WILDLIFE_ART = Object.freeze({ ...PAINTED_ART.wildlife, ...RARE_WILDLIFE_ART });
 export const WILDLIFE_HEIGHT_TILES = Object.freeze({
+  "white-fawn": .95, "moon-rabbit": .62, "golden-chick": .44, "blue-newt": .36,
   butterfly: .62, robin: .58, honeybee: .5, ladybug: .34, dragonfly: .5, frog: .55, carp: .8,
   firefly: .46, owl: .82, squirrel: .78, fieldmouse: .4, wren: .52, lunamoth: .66, glowbug: .55,
 });
@@ -69,7 +73,7 @@ export function companionFrame(species, direction = "down", activity = "idle", f
 }
 
 export function wildlifeFrame(species, frame = 0) {
-  const w = PAINTED_ART.wildlife[species];
+  const w = WILDLIFE_ART[species];
   if (!w) return null;
   const f = Math.abs(Math.floor(Number.isFinite(frame) ? frame : 0)) % w.count;
   return { src: w.frames, sx: f * w.frameWidth, sw: w.frameWidth, sh: w.frameHeight, flipX: false, ref: w.ref };
@@ -111,7 +115,7 @@ export function paintedAssetGroups() {
   return {
     companion,
     plant: id => Object.values(A.plants[id] || {}),
-    wildlife: id => (A.wildlife[id] ? [A.wildlife[id].frames] : []),
+    wildlife: id => (WILDLIFE_ART[id] ? [WILDLIFE_ART[id].frames] : []),
     terrain: Object.entries(A.terrain).map(([, v]) => v),
     landmarks: Object.values(A.landmarks),
     decor: Object.values(A.decor),
@@ -120,7 +124,7 @@ export function paintedAssetGroups() {
         ...this.terrain, ...this.landmarks, ...this.decor,
         ...Object.keys(A.companions).flatMap(companion),
         ...Object.keys(A.plants).flatMap(id => Object.values(A.plants[id])),
-        ...Object.values(A.wildlife).flatMap(w => [w.frames, w.codex]),
+        ...Object.values(WILDLIFE_ART).flatMap(w => [w.frames, w.codex]),
       ])];
     },
   };

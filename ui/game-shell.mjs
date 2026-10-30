@@ -1,4 +1,6 @@
 import { weeklyRhythm, monumentProgress, shareText } from "../garden/longterm.mjs";
+import { PACK3_ART } from "../garden/pack3-art-data.mjs";
+import { renderShareCard, weekdayIndex } from "./share-card.mjs";
 // Pure UI shell: navigation and local presentation preferences only.
 // Timer and garden state remain owned by their respective existing controllers.
 const PREFS_KEY = "bloomodoro-world-display-v1";
@@ -72,7 +74,7 @@ export function mountGameShell({ getTimerState, getDailyStats = () => ({}), getS
     const fragment = document.createDocumentFragment();
     summary.days.forEach((day, index) => {
       const column = document.createElement("div");
-      column.className = "week-day" + (index === 6 ? " today" : "");
+      column.className = "week-day" + (index === 6 ? " today" : "") + (day.minutes ? " has-focus" : "");
       const amount = document.createElement("strong");
       amount.textContent = day.minutes + "분";
       const track = document.createElement("div");
@@ -84,7 +86,10 @@ export function mountGameShell({ getTimerState, getDailyStats = () => ({}), getS
       track.append(bar);
       const caption = document.createElement("span");
       caption.textContent = day.label;
-      column.append(amount, track, caption);
+      const badge = document.createElement("img");
+      badge.className = "week-badge"; badge.alt = ""; badge.loading = "lazy"; badge.decoding = "async";
+      badge.src = PACK3_ART.badges[weekdayIndex(day.day)].src;
+      column.append(amount, track, badge, caption);
       fragment.append(column);
     });
     bars.replaceChildren(fragment);
@@ -107,6 +112,14 @@ export function mountGameShell({ getTimerState, getDailyStats = () => ({}), getS
       const text = shareText({ weekMinutes: summary.totalMinutes, activeDays: summary.days.filter((d) => d.minutes > 0).length,
         plantsBloomed: stats.plantsBloomed || 0, discovered: stats.discovered || 0, total: stats.total || 0 });
       try {
+        // A picture when the device can share files; otherwise the plain text below.
+        if (navigator.canShare && navigator.share) {
+          const canvas = await renderShareCard(document, { stats: { weekMinutes: summary.totalMinutes, activeDays: summary.days.filter((d) => d.minutes > 0).length,
+            plantsBloomed: stats.plantsBloomed || 0, discovered: stats.discovered || 0, total: stats.total || 0 }, days: summary.days });
+          const blob = await new Promise((resolve) => canvas.toBlob(resolve, "image/png"));
+          const file = blob && new File([blob], "bloomodoro-week.png", { type: "image/png" });
+          if (file && navigator.canShare({ files: [file] })) { await navigator.share({ files: [file], text }); return; }
+        }
         if (navigator.share) { await navigator.share({ text }); return; }
         await navigator.clipboard.writeText(text);
         shareButton.textContent = "복사했어요! 어디든 붙여넣어 보세요";
