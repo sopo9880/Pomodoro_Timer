@@ -2,11 +2,12 @@
 export const AVATAR_RIG_PARTS = Object.freeze({
  "front": {
   "cape": {
-   "src": "assets/art/avatar/front/cape.webp",
+   "src": "assets/art/avatar/front/cape.webp?v=5",
+   "back": "assets/art/avatar/front/cape_back.webp?v=14134",
    "w": 366,
-   "h": 372,
+   "h": 391,
    "pivot": [
-    182.5,
+    181.0,
     8.0
    ]
   },
@@ -20,7 +21,7 @@ export const AVATAR_RIG_PARTS = Object.freeze({
    ]
   },
   "neck": {
-   "src": "assets/art/avatar/front/neck.webp",
+   "src": "assets/art/avatar/front/neck.webp?v=2",
    "w": 54,
    "h": 116,
    "pivot": [
@@ -75,7 +76,16 @@ export const AVATAR_RIG_PARTS = Object.freeze({
    ]
   },
   "capelet": {
-   "src": "assets/art/avatar/front/capelet.webp",
+   "src": "assets/art/avatar/front/capelet.webp?v=3",
+   "w": 238,
+   "h": 143,
+   "pivot": [
+    118.0,
+    3.0
+   ]
+  },
+  "capeletInner": {
+   "src": "assets/art/avatar/front/capelet_inner.webp?v=2",
    "w": 238,
    "h": 143,
    "pivot": [
@@ -84,7 +94,7 @@ export const AVATAR_RIG_PARTS = Object.freeze({
    ]
   },
   "head": {
-   "src": "assets/art/avatar/front/head.webp",
+   "src": "assets/art/avatar/front/head.webp?v=2",
    "w": 190,
    "h": 166,
    "pivot": [
@@ -106,7 +116,7 @@ export const AVATAR_RIG_PARTS = Object.freeze({
    ]
   },
   "sleeveL": {
-   "src": "assets/art/avatar/front/sleeve_left.webp",
+   "src": "assets/art/avatar/front/sleeve_left.webp?v=2",
    "w": 94,
    "h": 138,
    "pivot": [
@@ -119,7 +129,7 @@ export const AVATAR_RIG_PARTS = Object.freeze({
    ]
   },
   "sleeveR": {
-   "src": "assets/art/avatar/front/sleeve_right.webp",
+   "src": "assets/art/avatar/front/sleeve_right.webp?v=2",
    "w": 94,
    "h": 138,
    "pivot": [
@@ -214,12 +224,21 @@ export const AVATAR_RIG_PARTS = Object.freeze({
  },
  "side": {
   "cape": {
-   "src": "assets/art/avatar/side/cape.webp",
-   "w": 430,
-   "h": 372,
+   "src": "assets/art/avatar/side/cape.webp?v=3",
+   "w": 322,
+   "h": 391,
    "pivot": [
-    247.0,
-    8.0
+    157.5,
+    6.0
+   ]
+  },
+  "capeL": {
+   "src": "assets/art/avatar/side/cape_left.webp?v=2",
+   "w": 325,
+   "h": 391,
+   "pivot": [
+    156.5,
+    6.0
    ]
   },
   "hair": {
@@ -232,7 +251,7 @@ export const AVATAR_RIG_PARTS = Object.freeze({
    ]
   },
   "neck": {
-   "src": "assets/art/avatar/side/neck.webp",
+   "src": "assets/art/avatar/side/neck.webp?v=2",
    "w": 51,
    "h": 72,
    "pivot": [
@@ -287,7 +306,16 @@ export const AVATAR_RIG_PARTS = Object.freeze({
    ]
   },
   "capelet": {
-   "src": "assets/art/avatar/side/capelet.webp",
+   "src": "assets/art/avatar/side/capelet.webp?v=2",
+   "w": 205,
+   "h": 176,
+   "pivot": [
+    105.0,
+    4.0
+   ]
+  },
+  "capeletInner": {
+   "src": "assets/art/avatar/side/capelet_inner.webp?v=2",
    "w": 205,
    "h": 176,
    "pivot": [
@@ -322,7 +350,8 @@ export const AVATAR_RIG_PARTS = Object.freeze({
    ]
   },
   "bag": {
-   "src": "assets/art/avatar/side/bag.webp",
+   "src": "assets/art/avatar/side/bag.webp?v=2",
+   "back": "assets/art/avatar/side/bag_back.webp?v=7391",
    "w": 164,
    "h": 304,
    "pivot": [
@@ -344,16 +373,29 @@ export const AVATAR_RIG_PARTS = Object.freeze({
    ]
   },
   "armFar": {
-   "src": "assets/art/avatar/side/arm_far.webp",
-   "w": 94,
+   "src": "assets/art/avatar/side/arm_far.webp?v=2",
+   "w": 90,
    "h": 314,
    "pivot": [
-    42.0,
+    41.0,
     19.0
    ],
    "end": [
-    46.5,
-    299.0
+    49.0,
+    300.0
+   ]
+  },
+  "armFarL": {
+   "src": "assets/art/avatar/side/arm_far_left.webp?v=1",
+   "w": 90,
+   "h": 314,
+   "pivot": [
+    40.5,
+    19.0
+   ],
+   "end": [
+    49.0,
+    300.0
    ]
   },
   "thighNear": {
@@ -383,7 +425,7 @@ export const AVATAR_RIG_PARTS = Object.freeze({
    ]
   },
   "shinNear": {
-   "src": "assets/art/avatar/boots/side_near.webp",
+   "src": "assets/art/avatar/boots/side_near.webp?v=2",
    "w": 152,
    "h": 391,
    "pivot": [
@@ -397,7 +439,7 @@ export const AVATAR_RIG_PARTS = Object.freeze({
    "scale": 0.79
   },
   "shinFar": {
-   "src": "assets/art/avatar/boots/side_far.webp",
+   "src": "assets/art/avatar/boots/side_far.webp?v=2",
    "w": 151,
    "h": 391,
    "pivot": [
@@ -481,12 +523,12 @@ export const AVATAR_RIG_PARTS = Object.freeze({
    ]
   },
   "cape": {
-   "src": "assets/art/avatar/back/cape.webp",
-   "w": 286,
-   "h": 466,
+   "src": "assets/art/avatar/back/cape.webp?v=2",
+   "w": 366,
+   "h": 377,
    "pivot": [
-    147.0,
-    10.0
+    182.0,
+    8.0
    ]
   },
   "capelet": {
@@ -499,7 +541,8 @@ export const AVATAR_RIG_PARTS = Object.freeze({
    ]
   },
   "bag": {
-   "src": "assets/art/avatar/back/bag.webp",
+   "src": "assets/art/avatar/back/bag.webp?v=2",
+   "back": "assets/art/avatar/back/bag_back.webp?v=40872",
    "w": 138,
    "h": 256,
    "pivot": [
@@ -508,59 +551,59 @@ export const AVATAR_RIG_PARTS = Object.freeze({
    ]
   },
   "sleeveL": {
-   "src": "assets/art/avatar/back/sleeve_left.webp",
+   "src": "assets/art/avatar/back/sleeve_left.webp?v=3",
    "w": 98,
-   "h": 134,
+   "h": 112,
    "pivot": [
-    55.5,
+    53.0,
     7.0
    ],
    "end": [
-    37.5,
-    126.0
+    49.5,
+    106.0
    ]
   },
   "sleeveR": {
-   "src": "assets/art/avatar/back/sleeve_right.webp",
+   "src": "assets/art/avatar/back/sleeve_right.webp?v=3",
    "w": 98,
-   "h": 133,
+   "h": 112,
    "pivot": [
-    40.5,
-    8.0
+    43.0,
+    7.0
    ],
    "end": [
-    59.0,
-    127.0
+    48.0,
+    106.0
    ]
   },
   "forearmL": {
-   "src": "assets/art/avatar/back/forearm_left.webp",
-   "w": 80,
-   "h": 182,
+   "src": "assets/art/avatar/back/forearm_left.webp?v=3",
+   "w": 48,
+   "h": 233,
    "pivot": [
-    14.5,
-    10.0
+    26.0,
+    8.0
    ],
    "end": [
-    58.0,
-    174.0
+    20.0,
+    227.0
    ]
   },
   "forearmR": {
-   "src": "assets/art/avatar/back/forearm_right.webp",
-   "w": 78,
-   "h": 182,
+   "src": "assets/art/avatar/back/forearm_right.webp?v=3",
+   "w": 46,
+   "h": 233,
    "pivot": [
-    15.5,
-    10.0
+    19.5,
+    8.0
    ],
    "end": [
-    61.5,
-    174.0
+    25.5,
+    227.0
    ]
   },
   "thighL": {
-   "src": "assets/art/avatar/back/leg_left.webp",
+   "src": "assets/art/avatar/back/leg_left.webp?v=2",
    "w": 70,
    "h": 310,
    "pivot": [
@@ -573,7 +616,7 @@ export const AVATAR_RIG_PARTS = Object.freeze({
    ]
   },
   "thighR": {
-   "src": "assets/art/avatar/back/leg_right.webp",
+   "src": "assets/art/avatar/back/leg_right.webp?v=2",
    "w": 71,
    "h": 308,
    "pivot": [
@@ -600,7 +643,7 @@ export const AVATAR_RIG_PARTS = Object.freeze({
    "scale": 0.77
   },
   "shinR": {
-   "src": "assets/art/avatar/boots/back_right.webp",
+   "src": "assets/art/avatar/boots/back_right.webp?v=2",
    "w": 82,
    "h": 301,
    "pivot": [
@@ -616,12 +659,12 @@ export const AVATAR_RIG_PARTS = Object.freeze({
  },
  "expressions": {
   "files": {
-   "neutral": "assets/art/avatar/expressions/head_neutral.webp",
-   "blink": "assets/art/avatar/expressions/head_blink.webp",
-   "halfblink": "assets/art/avatar/expressions/head_halfblink.webp",
-   "happy": "assets/art/avatar/expressions/head_happy.webp",
-   "surprised": "assets/art/avatar/expressions/head_surprised.webp",
-   "focused": "assets/art/avatar/expressions/head_focused.webp"
+   "neutral": "assets/art/avatar/expressions/head_neutral.webp?v=2",
+   "blink": "assets/art/avatar/expressions/head_blink.webp?v=2",
+   "halfblink": "assets/art/avatar/expressions/head_halfblink.webp?v=2",
+   "happy": "assets/art/avatar/expressions/head_happy.webp?v=2",
+   "surprised": "assets/art/avatar/expressions/head_surprised.webp?v=2",
+   "focused": "assets/art/avatar/expressions/head_focused.webp?v=2"
   },
   "scale": 0.496,
   "pivot": [

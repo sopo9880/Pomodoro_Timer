@@ -9,7 +9,9 @@ test("4D uses continuous keyboard input, bounded saves, camera easing and drag/d
   assert.match(ui,/avatarMotion\.setHeld\(direction,true\)/);
   assert.match(ui,/avatarMotion\.setHeld\(direction,false\)/);
   assert.match(ui,/saveAvatarPosition\(true\)/);
-  assert.match(ui,/Math\.min\(\.23,elapsed\*9\)/);
+  // 4I replaced the dead-zone snap with a frame-rate independent spring.
+  assert.match(ui,/function followCamera\(/);
+  assert.match(ui,/1-Math\.exp\(-elapsed\*4\.5\)/);
   assert.match(ui,/dropPreview=\{x:pos\.x,y:pos\.y,allowed\}/);
   assert.match(renderer,/drawInteractionMarker/);
   assert.match(renderer,/getAvatarAt/);

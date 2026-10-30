@@ -97,6 +97,11 @@ export function mountGarden({ getGarden, setGarden, getTimerState, getEnvironmen
   let moveTargetUntil = 0;
   let moveFeedback = null;
   let lastFingerprint = "";
+  // While walking, the position is written at most every few seconds (a crash
+  // loses a few steps at most); stopping, blur and hide always save at once.
+  const AVATAR_SAVE_INTERVAL = 2500;
+  // Camera follow: a spring towards a point a little ahead of the walker.
+  const camera = { lookX: 0, lookY: 0, following: false };
   let lastFocusProgress = getGarden().progress.focusSeconds;
   const undoHistory = [];
   const redoHistory = [];
@@ -127,7 +132,7 @@ export function mountGarden({ getGarden, setGarden, getTimerState, getEnvironmen
     if(distance < .015) return false;
     // Batched saves during motion; always flush on key release, blur, hide,
     // or before a different edit. Lifetime focus/currency is never changed.
-    if(!force && performance.now()-lastAvatarSave < 360) return false;
+    if(!force && performance.now()-lastAvatarSave < AVATAR_SAVE_INTERVAL) return false;
     try {
       const next = moveAvatar(current,renderer.map,
         Math.round(point.x*1000)/1000,Math.round(point.y*1000)/1000,point.direction);
@@ -419,12 +424,14 @@ export function mountGarden({ getGarden, setGarden, getTimerState, getEnvironmen
   function updateRegionName(garden) {
     const zone = renderer.map.getZone(renderer.camera.x, renderer.camera.y);
     if (!zone) return;
-    regionTitle.textContent = garden.unlockedZones.includes(zone.id)
+    // Called every frame: only touch the DOM when the words actually change.
+    const title = garden.unlockedZones.includes(zone.id)
       ? REGION_SCENES[zone.id]?.name || zone.name
       : "🔒 " + zone.name;
+    if (regionTitle.textContent !== title) regionTitle.textContent = title;
     const inhabitants=renderer.getLifeStatus();
-    if (view.life) view.life.textContent =
-      "♡ 산책 중인 친구 " + inhabitants.friends + "명 · 자연 생물 " + inhabitants.wildlife + "마리";
+    const life = "♡ 산책 중인 친구 " + inhabitants.friends + "명 · 자연 생물 " + inhabitants.wildlife + "마리";
+    if (view.life && view.life.textContent !== life) view.life.textContent = life;
     if (view.zonePicker.value !== zone.id) view.zonePicker.value = zone.id;
   }
   function refresh(force = false) {
@@ -464,7 +471,10 @@ export function mountGarden({ getGarden, setGarden, getTimerState, getEnvironmen
     const fingerprint = JSON.stringify({
       inv: garden.inventory, friends: garden.companions,
       progress: Math.floor(garden.progress.focusSeconds), balance: garden.wallet.timePoints, locked,
-      discovery:garden.discovery,avatar:garden.avatar,guest:garden.guest,
+      // Only what the cards show: the avatar's outfit, never its position,
+      // so walking does not repaint the whole collection drawer.
+      discovery:garden.discovery,guest:garden.guest,
+      wardrobe:{owned:garden.avatar?.ownedWearables,equipped:garden.avatar?.equipped},
     });
     if (force || fingerprint !== lastFingerprint) {
       paintCatalogCards();
@@ -550,7 +560,7 @@ export function mountGarden({ getGarden, setGarden, getTimerState, getEnvironmen
     if(editingLocked())return;
     stopAvatarControl();
     avatarSelected=!avatarSelected;
-    if(avatarSelected)setAction("inspect");
+    if(avatarSelected){setAction("inspect");camera.following=true;cameraPanUntil=0;startAnimation();}
     announce(avatarSelected?"내 캐릭터를 조작해 보세요. WASD 또는 방향키, 바닥 클릭 이동이 가능해요.":"캐릭터 직접 조작을 종료했어요.");
     canvas.focus({preventScroll:true});
     refresh(true);
@@ -692,6 +702,7 @@ export function mountGarden({ getGarden, setGarden, getTimerState, getEnvironmen
         const path=avatarMotion.goTo(getGarden(),x,y);
         moveTargetUntil=performance.now()+950;
         moveFeedback={x,y,allowed:path};
+        if(path){camera.following=true;cameraPanUntil=0;}
         announce(path?"선택한 곳까지 이동해요. 키보드로 즉시 방향을 바꿀 수도 있어요.":"갈 수 없는 곳이에요. 열린 산책로를 눌러 주세요.");
         return;
       }
@@ -813,7 +824,10 @@ export function mountGarden({ getGarden, setGarden, getTimerState, getEnvironmen
       ghost = { sprite: item?.sprite || "seed", x: pos.x, y: pos.y };
     } else if (currentTool === "inspect") {
       renderer.panPixels(dx, dy);
+      // A manual look-around wins: following resumes only when the avatar is
+      // steered again (key press or a tap on the ground).
       cameraPanUntil=performance.now()+1100;
+      camera.following=false;
       canvas.dataset.interaction="pan";
     }
   });
@@ -846,6 +860,7 @@ export function mountGarden({ getGarden, setGarden, getTimerState, getEnvironmen
       canvas.dataset.interaction="";
     }else if(gesture?.avatarHit&&!gesture.moved&&!editingLocked()){
       avatarSelected=true;
+      camera.following=true;
       avatarReactionUntil=performance.now()+950;
       selected=null;
       setAction("inspect");
@@ -860,7 +875,7 @@ export function mountGarden({ getGarden, setGarden, getTimerState, getEnvironmen
     ghost = null;
     dropPreview=null;
     if(!pointers.size)canvas.dataset.interaction=avatarSelected?"avatar":"";
-    refresh(true);
+    refresh();
   }
   canvas.addEventListener("pointerup", finishPointer);
   canvas.addEventListener("pointercancel", (event) => {
@@ -915,19 +930,24 @@ export function mountGarden({ getGarden, setGarden, getTimerState, getEnvironmen
     const direction=MOVE_KEYS[event.key];
     if(!direction)return;
     event.preventDefault();
+    // Held keys repeat ~30 times a second; the motion loop already moves the
+    // avatar, so repeats do nothing here.
+    if(event.repeat)return;
     // OS key repeat no longer produces a discrete grid teleport. The first
     // keydown gets a small immediate step for responsive tactile feedback.
     const already=avatarMotion.isControlled();
     avatarMotion.setHeld(direction,true);
     if(!already)avatarMotion.advance(.021,getGarden());
-    refresh(true);
+    camera.following=true;
+    cameraPanUntil=0;
+    startAnimation();
   });
   document.addEventListener("keyup",(event)=>{
     const direction=MOVE_KEYS[event.key];
     if(!direction||!avatarMotion.isControlled())return;
     avatarMotion.setHeld(direction,false);
     if(!avatarMotion.isControlled())saveAvatarPosition(true);
-    refresh(true);
+    refresh();
   });
   window.addEventListener("blur",()=>{
     stopAvatarControl();
@@ -947,6 +967,33 @@ export function mountGarden({ getGarden, setGarden, getTimerState, getEnvironmen
     if(!onScreen)stopAvatarControl();
     if(onScreen){previousAvatarPaint=0;renderer.resize();refresh();startAnimation();}
   });
+  let cameraSettling=false;
+  const FACING={up:[0,-1],down:[0,1],left:[-1,0],right:[1,0]};
+  /**
+   * Spring camera: eases towards a point slightly ahead of where the avatar
+   * faces, so there is room to see where you are going and no edge snapping.
+   * Both the look-ahead and the camera use exponential smoothing, which is
+   * frame-rate independent. Returns true while the camera is still moving.
+   */
+  function followCamera(player,elapsed,now){
+    if(!avatarSelected||!camera.following||!player||now<cameraPanUntil||!elapsed)return false;
+    const moving=avatarMotion.isMoving();
+    const dir=FACING[player.direction]||[0,0];
+    const ahead=moving&&!reduceMotionQuery.matches?1.4:0;
+    const look=1-Math.exp(-elapsed*3);
+    camera.lookX+=(dir[0]*ahead-camera.lookX)*look;
+    camera.lookY+=(dir[1]*ahead*.75-camera.lookY)*look;
+    const screen=renderer.worldToScreen(player.x+camera.lookX,player.y+camera.lookY);
+    const rect=canvas.getBoundingClientRect();
+    const scale=WORLD_SPEC.tileSize*renderer.camera.zoom;
+    const offX=(screen.x-rect.width*.5)/scale,offY=(screen.y-rect.height*.57)/scale;
+    if(Math.hypot(offX,offY)<.01&&!moving)return false;
+    const ease=reduceMotionQuery.matches?1:1-Math.exp(-elapsed*4.5);
+    const beforeX=renderer.camera.x,beforeY=renderer.camera.y;
+    renderer.setCamera(beforeX+offX*ease,beforeY+offY*ease);
+    // At a map edge the camera is clamped; stop asking for frames then.
+    return moving||Math.hypot(renderer.camera.x-beforeX,renderer.camera.y-beforeY)>.0005;
+  }
   function startAnimation() {
     if (animationFrame) return;
     animationFrame = requestAnimationFrame(tick);
@@ -954,9 +1001,10 @@ export function mountGarden({ getGarden, setGarden, getTimerState, getEnvironmen
   function tick(timestamp) {
     animationFrame=0;
     if(document.hidden||!onScreen)return;
-    const busy=avatarMotion.isMoving()||Boolean(pointerGesture?.friendHeld);
-    // Moving pixels get high-frequency updates; an idle garden stays frugal.
-    const interval=reduceMotionQuery.matches?220:busy?16:72;
+    const busy=avatarMotion.isMoving()||Boolean(pointerGesture?.friendHeld)||cameraSettling;
+    // Anything the player steers paints every frame; an idle garden (wandering
+    // friends, swaying plants) paints at 30fps to stay light on batteries.
+    const interval=reduceMotionQuery.matches?220:busy?0:33;
     if(timestamp-lastPaint>=interval){
       if(editingLocked()&&avatarMotion.isMoving())stopAvatarControl();
       const elapsed=previousAvatarPaint?Math.min(.22,(timestamp-previousAvatarPaint)/1000):0;
@@ -964,24 +1012,11 @@ export function mountGarden({ getGarden, setGarden, getTimerState, getEnvironmen
       if(avatarMotion.isMoving()&&!editingLocked()){
         const step=avatarMotion.advance(elapsed,getGarden());
         if(step.blocked)announce("길이 막혔어요. 다른 방향으로 이동해 보세요.");
-        if(step.changed&&timestamp-lastAvatarSave>=360)saveAvatarPosition();
+        if(step.changed&&timestamp-lastAvatarSave>=AVATAR_SAVE_INTERVAL)saveAvatarPosition();
         if(step.done)saveAvatarPosition(true);
       }
       const player=avatarMotion.visual();
-      if(avatarSelected&&avatarMotion.isMoving()&&player&&timestamp>cameraPanUntil){
-        // A soft dead-zone avoids camera/keyboard jitter near the viewport edge.
-        const screen=renderer.worldToScreen(player.x,player.y);
-        const rect=canvas.getBoundingClientRect();
-        const targetX=rect.width*.5,targetY=rect.height*.57;
-        const offX=screen.x-targetX,offY=screen.y-targetY;
-        if(Math.abs(offX)>rect.width*.18||Math.abs(offY)>rect.height*.15){
-          const factor=Math.min(.23,elapsed*9);
-          renderer.setCamera(
-            renderer.camera.x+offX/(WORLD_SPEC.tileSize*renderer.camera.zoom)*factor,
-            renderer.camera.y+offY/(WORLD_SPEC.tileSize*renderer.camera.zoom)*factor
-          );
-        }
-      }
+      cameraSettling=followCamera(player,elapsed,timestamp);
       renderer.draw(getGarden(),getTimerState(),{
         selected,ghost,avatar:player,avatarSelected,
         avatarReaction:timestamp<avatarReactionUntil?"surprised":null,dropPreview,
