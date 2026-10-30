@@ -8,7 +8,8 @@ import { createWildlifeEcology } from "./ecology.mjs";
 import { createWildlifeSpriteAtlas } from "./wildlife-art.mjs";
 import { createAvatarSpriteAtlas } from "./avatar-art.mjs";
 import { createHighResolutionAtlas } from "./hires-atlas.mjs";
-import { createRasterAvatarAtlas, canUseRasterAvatar } from "./raster-art.mjs";
+import { createRasterAvatarAtlas } from "./raster-art.mjs";
+import { canUseRig } from "./avatar-variants.mjs";
 import { createAvatarRig, createWalkClock, RIG_HEIGHT_TILES } from "./avatar-rig.mjs";
 import { createPaintedArtAtlas, COMPANION_HEIGHT_TILES, WILDLIFE_HEIGHT_TILES,
   DECOR_WIDTH_TILES, PLANT_WIDTH_TILES, PAINTED_ART, paintedAssetGroups } from "./painted-art.mjs";
@@ -395,8 +396,9 @@ export function createPixelGardenRenderer(canvas) {
     const walking=Boolean(avatar.moving);
     // Painted cutout rig: only for the outfit it was painted in, so a purchased
     // costume is never shown as the default one (it keeps the previous art).
-    const defaultOutfit=canUseRasterAvatar(garden.avatar?.equipped);
-    if(defaultOutfit&&!avatarRig.ready(avatar.direction))return;
+    const worn=garden.avatar?.equipped;
+    const defaultOutfit=canUseRig(worn);
+    if(defaultOutfit&&!avatarRig.ready(avatar.direction,worn))return;
     if(defaultOutfit){
       const clock=typeof performance!=="undefined"?performance.now()/1000:time;
       const dt=lastAvatarClock===null?0:Math.min(.25,Math.max(0,clock-lastAvatarClock));
@@ -407,7 +409,7 @@ export function createPixelGardenRenderer(canvas) {
       const focusing=Boolean(timerState?.isRunning&&timerState.mode==="focus");
       const expression=reaction==="surprised"?"surprised":reaction==="happy"?"happy":focusing?"focused":"neutral";
       avatarRig.draw(ctx,{x:position.x,y:position.y+tile*.12,height:h,direction:avatar.direction,
-        phase:gait.phase,weight:gait.weight,time:clock,expression,reducedMotion});
+        phase:gait.phase,weight:gait.weight,time:clock,expression,reducedMotion,equipped:worn});
       if(selected){
         ctx.save();
         ctx.strokeStyle="#ffeba2";ctx.lineWidth=2.5;

@@ -10,6 +10,7 @@
  * Pure drawing: no saves, rewards or timers are touched here.
  */
 import { AVATAR_RIG_PARTS } from "./avatar-rig-data.mjs";
+import { AVATAR_VARIANTS, variantSrc, variantExpressions } from "./avatar-variants.mjs";
 import { RIG_ADJUST } from "./avatar-rig-adjust.mjs";
 
 const TAU = Math.PI * 2;
@@ -302,8 +303,18 @@ export function createWalkClock() {
 }
 
 // ------------------------------------------------------------------ renderer
-export function createAvatarRig({ ImageClass = globalThis.Image, onReady = () => {}, base = "./" } = {}) {
+// part object -> where it lives, so a wardrobe variant can swap its image.
+const PART_INFO = new Map();
+for (const [view, parts] of Object.entries(AVATAR_RIG_PARTS)) {
+  if (view === "expressions") continue;
+  for (const [key, part] of Object.entries(parts)) PART_INFO.set(part, { view, key });
+}
+export function createAvatarRig({ ImageClass = globalThis.Image, onReady = () => {}, base = "./", variants = AVATAR_VARIANTS } = {}) {
   const images = new Map();
+  function srcOf(part, equipped) {
+    const info = PART_INFO.get(part);
+    return (info && equipped && variantSrc(equipped, info.view, info.key, variants)) || part.src;
+  }
   function img(src) {
     if (typeof ImageClass !== "function") return null;
     let rec = images.get(src);
@@ -319,30 +330,34 @@ export function createAvatarRig({ ImageClass = globalThis.Image, onReady = () =>
     }
     return !rec.failed && rec.im.complete && rec.im.naturalWidth > 0 ? rec.im : null;
   }
-  function partsFor(view) {
+  function partsFor(view, equipped) {
     // hidden parts (and their linings / per-facing variants) are never fetched
     const P = AVATAR_RIG_PARTS[view], A = ADJUST[view] || {};
     const off = k => A[k]?.hide || (LINING_OF[k] && A[LINING_OF[k]]?.hide) || (k === "capeL" && A.cape?.hide) || (k === "armFarL" && A.armFar?.hide);
-    return Object.entries(P).filter(([k]) => !off(k)).map(([, p]) => p);
+    return Object.entries(P).filter(([k]) => !off(k)).map(([, p]) => ({ part: p, src: srcOf(p, equipped) }));
   }
-  function ready(direction = "down") {
+  function ready(direction = "down", equipped = null) {
     const view = RIG_VIEW[direction] || "front";
     let ok = true;
-    for (const part of partsFor(view)) if (!img(part.src)) ok = false;
+    for (const { src } of partsFor(view, equipped)) if (!img(src)) ok = false;
     // Expressions are optional: until one decodes the painted front head is used.
-    if (view === "front") for (const src of Object.values(EXPRESSIONS.files)) img(src);
+    if (view === "front") for (const src of Object.values(expressionFiles(equipped))) img(src);
     return ok;
   }
-  function preload() { for (const v of ["front", "side", "back"]) ready(v === "front" ? "down" : v === "back" ? "up" : "right"); }
+  function expressionFiles(equipped) {
+    const own = variantExpressions(equipped, variants);
+    return own === undefined ? EXPRESSIONS.files : own || {};
+  }
+  function preload(equipped = null) { for (const v of ["front", "side", "back"]) ready(v === "front" ? "down" : v === "back" ? "up" : "right", equipped); }
 
   /**
    * Draw at screen (x, y) = point between the feet. height = screen px crown→sole.
    * expression: neutral | happy | surprised | focused ; blink is automatic.
    */
   function draw(ctx, { x, y, height, direction = "down", phase = 0.25, weight = 0, time = 0,
-    expression = "neutral", reducedMotion = false, shadow = true } = {}) {
+    expression = "neutral", reducedMotion = false, shadow = true, equipped = null } = {}) {
     const view = RIG_VIEW[direction] || "front";
-    if (!ready(direction)) return false;
+    if (!ready(direction, equipped)) return false;
     const t = reducedMotion ? 0 : time;
     const blinkT = (t % 4.2);
     const blink = !reducedMotion && blinkT > 4.04 ? (blinkT > 4.08 && blinkT < 4.16 ? 2 : 1) : 0;
@@ -375,11 +390,12 @@ export function createAvatarRig({ ImageClass = globalThis.Image, onReady = () =>
       ctx.drawImage(bk, 0, 0);
     }
     for (const [part, m, , clip] of pose.items) {
-      let im = (hooks && hooks.image(part)) || img(part.src);
+      let im = (hooks && hooks.image(part)) || img(srcOf(part, equipped));
       let mm = m;
       if (view === "front" && part === AVATAR_RIG_PARTS.front.head) {
         const key = blink === 2 ? "blink" : blink === 1 ? "halfblink" : expression in EXPRESSIONS.files ? expression : "neutral";
-        const ex = img(EXPRESSIONS.files[key]);
+        const files = expressionFiles(equipped);
+        const ex = files[key] ? img(files[key]) : null;
         if (ex) {
           im = ex;
           const sc = EXPRESSIONS.scale, pv = EXPRESSIONS.pivot;
