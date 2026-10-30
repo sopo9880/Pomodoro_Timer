@@ -1,4 +1,4 @@
-const CACHE_NAME = "bloomodoro-cache-v20";
+const CACHE_NAME = "bloomodoro-cache-v21";
 const PRECACHE_URLS = [
   "./",
   "./index.html",
@@ -150,6 +150,24 @@ self.addEventListener("fetch", (event) => {
           return response;
         })
         .catch(() => caches.match(request).then((cached) => cached || caches.match("./index.html"))),
+    );
+    return;
+  }
+
+  // App code (HTML, CSS, JS, manifest) is network-first so a new release never
+  // runs new markup against old cached styles or scripts. Cached copies are the
+  // offline fallback. Pictures, fonts and audio stay cache-first for speed.
+  if (/\.(?:m?js|css|json|webmanifest|html?)$/.test(url.pathname) || url.pathname.endsWith("/")) {
+    event.respondWith(
+      fetch(request)
+        .then((response) => {
+          if (response.ok) {
+            const copy = response.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(request, copy));
+          }
+          return response;
+        })
+        .catch(() => caches.match(request)),
     );
     return;
   }
