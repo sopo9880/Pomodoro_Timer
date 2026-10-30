@@ -1,8 +1,10 @@
 # F3 그네 타기
 
-첨부할 기준 그림(refs 폴더): character_full.png
+첨부할 기준 그림(refs 폴더): rig_front.png, rig_side.png, rig_back.png
+
+> 이전 결과가 옛 2.5등신 캐릭터로 나왔던 문제를 고친 버전입니다. 반드시 위 3장을 같이 첨부하세요.
 
 ## 프롬프트
 
-Cute chibi botanical-fantasy game art, soft painterly shading, clean thin warm-brown outlines, same style, proportions, face, hair and default green linen outfit as the attached reference character. Flat solid pure magenta background (#FF00FF), no gradient, no floor, no cast shadow, no text, no frame. Every piece is a separate full-body image with a wide magenta gap around it; pieces must NOT touch each other. Same character scale in every piece. Draw in the order listed, left to right, top to bottom. 
-Full-body character sitting on a swing seat (draw NO swing, NO ropes) with hands gripping where the ropes would be, legs bent. Eight pieces: FRONT view x3 (legs tucked, legs mid-swing, legs stretched forward) and RIGHT-facing SIDE view x5 (leaning back with legs stretched forward, mid, tucked under, leaning forward, hair and skirt flying back).
+The character is the attached reference: a TALL young-adult anime-style girl (about 7 heads tall, NOT chibi, NOT a 2-head mascot). Long wavy ash-brown hair, two white-and-gold flower hair ornaments with red ribbons, amber eyes, a cream dress with gold embroidery, green puff sleeves, a brown leather satchel at her hip, black tights and brown lace-up boots. NO cape, NO cloak, NO leaf crown. Match the attached rig_front.png / rig_side.png / rig_back.png exactly in face, hair, outfit, proportions and painting style. Flat solid pure magenta background (#FF00FF), no gradient, no floor, no cast shadow, no text, no frame, no props. Every piece is a separate full-body image with a wide magenta gap around it; pieces must NOT touch each other. Same character scale in every piece. Draw in the order listed, left to right, top to bottom. 
+She is sitting on a swing seat (draw NO swing, NO ropes) holding the invisible ropes with both hands, legs bent. Eight pieces: FRONT view x3 (legs tucked, legs mid-swing, legs stretched forward) and RIGHT-facing SIDE view x5 (leaning back with legs stretched forward, mid, tucked under, leaning forward, hair and skirt flying back).
