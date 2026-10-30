@@ -1,0 +1,10 @@
+# A2 옷 — outfit-starlight
+
+첨부할 기준 그림(refs 폴더): front_torso.png, front_skirt.png, front_sleeve_left.png, front_sleeve_right.png, side_torso.png, side_torso_alt.png, side_skirt.png, back_torso.png, back_skirt.png, back_sleeve_left.png, back_sleeve_right.png, side_arm_near.png, side_arm_far.png, character_full.png
+
+## 프롬프트
+
+Cute chibi botanical-fantasy game character art, soft painterly shading with clean thin warm-brown outlines, same style, proportions and face as the attached reference character. Muted natural palette (forest green, cream, warm brown, dusty rose). Flat solid pure magenta background (#FF00FF), no gradient, no floor, no cast shadow, no text, no frame. Every part is a separate piece with a wide magenta gap around it; parts must NOT touch or overlap each other. Draw each part flat and un-posed, at the same scale as the reference part, in the order listed, in a grid, left to right and top to bottom. 
+Make the OUTFIT VARIANT: twilight indigo dress (#646c92) with silver-lilac trim, tiny gold and silver star embroidery on the bodice and skirt hem. NO cape, NO cloak, NO hood. Same cut, length and silhouette as the reference outfit (the skirt must stay short enough that the legs show below it). Only color, trim and embroidery change. Draw clothing only, no body, no head, no hands, no legs.
+Twelve parts, in this order: FRONT: (1) torso/bodice, (2) skirt, (3) left sleeve, (4) right sleeve. SIDE (right-facing): (5) torso, (6) alternate torso (slightly turned), (7) skirt, (8) near-arm sleeve, (9) far-arm sleeve. BACK: (10) torso, (11) skirt, (12) left sleeve and (13) right sleeve.
+Match each reference part's size and shape so it can be swapped in directly; sleeves are hollow tubes (no arm inside).

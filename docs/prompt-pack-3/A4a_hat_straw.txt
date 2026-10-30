@@ -1,0 +1,9 @@
+# A4 모자 — hat-straw
+
+첨부할 기준 그림(refs 폴더): front_head.png, side_head.png, back_head.png, character_full.png
+
+## 프롬프트
+
+Cute chibi botanical-fantasy game character art, soft painterly shading with clean thin warm-brown outlines, same style, proportions and face as the attached reference character. Muted natural palette (forest green, cream, warm brown, dusty rose). Flat solid pure magenta background (#FF00FF), no gradient, no floor, no cast shadow, no text, no frame. Every part is a separate piece with a wide magenta gap around it; parts must NOT touch or overlap each other. Draw each part flat and un-posed, at the same scale as the reference part, in the order listed, in a grid, left to right and top to bottom. 
+Make the HAT: woven straw sun hat, wide soft brim, cream ribbon with a small green leaf. Draw the hat ONLY, no head, no hair, drawn so it sits on top of the reference head at the same scale.
+Four parts, in this order: (1) front view worn, (2) right-facing side view worn, (3) back view worn, (4) the rear half of the brim only (the part that sits BEHIND the head), or leave this cell empty if the hat has no brim.

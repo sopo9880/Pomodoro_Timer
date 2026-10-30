@@ -1,0 +1,10 @@
+# A1 머리 — hair-bloom
+
+첨부할 기준 그림(refs 폴더): front_head.png, front_hair_back.png, side_head.png, side_head_blink.png, side_hair_back.png, back_head.png
+
+## 프롬프트
+
+Cute chibi botanical-fantasy game character art, soft painterly shading with clean thin warm-brown outlines, same style, proportions and face as the attached reference character. Muted natural palette (forest green, cream, warm brown, dusty rose). Flat solid pure magenta background (#FF00FF), no gradient, no floor, no cast shadow, no text, no frame. Every part is a separate piece with a wide magenta gap around it; parts must NOT touch or overlap each other. Draw each part flat and un-posed, at the same scale as the reference part, in the order listed, in a grid, left to right and top to bottom. 
+Make the HAIR VARIANT: long soft cherry-blossom pink hair (#f7c6ce highlights, #c48394 shadows), same length and wave as the reference. Keep the exact same face, eyes, skin, head shape and small leaf-and-flower hair ornament as the reference; only the hair changes.
+Six parts, in this order: (1) front view head WITH face and bangs, (2) front view back-hair piece (the hair hanging behind the body), (3) right-facing side view head with face, (4) the same side head with eyes closed (blink), (5) side view back-hair piece, (6) back view of the head (hair only, no face).
+Each part has the same size and framing as its matching reference part so it can be swapped in directly.
