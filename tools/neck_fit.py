@@ -75,34 +75,85 @@ if __name__ == "__main__":
         feather_stub(src, ROOT / "assets/art/avatar/expressions" / src.name.replace("expressions_", ""))
 
 
-def split_collar(src: Path, inner_dst: Path, outer_dst: Path, tol: float = 38) -> None:
-    """Split the capelet's stand collar so the neck can sit inside it: the
-    collar's inner back (dark lining + back rim) becomes its own layer drawn
-    behind the neck; the trimmed front edges stay in front."""
+
+def _regions(a):
+    """Label the cloth areas separated by the gold trim."""
+    from scipy import ndimage as nd
+    rgb = a[..., :3] / 255
+    mx, mn = rgb.max(-1), rgb.min(-1)
+    sat = (mx - mn) / (mx + 1e-6)
+    r, g, b = rgb[..., 0], rgb[..., 1], rgb[..., 2]
+    gold = nd.binary_dilation((r > g * 0.95) & (r > b * 1.25) & (mx > 0.38) & (sat > 0.25), iterations=1)
+    lab, _ = nd.label((a[..., 3] > 120) & ~gold)
+    return lab, gold
+
+
+def split_lining(src: Path, inner_dst: Path, outer_dst: Path, seeds, back_rim=False) -> None:
+    """Split a capelet into its inside (lining seen through the opening, which
+    must sit behind the body) and its outside. Seeds (fractions of width and
+    height) pick the lining areas between the gold trims."""
     from scipy import ndimage as nd
     a = np.array(Image.open(src).convert("RGBA")).astype(float)
     h, w = a.shape[:2]
-    seed = (int(h * 0.12), w // 2)
-    d = np.sqrt(((a[..., :3] - a[seed][:3]) ** 2).sum(-1))
-    lab, _ = nd.label((d < tol) & (a[..., 3] > 200))
-    comp = lab == lab[seed]
-    ys, xs = np.where(comp)
-    top = ys.min()
-    band = comp[top:top + 8].any(0)
-    x0, x1 = np.where(band)[0][[0, -1]]
-    rim = np.zeros_like(comp)
-    rim[:top + 3, max(0, x0 - 3):x1 + 4] = True
-    mask = nd.binary_fill_holes(nd.binary_dilation(comp, iterations=1)) | (rim & (a[..., 3] > 0))
+    lab, gold = _regions(a)
+    ids = {lab[int(fy * h), int(fx * w)] for fx, fy in seeds} - {0}
+    mask = nd.binary_fill_holes(nd.binary_dilation(np.isin(lab, list(ids)), iterations=1))
+    if back_rim:  # the gold rim along the back of the collar is behind the neck too
+        ys, xs = np.where(mask)
+        top = ys.min()
+        band = mask[top:top + 8].any(0)
+        x0, x1 = np.where(band)[0][[0, -1]]
+        rim = np.zeros_like(mask)
+        rim[:top + 3, max(0, x0 - 3):x1 + 4] = True
+        mask |= rim & (a[..., 3] > 0)
     soft = nd.gaussian_filter(mask.astype(float), 0.7)
     inner, outer = a.copy(), a.copy()
     inner[..., 3] *= soft
     outer[..., 3] *= 1 - soft
     for arr, dst in ((inner, inner_dst), (outer, outer_dst)):
         Image.fromarray(arr.clip(0, 255).astype(np.uint8)).save(dst, "WEBP", quality=92, method=6)
-    print("collar lining rows", top, "-", ys.max(), "cols", x0, "-", x1)
+    print(dst.parent.name, "lining px", int(mask.sum()))
+
+
+def cape_inside(src: Path, dst: Path, shade: float = 0.68) -> None:
+    """Front view shows the long cape from the inside: darken the cloth (not the
+    gold hem) so it reads as the lining rather than the outer face."""
+    a = np.array(Image.open(src).convert("RGBA")).astype(float)
+    _, gold = _regions(a)
+    lining = np.array((48, 68, 58), float)
+    cloth = ~gold
+    a[cloth, :3] = a[cloth, :3] * shade + lining * (1 - shade) * 0.5
+    Image.fromarray(a.clip(0, 255).astype(np.uint8)).save(dst, "WEBP", quality=92, method=6)
+
+
+def trim_cuff(src: Path, dst: Path) -> None:
+    """Cut the bare-skin stub painted under a puff sleeve's gold cuff; the
+    forearm drawn behind shows through instead, so no round knob at the elbow."""
+    from scipy import ndimage as nd
+    a = np.array(Image.open(src).convert("RGBA")).astype(float)
+    h, w = a.shape[:2]
+    r, g, b = a[..., 0], a[..., 1], a[..., 2]
+    op = a[..., 3] > 150
+    skin = op & (r > 190) & (b > r * 0.62) & (g > r * 0.62)
+    share = skin.sum(1) / np.maximum(1, op.sum(1))
+    lower = np.arange(h) > h * 0.55
+    rows = np.where(lower & (share > 0.5))[0]
+    cut = rows.min() if len(rows) else h
+    fade = np.ones(h)
+    fade[cut:] = 0
+    fade[max(0, cut - 2):cut] = 0.6
+    a[..., 3] *= fade[:, None]
+    Image.fromarray(a.clip(0, 255).astype(np.uint8)).save(dst, "WEBP", quality=92, method=6)
+    print(dst.relative_to(ROOT), "cut at row", cut, "of", h)
 
 
 if __name__ == "__main__":
-    split_collar(ROOT / "tools/rig_src/front_capelet.webp",
-                 ROOT / "assets/art/avatar/front/capelet_inner.webp",
-                 ROOT / "assets/art/avatar/front/capelet.webp")
+    av = ROOT / "assets/art/avatar"
+    for v in ("front", "back"):
+        for sd in ("left", "right"):
+            trim_cuff(ROOT / f"tools/rig_src/{v}_sleeve_{sd}.webp", av / f"{v}/sleeve_{sd}.webp")
+    split_lining(ROOT / "tools/rig_src/front_capelet.webp", av / "front/capelet_inner.webp", av / "front/capelet.webp",
+                 [(0.5, 0.12), (0.42, 0.82), (0.58, 0.82)], back_rim=True)
+    split_lining(ROOT / "tools/rig_src/side_capelet.webp", av / "side/capelet_inner.webp", av / "side/capelet.webp",
+                 [(0.92, 0.55), (0.76, 0.19), (0.86, 0.41)])
+    cape_inside(ROOT / "tools/rig_src/front_cape.webp", av / "front/cape.webp")

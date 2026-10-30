@@ -213,16 +213,19 @@ function side(parts, s) {
   const bagA = 0.07 * Math.sin(2 * TAU * (p - 0.2)) * w + 0.012 * Math.sin(t * TAU / 3.9) * (1 - w);
   const skirtA = 0.04 * Math.sin(2 * TAU * (p - 0.05)) * w + 0.02 * w;
   const K = (key, part, m) => [part, adj("side", key, part, m), key];
+  const sideCapelet = adj("side", "capelet", P.capelet, place(P.capelet, neckPt[0] - P.capelet.w * 0.08, neckPt[1] - P.capelet.h * 0.04, 0.02 * Math.sin(2 * TAU * (p - 0.1)) * w));
   const items = [
     [P.armFar, armFar, "armFar"],
     K("cape", P.cape, place(P.cape, neckPt[0] - P.torso.w * 0.28, neckPt[1] + P.torso.h * 0.02, capeA)),
     ...legs[0], ...legs[1],
     K("skirt", P.skirt, place(P.skirt, waist[0], waist[1], skirtA)),
+    // capelet lining (inside of the front opening) belongs behind the body
+    ...(P.capeletInner ? [[P.capeletInner, sideCapelet, "capelet"]] : []),
     K("neck", P.neck, place(P.neck, chin[0] - P.torso.w * 0.06, chin[1] - len(P.neck) * NECK.side.tuck, 0, NECK.side.width, 1)),
     K("hair", P.hair, place(P.hair, hairTop[0], hairTop[1], 0.03 * Math.sin(2 * TAU * (p - 0.15)) * w + 0.015 * w)),
     [P.torso, torso, "torso"],
     K("bag", P.bag, place(P.bag, waist[0] - P.torso.w * 0.05, neckPt[1] + P.torso.h * 0.05, bagA, 0.8, 0.8)),
-    K("capelet", P.capelet, place(P.capelet, neckPt[0] - P.capelet.w * 0.08, neckPt[1] - P.capelet.h * 0.04, 0.02 * Math.sin(2 * TAU * (p - 0.1)) * w)),
+    [P.capelet, sideCapelet, "capelet"],
     [headPart, headM, "head"],
     [P.armNear, armNear, "armNear"],
   ];
