@@ -135,3 +135,9 @@ test("service worker precaches the rig modules and parts", () => {
     assert.ok(sw.includes('"' + f + '"'), f);
   }
 });
+
+test("service worker fetches app code network-first so releases never mix versions", () => {
+  const sw = readFileSync(new URL("sw.js", root), "utf8");
+  assert.match(sw, /network-first/);
+  assert.match(sw, /m\?js\|css/);
+});
