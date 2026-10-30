@@ -156,12 +156,6 @@ export const RIG_ADJUST = Object.freeze({
   "torso": {
    "dx": 6.3,
    "dy": 44.1
-  },
-  "forearmR": {
-   "z": -7
-  },
-  "forearmL": {
-   "z": -5
   }
- }
+  }
 });

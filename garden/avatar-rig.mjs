@@ -210,7 +210,9 @@ function side(parts, s) {
   const waist = local(torso, P.torso, "waist");
   const swing = Math.sin(TAU * p) * w; // near arm forward when far leg forward
   const armNear = adj("side", "armNear", P.armNear, place(P.armNear, shoulder[0], shoulder[1], -0.42 * swing + 0.03 * breath));
-  const armFar = adj("side", "armFar", P.armFar, place(P.armFar, shoulder[0] - P.torso.w * 0.06, shoulder[1], 0.42 * swing - 0.03 * breath));
+  // far arm: a painting per facing (the left-facing one is stored mirrored)
+  const farArm = s.flip && P.armFarL ? P.armFarL : P.armFar;
+  const armFar = adj("side", "armFar", farArm, place(farArm, shoulder[0] - P.torso.w * 0.06, shoulder[1], 0.42 * swing - 0.03 * breath));
   const chin = [neckPt[0] + P.torso.w * 0.08, neckPt[1] - len(P.neck) * NECK.side.chin];
   const headTilt = lean * 0.5 + 0.012 * Math.sin(2 * TAU * (p - 0.06)) * w + 0.01 * Math.sin(t * TAU / 5.3) * (1 - w);
   const headPart = s.blink ? P.headBlink : P.head;
@@ -235,7 +237,7 @@ function side(parts, s) {
   for (const leg of legs) leg[0][3] = below;
   const sideCapelet = adj("side", "capelet", P.capelet, place(P.capelet, neckPt[0] - P.capelet.w * 0.08, neckPt[1] - P.capelet.h * 0.04, 0.02 * Math.sin(2 * TAU * (p - 0.1)) * w));
   const items = [
-    [P.armFar, armFar, "armFar"],
+    [farArm, armFar, "armFar"],
     [capeOut, capeM, "cape"],
     ...legs[0], ...legs[1],
     [P.skirt, skirtM, "skirt"],
@@ -320,7 +322,7 @@ export function createAvatarRig({ ImageClass = globalThis.Image, onReady = () =>
   function partsFor(view) {
     // hidden parts (and their linings / per-facing variants) are never fetched
     const P = AVATAR_RIG_PARTS[view], A = ADJUST[view] || {};
-    const off = k => A[k]?.hide || (LINING_OF[k] && A[LINING_OF[k]]?.hide) || (k === "capeL" && A.cape?.hide);
+    const off = k => A[k]?.hide || (LINING_OF[k] && A[LINING_OF[k]]?.hide) || (k === "capeL" && A.cape?.hide) || (k === "armFarL" && A.armFar?.hide);
     return Object.entries(P).filter(([k]) => !off(k)).map(([, p]) => p);
   }
   function ready(direction = "down") {

@@ -373,16 +373,29 @@ export const AVATAR_RIG_PARTS = Object.freeze({
    ]
   },
   "armFar": {
-   "src": "assets/art/avatar/side/arm_far.webp",
-   "w": 94,
+   "src": "assets/art/avatar/side/arm_far.webp?v=2",
+   "w": 90,
    "h": 314,
    "pivot": [
-    42.0,
+    41.0,
     19.0
    ],
    "end": [
-    46.5,
-    299.0
+    49.0,
+    300.0
+   ]
+  },
+  "armFarL": {
+   "src": "assets/art/avatar/side/arm_far_left.webp?v=1",
+   "w": 90,
+   "h": 314,
+   "pivot": [
+    40.5,
+    19.0
+   ],
+   "end": [
+    49.0,
+    300.0
    ]
   },
   "thighNear": {
@@ -564,29 +577,29 @@ export const AVATAR_RIG_PARTS = Object.freeze({
    ]
   },
   "forearmL": {
-   "src": "assets/art/avatar/back/forearm_left.webp?v=2",
-   "w": 53,
+   "src": "assets/art/avatar/back/forearm_left.webp?v=3",
+   "w": 48,
    "h": 233,
    "pivot": [
-    22.5,
+    26.0,
     8.0
    ],
    "end": [
-    22.5,
+    20.0,
     227.0
    ]
   },
   "forearmR": {
-   "src": "assets/art/avatar/back/forearm_right.webp?v=2",
-   "w": 52,
-   "h": 232,
+   "src": "assets/art/avatar/back/forearm_right.webp?v=3",
+   "w": 46,
+   "h": 233,
    "pivot": [
-    28.5,
+    19.5,
     8.0
    ],
    "end": [
-    29.5,
-    226.0
+    25.5,
+    227.0
    ]
   },
   "thighL": {
