@@ -8,7 +8,10 @@ import { createWildlifeEcology } from "./ecology.mjs";
 import { createWildlifeSpriteAtlas } from "./wildlife-art.mjs";
 import { createAvatarSpriteAtlas } from "./avatar-art.mjs";
 import { createHighResolutionAtlas } from "./hires-atlas.mjs";
-import { createRasterAvatarAtlas } from "./raster-art.mjs";
+import { createRasterAvatarAtlas, canUseRasterAvatar } from "./raster-art.mjs";
+import { createAvatarRig, createWalkClock, RIG_HEIGHT_TILES } from "./avatar-rig.mjs";
+import { createPaintedArtAtlas, COMPANION_HEIGHT_TILES, WILDLIFE_HEIGHT_TILES,
+  DECOR_WIDTH_TILES, PLANT_WIDTH_TILES } from "./painted-art.mjs";
 import { WORLD_LANDMARKS } from "./world-map.mjs";
 
 // All artwork below is original, hand-authored pixel art (16x16 transparent sprites).
@@ -197,6 +200,14 @@ export function createPixelGardenRenderer(canvas) {
   const avatarArt = createAvatarSpriteAtlas(document);
   const hiresArt = createHighResolutionAtlas();
   const rasterArt = createRasterAvatarAtlas();
+  // Phase 4G: painted cutout rig for the default outfit + painted world art.
+  const avatarRig = createAvatarRig();
+  const walkClock = createWalkClock();
+  const painted = createPaintedArtAtlas();
+  const TEXTURE_TILES = 6; // one painted ground texture spans 6x6 world tiles
+  const OVERLAY_TILES = 6; // seasonal snow / leaves (the leaf overlay is pre-tiled 2x2 at half size)
+  let lastAvatarClock = null;
+  let timerState = null;
   const companions = createCompanionSimulation(map);
   const ecology = createWildlifeEcology(map);
   let lastSimulationTime = null;
@@ -273,6 +284,29 @@ export function createPixelGardenRenderer(canvas) {
     ctx.drawImage(imageForSprite(kind), -spriteWidth / 2, -spriteWidth * 0.68, spriteWidth, spriteWidth);
     ctx.restore();
   }
+  /** Bottom-anchored painted frame. heightTiles applies to the frame's reference pose. */
+  function drawPainted(p, x, y, heightTiles, { rotation = 0, opacity = 1, shadow = true, widthTiles = null } = {}) {
+    if (!p) return false;
+    const tile = WORLD_SPEC.tileSize * camera.zoom;
+    const point = worldToScreen(x, y);
+    const k = widthTiles ? (widthTiles * tile) / p.sw : (heightTiles * tile) / p.ref;
+    const w = p.sw * k, h = p.sh * k;
+    if (point.x < -w || point.y < -h || point.x - w > width || point.y - h > height) return true;
+    const foot = point.y + tile * .18;
+    ctx.save();
+    ctx.globalAlpha = opacity;
+    if (shadow) {
+      ctx.fillStyle = "rgba(20,43,33,.20)";
+      ctx.beginPath(); ctx.ellipse(point.x, foot - tile * .02, w * .32, tile * .12, 0, 0, Math.PI * 2); ctx.fill();
+    }
+    ctx.translate(point.x, foot);
+    if (rotation) ctx.rotate(rotation * Math.PI / 180);
+    if (p.flipX) ctx.scale(-1, 1);
+    ctx.imageSmoothingEnabled = true;
+    ctx.drawImage(p.image, p.sx, p.sy, p.sw, p.sh, -w / 2, -h, w, h);
+    ctx.restore();
+    return true;
+  }
   function drawImageSprite(art, x, y, scale, rotation = 0, opacity = 1) {
     const tile = WORLD_SPEC.tileSize * camera.zoom;
     const point = worldToScreen(x, y), size = tile * scale;
@@ -315,6 +349,29 @@ export function createPixelGardenRenderer(canvas) {
   function drawAvatarSprite(avatar,garden,selected=false,{reducedMotion=false,time=0,reaction=null}={}){
     const position=worldToScreen(avatar.x,avatar.y),tile=WORLD_SPEC.tileSize*camera.zoom;
     const walking=Boolean(avatar.moving);
+    // Painted cutout rig: only for the outfit it was painted in, so a purchased
+    // costume is never shown as the default one (it keeps the previous art).
+    if(canUseRasterAvatar(garden.avatar?.equipped)&&avatarRig.ready(avatar.direction)){
+      const clock=typeof performance!=="undefined"?performance.now()/1000:time;
+      const dt=lastAvatarClock===null?0:Math.min(.25,Math.max(0,clock-lastAvatarClock));
+      lastAvatarClock=clock;
+      const gait=walkClock.update(avatar.walked,dt,walking);
+      const h=tile*RIG_HEIGHT_TILES;
+      if(position.x<-h||position.y<-h*.2||position.x>width+h||position.y>height+h)return;
+      const focusing=Boolean(timerState?.isRunning&&timerState.mode==="focus");
+      const expression=reaction==="surprised"?"surprised":reaction==="happy"?"happy":focusing?"focused":"neutral";
+      avatarRig.draw(ctx,{x:position.x,y:position.y+tile*.12,height:h,direction:avatar.direction,
+        phase:gait.phase,weight:gait.weight,time:clock,expression,reducedMotion});
+      if(selected){
+        ctx.save();
+        ctx.strokeStyle="#ffeba2";ctx.lineWidth=2.5;
+        ctx.beginPath();ctx.ellipse(position.x,position.y+tile*.14,tile*.72,tile*.21,0,0,Math.PI*2);ctx.stroke();
+        ctx.font="bold 11px system-ui";ctx.textAlign="center";ctx.fillStyle="#fff2c0";
+        ctx.fillText("내 캐릭터",position.x,position.y-h*1.02);
+        ctx.restore();
+      }
+      return;
+    }
     const frame=reducedMotion?0:walking?avatar.frame||0:Math.floor(time*1.8)%6;
     const pose=walking?"walk":reaction==="surprised"?"surprised":"idle";
     const raster=rasterArt.avatar(garden.avatar?.equipped,avatar.direction,pose);
@@ -363,6 +420,7 @@ export function createPixelGardenRenderer(canvas) {
   }
   function draw(garden, timer, options = {}) {
     if (!garden) return;
+    timerState = timer || null;
     resize();
     const tile = WORLD_SPEC.tileSize * camera.zoom;
     const environment = options.environment || { season: "spring", weather: "clear", time: "day" };
@@ -385,8 +443,25 @@ export function createPixelGardenRenderer(canvas) {
         if (cell.x < visible.left || cell.x > visible.right || cell.y < visible.top || cell.y > visible.bottom) continue;
         const sx = Math.floor(width / 2 + (cell.x - camera.x) * tile);
         const sy = Math.floor(height / 2 + (cell.y - camera.y) * tile);
-        const drawn = terrainAtlas.tile(cell.kind, cell.variation, season, cell.zoneId || "void");
-        ctx.drawImage(drawn, sx, sy, Math.ceil(tile) + 1, Math.ceil(tile) + 1);
+        const tex = painted.terrain(cell.kind, cell.zoneId);
+        if (tex) {
+          const span = tex.naturalWidth / TEXTURE_TILES;
+          const u = (((cell.x % TEXTURE_TILES) + TEXTURE_TILES) % TEXTURE_TILES) * span;
+          const v = (((cell.y % TEXTURE_TILES) + TEXTURE_TILES) % TEXTURE_TILES) * span;
+          ctx.drawImage(tex, u, v, span, span, sx, sy, Math.ceil(tile) + 1, Math.ceil(tile) + 1);
+          const over = cell.kind !== "water" && painted.overlay(season);
+          if (over) {
+            const ospan = over.naturalWidth / OVERLAY_TILES;
+            const ou = (((cell.x % OVERLAY_TILES) + OVERLAY_TILES) % OVERLAY_TILES) * ospan;
+            const ov = (((cell.y % OVERLAY_TILES) + OVERLAY_TILES) % OVERLAY_TILES) * ospan;
+            ctx.globalAlpha = season === "winter" ? .78 : .9;
+            ctx.drawImage(over, ou, ov, ospan, ospan, sx, sy, Math.ceil(tile) + 1, Math.ceil(tile) + 1);
+            ctx.globalAlpha = 1;
+          }
+        } else {
+          const drawn = terrainAtlas.tile(cell.kind, cell.variation, season, cell.zoneId || "void");
+          ctx.drawImage(drawn, sx, sy, Math.ceil(tile) + 1, Math.ceil(tile) + 1);
+        }
         if (!cell.zoneId || !unlocked.has(cell.zoneId)) {
           ctx.fillStyle = "rgba(13,31,31,.70)";
           ctx.fillRect(sx, sy, Math.ceil(tile) + 1, Math.ceil(tile) + 1);
@@ -401,8 +476,15 @@ export function createPixelGardenRenderer(canvas) {
       if (pos.x + size < 0 || pos.x - size > width || pos.y + size < 0 || pos.y - size > height) continue;
       ctx.save();
       if (!unlocked.has(landmark.zoneId)) ctx.globalAlpha = .18;
-      const art = terrainAtlas.landmark(landmark.sprite, season);
-      ctx.drawImage(art, Math.round(pos.x - size / 2), Math.round(pos.y - size * .9), Math.ceil(size), Math.ceil(size));
+      const paintedLandmark = painted.landmark(landmark.sprite);
+      if (paintedLandmark) {
+        const h = size * paintedLandmark.naturalHeight / paintedLandmark.naturalWidth;
+        ctx.imageSmoothingEnabled = true;
+        ctx.drawImage(paintedLandmark, Math.round(pos.x - size / 2), Math.round(pos.y + size * .1 - h), Math.ceil(size), Math.ceil(h));
+      } else {
+        const art = terrainAtlas.landmark(landmark.sprite, season);
+        ctx.drawImage(art, Math.round(pos.x - size / 2), Math.round(pos.y - size * .9), Math.ceil(size), Math.ceil(size));
+      }
       ctx.restore();
     }
     for (const zone of WORLD_SPEC.zones) {
@@ -444,16 +526,21 @@ export function createPixelGardenRenderer(canvas) {
      .sort((a,b)=>a.y-b.y);
     for (const actor of actors) {
       if (actor.kind === "wildlife") {
-        drawImageSprite(hiresArt.wildlife(actor.speciesId,reducedMotion?0:actor.frame)
-          ||wildlifeArt.frame(actor.speciesId,actor.frame),actor.x,actor.y,1.13);
+        const pw = painted.wildlife(actor.speciesId,reducedMotion?0:actor.frame);
+        if (!drawPainted(pw, actor.x, actor.y, WILDLIFE_HEIGHT_TILES[actor.speciesId] || .6))
+          drawImageSprite(hiresArt.wildlife(actor.speciesId,reducedMotion?0:actor.frame)
+            ||wildlifeArt.frame(actor.speciesId,actor.frame),actor.x,actor.y,1.13);
         continue;
       }
       if (actor.kind === "companion") {
-        drawImageSprite(hiresArt.companion(actor.speciesId,actor.direction,actor.activity,
-            reducedMotion?0:actor.frame,actor.reaction)
-          ||friendArt.frame(actor.speciesId,actor.direction,actor.activity,
-            reducedMotion?0:actor.frame,actor.reaction),
-          actor.x,actor.y,actor.held?2.55:2.27);
+        const pc = painted.companion(actor.speciesId,actor.direction,actor.activity,
+          reducedMotion?0:actor.frame,actor.reaction);
+        if (!drawPainted(pc, actor.x, actor.y, (COMPANION_HEIGHT_TILES[actor.speciesId] || 1.3) * (actor.held ? 1.12 : 1)))
+          drawImageSprite(hiresArt.companion(actor.speciesId,actor.direction,actor.activity,
+              reducedMotion?0:actor.frame,actor.reaction)
+            ||friendArt.frame(actor.speciesId,actor.direction,actor.activity,
+              reducedMotion?0:actor.frame,actor.reaction),
+            actor.x,actor.y,actor.held?2.55:2.27);
         if(actor.held||actor.reaction){
           const pos=worldToScreen(actor.x,actor.y);
           ctx.save();ctx.fillStyle="#fff0bb";ctx.textAlign="center";ctx.font="bold 15px system-ui";
@@ -471,11 +558,17 @@ export function createPixelGardenRenderer(canvas) {
       if (actor.kind === "plant" && def) {
         const stage=getPlantGrowthStage(actor,garden.progress.focusSeconds);
         const frame=reducedMotion ? 0 : Math.floor(time*2+actor.x+actor.y)%4;
-        drawImageSprite(flowerArt.frame(def.sprite,stage,frame,environment.time==="night"),
-          actor.x,actor.y,1.58,
-          reducedMotion?0:Math.sin(time*1.2+actor.x)*1.2);
+        const sway = reducedMotion?0:Math.sin(time*1.2+actor.x)*1.2;
+        const pp = painted.plant(def.sprite,stage,frame);
+        if (!drawPainted(pp, actor.x, actor.y, 0, { widthTiles: PLANT_WIDTH_TILES, rotation: sway * .5 }))
+          drawImageSprite(flowerArt.frame(def.sprite,stage,frame,environment.time==="night"),
+            actor.x,actor.y,1.58,sway);
       } else {
-        drawSprite(def?.sprite || "flower-pot",actor.x,actor.y,1.5,actor.rotation||0);
+        const sprite = def?.sprite || "flower-pot";
+        const pd = painted.decor(sprite);
+        const art = pd && { image: pd, sx: 0, sy: 0, sw: pd.naturalWidth, sh: pd.naturalHeight, ref: pd.naturalHeight };
+        if (!drawPainted(art, actor.x, actor.y, 0, { widthTiles: DECOR_WIDTH_TILES[sprite] || 1.2 }))
+          drawSprite(sprite,actor.x,actor.y,1.5,actor.rotation||0);
       }
       if (options.selected?.id === actor.id) {
         const point=worldToScreen(actor.x,actor.y);
@@ -522,5 +615,5 @@ export function createPixelGardenRenderer(canvas) {
     getCompanionAt, getAvatarAt, getWildlifeAt, getLandmarkAt,
     beginCompanionDrag, dragCompanion, endCompanionDrag,
     getLifeStatus: () => ({friends:visibleFriends.length,wildlife:visibleWildlifeCount}),
-    map, terrainAtlas, flowerArt, friendArt, avatarArt, hiresArt, rasterArt, ecology };
+    map, terrainAtlas, flowerArt, friendArt, avatarArt, hiresArt, rasterArt, ecology, avatarRig, painted };
 }
