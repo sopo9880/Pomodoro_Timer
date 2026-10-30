@@ -244,6 +244,10 @@ export function createPaintedArtAtlas({ ImageClass = globalThis.Image, base = ".
     hasLandmark: sprite => Boolean(PAINTED_ART.landmarks[sprite]),
     hasDecor: sprite => Boolean(PAINTED_ART.decor[sprite]),
     prefetch, whenReady, isReady: src => Boolean(cache.get(src)?.ready),
-    stats: () => ({ images: cache.size, queued: queue.length, loading: active }),
+    stats: () => {
+      let decodedBytes = 0;
+      for (const rec of cache.values()) if (rec.ready && rec.im) decodedBytes += (rec.im.naturalWidth || 0) * (rec.im.naturalHeight || 0) * 4;
+      return { images: cache.size, queued: queue.length, loading: active, decodedBytes };
+    },
   };
 }

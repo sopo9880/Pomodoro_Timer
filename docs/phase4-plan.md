@@ -115,3 +115,20 @@ The main character image-file production workflow replaces procedural avatar art
 Stage 1 acceptance: transparent 224×280 idle/front, walk/right, surprised/front PNGs, real 345×406 portrait, mobile viewport smoothing, PWA v18 precache, data compatibility, image header+alpha tests, loader fallback tests and PR syntax+unit CI. Stage 2: complete painted directional movement and actual cosmetic variant atlases. Stage 3: real painted companion PNG sets. Stage 4: wildlife art, UI illustration and final art quality review.
 
 Full reference-fidelity in **all** states is not claimed until stages 2–4 are genuinely finished. This phase must not publish a release. Current `v1.0.0` remains intact.
+
+
+## 진행 현황 (4G 이후)
+
+| 단계 | 내용 | 상태 |
+|---|---|---|
+| 4G | 그림 관절 캐릭터, 동료, 생물, 식물, 바닥, 랜드마크 | 완료 |
+| 4H | 보이지 않는 로딩, 새 UI, 글꼴 내장 | 완료 |
+| 4I | 걷기 끊김 제거, 스프링 카메라, 목 | 코드 완료, 실기기 확인 대기 |
+| 4J | 2차 그림 연결 | 대부분 완료(앉기·그네·포즈는 그림 재작업 중) |
+| 4K | 옷 갈아입기 | 완료(머리·옷·신발·모자 모두 리그에서 입혀짐) |
+| 4L | 월드 다듬기 | 완료(경계 섞기, 물가, 데칼, 소품, 밤 조명, 미리 합치기) |
+| 4M | 게임 손맛 | 완료(앉기만 그림 대기) |
+| 4N | 오래 쓰는 장치 | 완료(힌트, 기억, 복귀 인사, 주간 리듬, 희귀 생물, 기념물, 공유) |
+| 5 | 안정화와 릴리스 | `docs/stage5-report.md`, `docs/release-v1.1.0.md` |
+
+저장 형식(`bloomodoro-state-v3`, 정원 스키마 2)은 4G 이후 단계에서 바뀌지 않았고, 추가된 선택 항목은 `discoveryDates` 하나뿐이에요.

@@ -218,6 +218,7 @@ export function createPixelGardenRenderer(canvas) {
     "cottage-large": 1.25, "mushroom-house": 1.2, windmill: 1.3 });
   const dust = createDust();
   let quietNow = false;
+  let prebakeQueued = false, groundWaiting = false;
   const OVERLAY_TILES = 6; // seasonal snow / leaves (the leaf overlay is pre-tiled 2x2 at half size)
   const ground = createGroundCache({ document, painted, map, textureTiles: TEXTURE_TILES, overlayTiles: OVERLAY_TILES });
   let lastAvatarClock = null;
@@ -544,7 +545,9 @@ export function createPixelGardenRenderer(canvas) {
     const tilePx = pickTilePx(tile);
     for (const chunk of map.getVisibleChunks(visible)) {
       // One pre-merged canvas per chunk (feathered borders, shore foam, tone drift).
-      const baked = ground.get(chunk, { season, unlocked, tilePx });
+      // Until the first screen is revealed only the cheap flat path runs, so the garden appears sooner.
+      const baked = revealStart === null ? ground.peek(chunk, { season, unlocked, tilePx }) : ground.get(chunk, { season, unlocked, tilePx });
+      if (!baked) groundWaiting = true;
       if (baked) {
         const cx = Math.floor(width / 2 + (chunk.x - camera.x) * tile), cy = Math.floor(height / 2 + (chunk.y - camera.y) * tile);
         const cw = Math.ceil(chunk.width * tile) + 1, ch = Math.ceil(chunk.height * tile) + 1;
@@ -607,6 +610,18 @@ export function createPixelGardenRenderer(canvas) {
         }
       }
     }
+    // While the player stands still the chunks just outside the screen are baked in idle time,
+    // so walking into them never costs a frame. Never while a focus session keeps the screen calm.
+    if (!prebakeQueued && !quiet && !reducedMotion && revealStart !== null) {
+      const ring = [];
+      const c0 = map.getVisibleChunks({ left: visible.left - 18, top: visible.top - 18, right: visible.right + 18, bottom: visible.bottom + 18 });
+      for (const chunk of c0) if (!ground.has(chunk, { season, unlocked, tilePx })) ring.push(chunk);
+      if (ring.length) {
+        ring.sort((a, b) => Math.hypot(a.x + 8 - camera.x, a.y + 8 - camera.y) - Math.hypot(b.x + 8 - camera.x, b.y + 8 - camera.y));
+        prebakeQueued = true;
+        scheduleIdle(() => { prebakeQueued = false; ground.prebake(ring[0], { season, unlocked, tilePx }); });
+      }
+    }
     // Landmarks are fixed world scenery, not user-owned placements. Never
     // alter old saved coordinates, plant growth, inventory or progression.
     for (const landmark of map.getVisibleLandmarks(visible)) {
@@ -659,11 +674,13 @@ export function createPixelGardenRenderer(canvas) {
     visibleWildlifeCount = wildlife.length;
     visibleWildlife = wildlife;
     avatarVisual = options.avatar || garden.avatar;
-    const scenery = clearOfPlacements(sceneryInRect(map, visible), garden)
-      .filter(spot => unlocked.has(spot.zoneId));
+    // Dressing (scenery, monuments) joins once the first screen is revealed; it is never needed to see the garden.
+    const dressed = revealStart !== null;
+    const scenery = dressed ? clearOfPlacements(sceneryInRect(map, visible), garden)
+      .filter(spot => unlocked.has(spot.zoneId)) : [];
     const actors = [
       ...scenery.map(spot=>({ id:"s:"+spot.key,x:spot.x,y:spot.y,kind:"scenery",def:spot.def })),
-      ...earnedMonuments(garden.progress?.focusSeconds||0).map(m=>({ id:"m:"+m.id,x:m.x,y:m.y,kind:"monument",def:m })),
+      ...(dressed ? earnedMonuments(garden.progress?.focusSeconds||0) : []).map(m=>({ id:"m:"+m.id,x:m.x,y:m.y,kind:"monument",def:m })),
       ...garden.placements.map(object=>({ ...object,kind:"decor" })),
       ...garden.plants.map(object=>({ ...object,kind:"plant" })),
       ...visibleFriends.map(object=>({ ...object,kind:"companion" })),
@@ -847,5 +864,5 @@ export function createPixelGardenRenderer(canvas) {
     getCompanionAt, getAvatarAt, getWildlifeAt, getLandmarkAt,
     beginCompanionDrag, dragCompanion, endCompanionDrag,
     getLifeStatus: () => ({friends:visibleFriends.length,wildlife:visibleWildlifeCount}), isRevealed,
-    map, terrainAtlas, flowerArt, friendArt, avatarArt, hiresArt, rasterArt, ecology, avatarRig, painted };
+    map, terrainAtlas, flowerArt, friendArt, avatarArt, hiresArt, rasterArt, ecology, avatarRig, painted, ground };
 }

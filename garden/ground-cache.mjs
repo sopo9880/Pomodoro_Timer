@@ -99,7 +99,7 @@ function buildMasks(doc, t) {
   return { masks, corners };
 }
 
-export function createGroundCache({ document: doc, painted, map, textureTiles = 6, overlayTiles = 6, maxChunks = 14, bakesPerFrame = 2 }) {
+export function createGroundCache({ document: doc, painted, map, textureTiles = 6, overlayTiles = 6, maxChunks = 40, maxBytes = 40 * 1048576, bakesPerFrame = 1 }) {
   const lru = new Map();
   const maskSets = new Map();
   let tmp = null, bakes = 0;
@@ -255,18 +255,47 @@ export function createGroundCache({ document: doc, painted, map, textureTiles = 
   }
 
   /** Baked chunk (cached), or null while textures decode / the frame's bake budget is spent. */
+  const keyOf = (chunk, options) => `${chunk.cx}:${chunk.cy}:${options.tilePx}:${options.season}:${[...options.unlocked].sort().join(",")}`;
+  let bytes = 0;
+  const sizeOf = (baked) => baked.canvas.width * baked.canvas.height * 4;
+  function store(key, baked) {
+    lru.set(key, baked);
+    bytes += sizeOf(baked);
+    // Least recently used goes first; whatever is on screen is touched every frame, so it stays.
+    while ((lru.size > maxChunks || bytes > maxBytes) && lru.size > 1) {
+      const oldest = lru.keys().next().value;
+      bytes -= sizeOf(lru.get(oldest));
+      lru.delete(oldest);
+    }
+  }
+  /** Baked chunk (cached), or null while textures decode / this frame's bake budget is spent. */
   function get(chunk, options) {
-    const sig = [...options.unlocked].sort().join(",");
-    const key = `${chunk.cx}:${chunk.cy}:${options.tilePx}:${options.season}:${sig}`;
+    const key = keyOf(chunk, options);
     const hit = lru.get(key);
     if (hit) { lru.delete(key); lru.set(key, hit); return hit; }
     if (bakes >= bakesPerFrame) return null;
     const baked = bake(chunk, options);
     if (!baked) return null;
     bakes++;
-    lru.set(key, baked);
-    while (lru.size > maxChunks) lru.delete(lru.keys().next().value);
+    store(key, baked);
     return baked;
   }
-  return { get, beginFrame() { bakes = 0; }, size: () => lru.size, clear() { lru.clear(); } };
+  /** Bake a chunk ahead of time (idle moments); never counts against the frame budget. */
+  function prebake(chunk, options) {
+    const key = keyOf(chunk, options);
+    if (lru.has(key)) return true;
+    const baked = bake(chunk, options);
+    if (!baked) return false;
+    store(key, baked);
+    return true;
+  }
+  const has = (chunk, options) => lru.has(keyOf(chunk, options));
+  /** The cached chunk, or null; never bakes (used while the first screen is still being revealed). */
+  function peek(chunk, options) {
+    const key = keyOf(chunk, options);
+    const hit = lru.get(key);
+    if (hit) { lru.delete(key); lru.set(key, hit); }
+    return hit || null;
+  }
+  return { get, peek, prebake, has, beginFrame() { bakes = 0; }, size: () => lru.size, bytes: () => bytes, clear() { lru.clear(); bytes = 0; } };
 }
