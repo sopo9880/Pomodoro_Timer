@@ -137,7 +137,7 @@ function layout() {
 let phase = 0.25, clock = 0, last = 0;
 function poseNow(adj) {
   setRigAdjust(adj);
-  const st = { phase, weight: walking ? 1 : 0, time: 0, blink: false };
+  const st = { phase, weight: walking ? 1 : 0, time: 0, blink: false, flip };
   return view === "side" ? side(AVATAR_RIG_PARTS.side, st) : frontBack(AVATAR_RIG_PARTS[view], view === "back", st);
 }
 function rootM() { const L = layout(); const k = L.height / RIG_BODY_HEIGHT[view]; return { k, f: flip ? -1 : 1, m: mul(T(L.x, L.y), S(k * (flip ? -1 : 1), k)) }; }

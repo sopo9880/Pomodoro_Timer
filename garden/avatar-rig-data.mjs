@@ -232,12 +232,39 @@ export const AVATAR_RIG_PARTS = Object.freeze({
  },
  "side": {
   "cape": {
-   "src": "assets/art/avatar/side/cape.webp",
-   "w": 430,
-   "h": 372,
+   "src": "assets/art/avatar/side/cape.webp?v=2",
+   "w": 322,
+   "h": 391,
    "pivot": [
-    247.0,
-    8.0
+    157.5,
+    6.0
+   ]
+  },
+  "capeInner": {
+   "src": "assets/art/avatar/side/cape_inner.webp?v=1",
+   "w": 322,
+   "h": 391,
+   "pivot": [
+    157.5,
+    6.0
+   ]
+  },
+  "capeL": {
+   "src": "assets/art/avatar/side/cape_left.webp?v=1",
+   "w": 325,
+   "h": 391,
+   "pivot": [
+    156.5,
+    6.0
+   ]
+  },
+  "capeLInner": {
+   "src": "assets/art/avatar/side/cape_left_inner.webp?v=1",
+   "w": 325,
+   "h": 391,
+   "pivot": [
+    156.5,
+    6.0
    ]
   },
   "hair": {
