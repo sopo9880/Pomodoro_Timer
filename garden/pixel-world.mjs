@@ -11,6 +11,7 @@ import { createHighResolutionAtlas } from "./hires-atlas.mjs";
 import { createRasterAvatarAtlas } from "./raster-art.mjs";
 import { canUseRig } from "./avatar-variants.mjs";
 import { createGroundCache, pickTilePx } from "./ground-cache.mjs";
+import { celebrationItems, createDust, companionEmote, EMOTE_DIR } from "./fx.mjs";
 import { sceneryInRect, clearOfPlacements, PLACEMENT_LIGHTS } from "./scenery.mjs";
 import { createAvatarRig, createWalkClock, RIG_HEIGHT_TILES } from "./avatar-rig.mjs";
 import { createPaintedArtAtlas, COMPANION_HEIGHT_TILES, WILDLIFE_HEIGHT_TILES,
@@ -212,6 +213,8 @@ export function createPixelGardenRenderer(canvas) {
   // Painted buildings read at a believable size next to a 3-tile character.
   const LANDMARK_SCALE = Object.freeze({ greenhouse: 1.55, "tree-library": 1.5, workshop: 1.45, observatory: 1.6,
     gazebo: 1.5, "wishing-tree": 1.35, fountain: 1.3, "flower-arch": 1.25, "market-stall": 1.3 });
+  const dust = createDust();
+  let quietNow = false;
   const OVERLAY_TILES = 6; // seasonal snow / leaves (the leaf overlay is pre-tiled 2x2 at half size)
   const ground = createGroundCache({ document, painted, map, textureTiles: TEXTURE_TILES, overlayTiles: OVERLAY_TILES });
   let lastAvatarClock = null;
@@ -411,6 +414,15 @@ export function createPixelGardenRenderer(canvas) {
       if(position.x<-h||position.y<-h*.2||position.x>width+h||position.y>height+h)return;
       const focusing=Boolean(timerState?.isRunning&&timerState.mode==="focus");
       const expression=reaction==="surprised"?"surprised":reaction==="happy"?"happy":focusing?"focused":"neutral";
+      if(!reducedMotion&&!quietNow){
+        dust.track(avatar.x,avatar.y,avatar.walked||0,walking,clock);
+        for(const puff of dust.items(clock)){
+          const img=painted.art(puff.src);if(!img)continue;
+          const p=worldToScreen(puff.x,puff.y),sz=tile*puff.size;
+          ctx.globalAlpha=puff.alpha;ctx.drawImage(img,Math.round(p.x-sz/2),Math.round(p.y+tile*.1-sz*.7),Math.round(sz),Math.round(sz));
+        }
+        ctx.globalAlpha=1;
+      }else dust.reset();
       avatarRig.draw(ctx,{x:position.x,y:position.y+tile*.12,height:h,direction:avatar.direction,
         phase:gait.phase,weight:gait.weight,time:clock,expression,reducedMotion,equipped:worn});
       if(selected){
@@ -503,6 +515,9 @@ export function createPixelGardenRenderer(canvas) {
     const season = environment.season || "spring";
     const unlocked = new Set(garden.unlockedZones);
     const reducedMotion = Boolean(options.reduceMotion);
+    // A running focus session keeps the garden calm: no bubbles, dust, glints or confetti.
+    const quiet = Boolean(timerState?.isRunning && timerState.mode === "focus");
+    quietNow = quiet;
     const currentTime = Number.isFinite(options.time) ? options.time : 0;
     const deltaSeconds = lastSimulationTime === null ? 0 :
       Math.min(.25,Math.max(0,(currentTime-lastSimulationTime)/1000));
@@ -530,7 +545,7 @@ export function createPixelGardenRenderer(canvas) {
         const cw = Math.ceil(chunk.width * tile) + 1, ch = Math.ceil(chunk.height * tile) + 1;
         ctx.imageSmoothingEnabled = true;
         ctx.drawImage(baked.canvas, cx, cy, cw, ch);
-        if (!reducedMotion && baked.water.length) {
+        if (!reducedMotion && !quiet && baked.water.length) {
           // A few glints drift across the open water.
           ctx.fillStyle = "rgba(255,255,255,.75)";
           for (const [wx, wy, ph] of baked.water) {
@@ -658,7 +673,16 @@ export function createPixelGardenRenderer(canvas) {
           reducedMotion?0:actor.frame,actor.reaction));
         if (!pc) missingActors++;
         drawPainted(pc, actor.x, actor.y, (COMPANION_HEIGHT_TILES[actor.speciesId] || 1.3) * (actor.held ? 1.12 : 1));
-        if(actor.held||actor.reaction){
+        const speak = companionEmote({ id: actor.id, activity: actor.activity, reaction: actor.reaction || (options.celebration ? "happy" : null), held: actor.held }, time, quiet);
+        const bubble = speak && painted.art(EMOTE_DIR + speak.name + ".webp");
+        if (bubble) {
+          // A small speech bubble above the head, image-based.
+          const pos = worldToScreen(actor.x, actor.y), size = tile * .78;
+          const rise = reducedMotion ? 0 : Math.sin(time * 3 + actor.x) * tile * .03;
+          ctx.save(); ctx.globalAlpha = speak.alpha; ctx.imageSmoothingEnabled = true;
+          ctx.drawImage(bubble, Math.round(pos.x - size * .3), Math.round(pos.y - tile * (COMPANION_HEIGHT_TILES[actor.speciesId] || 1.3) - size * .95 + rise), Math.round(size), Math.round(size));
+          ctx.restore();
+        } else if ((actor.held || actor.reaction) && !quiet) {
           const pos=worldToScreen(actor.x,actor.y);
           ctx.save();ctx.fillStyle="#fff0bb";ctx.textAlign="center";ctx.font="bold 15px system-ui";
           ctx.fillText(actor.held?(actor.reaction==="surprised"?"!?":"!!"):(actor.reaction==="happy"?"♥":"!"),
@@ -735,6 +759,21 @@ export function createPixelGardenRenderer(canvas) {
         if (snow) ctx.fillRect(Math.floor(x), Math.floor(y), 3, 3);
         else { ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x - 4, y + 12); ctx.stroke(); }
       }
+    }
+    if (options.celebration && !reducedMotion && !quiet && avatarVisual) {
+      const anchor = worldToScreen(avatarVisual.x, avatarVisual.y);
+      ctx.save(); ctx.imageSmoothingEnabled = true;
+      for (const it of celebrationItems(options.celebration.t, options.celebration.seed)) {
+        const img = painted.art(it.src); if (!img) continue;
+        const size = tile * it.size, cx = it.at === "anchor" ? anchor.x + it.x * tile : it.x * width, cy = it.at === "anchor" ? anchor.y + it.y * tile : it.y * height;
+        ctx.save();
+        ctx.globalAlpha = it.alpha;
+        ctx.translate(Math.round(cx), Math.round(cy));
+        if (it.rot) ctx.rotate(it.rot);
+        ctx.drawImage(img, -size / 2, -size / 2, size, size * img.naturalHeight / img.naturalWidth);
+        ctx.restore();
+      }
+      ctx.restore();
     }
     if (options.moveTarget)drawInteractionMarker(options.moveTarget,true,true);
     if (options.moveFeedback)drawInteractionMarker(options.moveFeedback,Boolean(options.moveFeedback.allowed));

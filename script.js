@@ -179,6 +179,7 @@ function init() {
     setGarden: (nextGarden) => { state.garden = nextGarden; saveState(); },
     getTimerState: () => ({ mode: state.mode, isRunning: state.isRunning }),
     getEnvironment: () => gameShell.getEnvironment(),
+    getSoundSettings: () => ({ enabled: state.soundEnabled, volume: state.soundVolume }),
   });
 }
 
@@ -689,6 +690,7 @@ function advanceMode(markComplete) {
   if (markComplete && previousMode === "focus") {
     state.cycleFocusCount = Math.min(state.settings.cycleLength, state.cycleFocusCount + 1);
     state.completedToday += 1;
+    window.dispatchEvent(new CustomEvent("bloomodoro:focus-complete", { detail: { completedToday: state.completedToday } }));
     addLog({
       title: `${state.completedToday}번째 집중 완료`,
       detail: `${formatDurationLabel(completedDuration)} 몰입을 끝냈어요.`,

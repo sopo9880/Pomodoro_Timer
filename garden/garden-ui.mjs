@@ -11,6 +11,8 @@ import { WILDLIFE_SPECIES } from "./ecology.mjs";
 import { createAvatarMotion } from "./avatar-motion.mjs";
 import { isDirectional } from "./decor-views.mjs";
 import { actionOf, createSeatController, interactionLine, readAutoSitPref, SIT_ART_READY } from "./interaction.mjs";
+import { CELEBRATION_SECONDS, FX_IMAGES, readCelebrationPref, writeCelebrationPref } from "./fx.mjs";
+import { createGardenSound } from "./garden-sound.mjs";
 import { avatarIllustrationUri, companionIllustrationUri, wildlifeIllustrationUri } from "./hires-atlas.mjs";
 import { rasterAvatarPreviewUrl, rasterAvatarPortraitUrl, canUseRasterAvatar } from "./raster-art.mjs";
 import { renderRigPortrait } from "./avatar-rig.mjs";
@@ -33,7 +35,7 @@ import { drawPlantThumbnail } from "./plant-art.mjs";
 
 
 // The UI has no direct access to the timer's private state. Its save callback owns persistence.
-export function mountGarden({ getGarden, setGarden, getTimerState, getEnvironment = () => ({ season: 'spring', weather: 'clear', time: 'day' }) }) {
+export function mountGarden({ getGarden, setGarden, getTimerState, getEnvironment = () => ({ season: 'spring', weather: 'clear', time: 'day' }), getSoundSettings = () => ({ enabled: false, volume: 0 }) }) {
   const byId = (id) => document.getElementById(id);
   const canvas = byId("gardenWorld");
   if (!canvas) return { refresh() {} };
@@ -44,6 +46,31 @@ export function mountGarden({ getGarden, setGarden, getTimerState, getEnvironmen
   const seat = createSeatController({ motion: avatarMotion, findItem: findGardenItem, getGarden });
   let wasResting = false;
   const tapCounts = {};
+  // Focus-complete celebration (<5 s, switchable) and small garden sounds.
+  let celebration = null;
+  const celebrationToggle = document.getElementById("gardenCelebration");
+  if (celebrationToggle) {
+    celebrationToggle.checked = readCelebrationPref();
+    celebrationToggle.addEventListener("change", () => writeCelebrationPref(celebrationToggle.checked));
+  }
+  window.addEventListener("bloomodoro:focus-complete", () => {
+    if (!readCelebrationPref()) return;
+    renderer.painted.prefetch(FX_IMAGES, { front: true });
+    celebration = { start: performance.now(), seed: 1 + Math.floor(Math.random() * 9999) };
+    avatarMotion.cancel();
+    announce("집중 완료! 정원이 함께 기뻐해요.");
+  });
+  const SOUND_OF = { mail: "ding", listen: "chime", well: "splash", watch: "splash", warm: "warm", sit: "sit", swing: "pop", tea: "pop" };
+  const sound = createGardenSound({
+    getSettings: getSoundSettings,
+    isQuiet: () => { const t = getTimerState(); return t.isRunning && t.mode === "focus"; },
+  });
+  function celebrationState(now) {
+    if (!celebration) return null;
+    const t = (now - celebration.start) / 1000;
+    if (t >= CELEBRATION_SECONDS) { celebration = null; return null; }
+    return { t, seed: celebration.seed };
+  }
   function updateSeat() {
     if (!SIT_ART_READY) return;
     const timer = getTimerState();
@@ -716,6 +743,7 @@ export function mountGarden({ getGarden, setGarden, getTimerState, getEnvironmen
       if(friend){
         const species=GARDEN_COMPANIONS.find(c=>c.speciesId===friend.speciesId);
         announce(friend.greeting || (species?.name||"친구")+"가 반갑게 인사해요.");
+        sound.play("pop");
         return;
       }
       if(avatarSelected){
@@ -753,7 +781,7 @@ export function mountGarden({ getGarden, setGarden, getTimerState, getEnvironmen
     if(picked?.kind==="decor"&&!editingLocked()){
       const action=actionOf(findGardenItem(picked.itemId)?.sprite);
       const line=action&&interactionLine(action,tapCounts[action]=(tapCounts[action]??-1)+1);
-      if(line)announce(line);
+      if(line){announce(line);sound.play(SOUND_OF[action]||"pop");}
     }
     selectObject(picked);
   }
@@ -1028,10 +1056,11 @@ export function mountGarden({ getGarden, setGarden, getTimerState, getEnvironmen
   function tick(timestamp) {
     animationFrame=0;
     if(document.hidden||!onScreen)return;
-    const busy=avatarMotion.isMoving()||Boolean(pointerGesture?.friendHeld)||cameraSettling;
+    const busy=avatarMotion.isMoving()||Boolean(pointerGesture?.friendHeld)||cameraSettling||Boolean(celebration);
     // Anything the player steers paints every frame; an idle garden (wandering
     // friends, swaying plants) paints at 30fps to stay light on batteries.
-    const interval=reduceMotionQuery.matches?220:busy?0:33;
+    const focusing=getTimerState().isRunning&&getTimerState().mode==="focus";
+    const interval=reduceMotionQuery.matches?220:busy?0:focusing?66:33;
     if(timestamp-lastPaint>=interval){
       if(editingLocked()&&avatarMotion.isMoving())stopAvatarControl();
       const elapsed=previousAvatarPaint?Math.min(.22,(timestamp-previousAvatarPaint)/1000):0;
@@ -1045,9 +1074,10 @@ export function mountGarden({ getGarden, setGarden, getTimerState, getEnvironmen
       updateSeat();
       const player=seat.seatedVisual(avatarMotion.visual())||avatarMotion.visual();
       cameraSettling=followCamera(player,elapsed,timestamp);
+      const celebrating=celebrationState(timestamp);
       renderer.draw(getGarden(),getTimerState(),{
-        selected,ghost,avatar:player,avatarSelected,
-        avatarReaction:timestamp<avatarReactionUntil?"surprised":null,dropPreview,
+        selected,ghost,avatar:player,avatarSelected,celebration:celebrating,
+        avatarReaction:celebrating?"happy":timestamp<avatarReactionUntil?"surprised":null,dropPreview,
         moveFeedback:timestamp<moveTargetUntil?moveFeedback:null,
         moveTarget:avatarSelected?avatarMotion.target():null,
         reduceMotion:reduceMotionQuery.matches,time:timestamp,environment:getEnvironment(),

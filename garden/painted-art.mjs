@@ -225,6 +225,8 @@ export function createPaintedArtAtlas({ ImageClass = globalThis.Image, base = ".
     },
     /** Region scenery props, by image path. */
     scenery(src) { return image(src); },
+    /** Any shipped image by path (effects, speech bubbles). */
+    art(src) { return image(src); },
     hasLandmark: sprite => Boolean(PAINTED_ART.landmarks[sprite]),
     hasDecor: sprite => Boolean(PAINTED_ART.decor[sprite]),
     prefetch, whenReady, isReady: src => Boolean(cache.get(src)?.ready),
