@@ -11,6 +11,7 @@
  */
 import { terrainFor } from "./painted-art.mjs";
 import { GROUND, worldHash } from "./world-map.mjs";
+import { WORLD_ART } from "./world-art-data.mjs";
 
 /** Higher ground overlaps lower ground along their shared edge. */
 export const GROUND_PRIORITY = Object.freeze({
@@ -40,6 +41,29 @@ function valueNoise(x, y, salt) {
 /** Large-scale tone in [-1, 1] at a world position; seamless across chunks. */
 export function toneAt(x, y) {
   return (valueNoise(x / 9, y / 9, 301) - .5) * 1.4 + (valueNoise(x / 4, y / 4, 302) - .5) * .6;
+}
+
+/** Which decals suit which ground, how big (tiles wide) and how often. */
+const DECAL_RULES = Object.freeze({
+  grass: [["flowers", .9, .5], ["tufts", .7, .5]],
+  starhill_grass: [["flowers", .8, .35], ["tufts", .65, .65]],
+  forest_floor: [["leaves", .32, .55], ["tufts", .65, .25], ["pebbles", .5, .2]],
+  dirt_path: [["pebbles", .55, 1]],
+  stone_path: [["pebbles", .5, 1]],
+  flowerbed_soil: [["pebbles", .45, 1]],
+});
+const DECAL_CHANCE = .16;
+export const DECAL_IMAGES = Object.freeze(Object.values(WORLD_ART.decals).flat().map((d) => d.src));
+/** The decal (if any) that cell (x, y) hosts: deterministic, so chunks agree along their borders. */
+export function decalFor(x, y, textureId, kind) {
+  const rules = DECAL_RULES[textureId];
+  if (!rules || kind === GROUND.WATER || kind === GROUND.BRIDGE || kind === GROUND.VOID) return null;
+  if (worldHash(x, y, 111) > DECAL_CHANCE) return null;
+  let r = worldHash(x, y, 112) * rules.reduce((t, e) => t + e[2], 0);
+  const rule = rules.find((e) => (r -= e[2]) < 0) || rules[rules.length - 1];
+  const list = WORLD_ART.decals[rule[0]];
+  return { art: list[Math.floor(worldHash(x, y, 113) * list.length)], width: rule[1] * (.85 + worldHash(x, y, 114) * .3),
+    ox: worldHash(x, y, 115), oy: worldHash(x, y, 116), flip: worldHash(x, y, 117) > .5 };
 }
 
 const SIDES = [[0, -1], [0, 1], [-1, 0], [1, 0]]; // N S W E
@@ -120,6 +144,7 @@ export function createGroundCache({ document: doc, painted, map, textureTiles = 
         if (nt && !nt.img) ready = false;
       }
     }
+    for (const src of DECAL_IMAGES) if (!painted.art(src)) ready = false;
     if (!ready) return null;
 
     const canvas = mk(doc, chunk.width * t, chunk.height * t), ctx = canvas.getContext("2d");
@@ -181,6 +206,23 @@ export function createGroundCache({ document: doc, painted, map, textureTiles = 
         });
         const phase = worldHash(cell.x, cell.y, 93);
         if (phase < .3) water.push([cell.x, cell.y, phase / .3]);
+      }
+    }
+    // Ground decals (flowers, pebbles, grass tufts, leaves) break up the painted texture's repeat.
+    for (let cy = chunk.y - 1; cy <= chunk.y + chunk.height; cy++) {
+      for (let cx = chunk.x - 1; cx <= chunk.x + chunk.width; cx++) {
+        const tile = tileAt(cx, cy);
+        const id = tile.zoneId && terrainFor(tile.kind, tile.zoneId);
+        const decal = id && decalFor(cx, cy, id, tile.kind);
+        if (!decal) continue;
+        const img = painted.art(decal.art.src);
+        if (!img) continue;
+        const w = decal.width * t, h = w * decal.art.h / decal.art.w;
+        const x = (cx - chunk.x + decal.ox) * t - w / 2, y = (cy - chunk.y + decal.oy) * t - h / 2;
+        ctx.save();
+        if (decal.flip) { ctx.translate(x + w, y); ctx.scale(-1, 1); ctx.drawImage(img, 0, 0, w, h); }
+        else ctx.drawImage(img, x, y, w, h);
+        ctx.restore();
       }
     }
     // Season cover (snow / fallen leaves) over land, as the flat path did.

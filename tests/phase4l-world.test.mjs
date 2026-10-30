@@ -82,7 +82,7 @@ function fakeDoc() {
   return { calls, createElement() { calls.canvases++; const ctx = ctxFor(); return { width: 0, height: 0, getContext: () => ctx }; } };
 }
 const textures = (ready = true) => ({
-  terrainTex: () => (ready ? { naturalWidth: 600 } : null), overlay: () => null,
+  terrainTex: () => (ready ? { naturalWidth: 600 } : null), overlay: () => null, art: () => (ready ? { naturalWidth: 100, naturalHeight: 100 } : null),
 });
 
 test("a chunk is baked once and then drawn from one cached canvas", () => {
@@ -123,4 +123,22 @@ test("the renderer draws pre-merged chunks and night lights without touching sav
   assert.match(world, /globalCompositeOperation = "lighter"/);
   const sw = readFileSync(new URL("../sw.js", import.meta.url), "utf8");
   for (const f of ["scenery", "ground-cache", "decor-views", "interaction", "avatar-variants"]) assert.ok(sw.includes(`./garden/${f}.mjs`), f);
+});
+
+import { decalFor, DECAL_IMAGES } from "../garden/ground-cache.mjs";
+import { WORLD_ART } from "../garden/world-art-data.mjs";
+test("ground decals are deterministic, sparse, suit the ground, and ship their images", () => {
+  let hits = 0; const kinds = new Set();
+  for (let y = 60; y < 100; y++) for (let x = 60; x < 100; x++) {
+    const a = decalFor(x, y, "grass", "grass"), b = decalFor(x, y, "grass", "grass");
+    assert.deepEqual(a, b);
+    if (a) { hits++; kinds.add(a.art.src.split("/").pop().split("_")[0]); assert.ok(a.width > .5 && a.width < 1.2); }
+  }
+  assert.ok(hits > 100 && hits < 400, "about one cell in six: " + hits);
+  assert.deepEqual([...kinds].sort(), ["flowers", "tufts"]);
+  assert.equal(decalFor(70, 70, "pond_water", "water"), null);
+  assert.equal(decalFor(70, 70, "grass", "water"), null);
+  assert.equal(decalFor(70, 70, "wood_deck", "workshop"), null);
+  for (const src of DECAL_IMAGES) assert.ok(existsSync(new URL("../" + src.split("?")[0], import.meta.url)), src);
+  for (const list of Object.values(WORLD_ART.pond)) for (const a of list) assert.ok(existsSync(new URL("../" + a.src.split("?")[0], import.meta.url)), a.src);
 });

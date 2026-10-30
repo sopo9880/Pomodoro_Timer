@@ -11,6 +11,7 @@ import { createHighResolutionAtlas } from "./hires-atlas.mjs";
 import { createRasterAvatarAtlas } from "./raster-art.mjs";
 import { canUseRig } from "./avatar-variants.mjs";
 import { createGroundCache, pickTilePx } from "./ground-cache.mjs";
+import { WORLD_ART } from "./world-art-data.mjs";
 import { celebrationItems, createDust, companionEmote, EMOTE_DIR } from "./fx.mjs";
 import { sceneryInRect, clearOfPlacements, PLACEMENT_LIGHTS } from "./scenery.mjs";
 import { createAvatarRig, createWalkClock, RIG_HEIGHT_TILES } from "./avatar-rig.mjs";
@@ -549,15 +550,26 @@ export function createPixelGardenRenderer(canvas) {
         ctx.imageSmoothingEnabled = true;
         ctx.drawImage(baked.canvas, cx, cy, cw, ch);
         if (!reducedMotion && !quiet && baked.water.length) {
-          // A few glints drift across the open water.
-          ctx.fillStyle = "rgba(255,255,255,.75)";
+          // Ripples spread and fade on the open water; a few glints twinkle between them.
+          const ripples = WORLD_ART.pond.ripple, glints = WORLD_ART.pond.glint;
           for (const [wx, wy, ph] of baked.water) {
-            const a = Math.sin(time * 1.5 + ph * 6.283) - .86;
-            if (a <= 0) continue;
-            const gx = Math.floor(width / 2 + (wx + .2 + ph * .6 - camera.x) * tile), gy = Math.floor(height / 2 + (wy + .3 + ph * .4 - camera.y) * tile);
-            const r = Math.max(1, Math.round(tile * .05 * (1 + a * 5)));
-            ctx.globalAlpha = Math.min(.85, a * 5);
-            ctx.fillRect(gx - r, gy, r * 2 + 1, 1); ctx.fillRect(gx, gy - r, 1, r * 2 + 1);
+            const gx = width / 2 + (wx + .2 + ph * .6 - camera.x) * tile, gy = height / 2 + (wy + .3 + ph * .4 - camera.y) * tile;
+            if (ph < .5) {
+              const u = (time * .32 + ph * 3.1) % 1;
+              const img = painted.art(ripples[Math.floor(ph * 8) % ripples.length].src);
+              if (!img) continue;
+              const w = tile * (.35 + u * .85), h = w * img.naturalHeight / img.naturalWidth;
+              ctx.globalAlpha = .55 * (1 - u) * Math.min(1, u * 6);
+              ctx.drawImage(img, Math.round(gx - w / 2), Math.round(gy - h / 2), Math.round(w), Math.round(h));
+            } else {
+              const a = Math.sin(time * 1.5 + ph * 6.283) - .8;
+              if (a <= 0) continue;
+              const img = painted.art(glints[Math.floor(ph * 8) % glints.length].src);
+              if (!img) continue;
+              const w = tile * .3 * (.7 + a * 1.5), h = w * img.naturalHeight / img.naturalWidth;
+              ctx.globalAlpha = Math.min(.9, a * 4);
+              ctx.drawImage(img, Math.round(gx - w / 2), Math.round(gy - h / 2), Math.round(w), Math.round(h));
+            }
           }
           ctx.globalAlpha = 1;
         }

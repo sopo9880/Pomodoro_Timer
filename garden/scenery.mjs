@@ -7,6 +7,7 @@
  * sit on a path, on a landmark, or next to something the player placed.
  */
 import { GROUND, WORLD_LANDMARKS, worldHash } from "./world-map.mjs";
+import { WORLD_ART } from "./world-art-data.mjs";
 
 const L = "assets/art/world/landmarks/";
 const LAND = [GROUND.GRASS, GROUND.WILDFLOWERS, GROUND.GARDEN, GROUND.SOIL];
@@ -42,11 +43,12 @@ export const SCENERY = Object.freeze({
     { src: L + "greenhouse/prop_05.webp", w: 1.7, weight: 1, on: LAND },
     { src: L + "greenhouse/prop_07.webp", w: .85, weight: 3, on: LAND },
   ],
+  // Pond edge (pack 3): reeds on the wet bank, lily pads on the open water.
   pond: [
-    { src: L + "pond/prop_03.webp", w: 1.6, weight: 4, on: [GROUND.WETLAND] },
+    ...WORLD_ART.pond.reed.map((a) => ({ src: a.src, w: 1.25, weight: 2, on: [GROUND.WETLAND] })),
+    ...WORLD_ART.pond.lily.map((a) => ({ src: a.src, w: .85, weight: 2.5, on: [GROUND.WATER] })),
     { src: L + "pond/prop_10.webp", w: 3.0, weight: 1, on: [GROUND.GRASS, GROUND.WETLAND] },
     { src: L + "pond/prop_15.webp", w: .6, weight: 2, on: [GROUND.WATER] },
-    { src: L + "pond/prop_17.webp", w: .75, weight: 4, on: [GROUND.WATER] },
     { src: L + "pond/prop_09.webp", w: 1.0, weight: 2, on: [GROUND.WETLAND, GROUND.GRASS] },
     { src: L + "pond/prop_12.webp", w: .9, weight: 2, on: [GROUND.WETLAND, GROUND.GRASS] },
     { src: L + "pond/prop_13.webp", w: .8, weight: 2, on: [GROUND.WETLAND, GROUND.GRASS] },
