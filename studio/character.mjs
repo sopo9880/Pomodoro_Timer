@@ -265,7 +265,9 @@ export function mountCharacter({ say }) {
     for (const r of keyImgs()) { if (used.has(r.path)) continue; used.add(r.path); sel.add(new Option(`${r.label} · ${r.path.replace("assets/art/avatar/", "")}`, r.path)); }
     if (k?.img && !used.has(k.img)) sel.add(new Option(k.img, k.img));
     sel.value = k?.img || "";
-    sel.disabled = $("keyPick").disabled = !(on && st.sel && k);
+    const posePic = !keying() && st.sel && (st.pose === "cheer" || st.pose === "sit"), cur = posePic ? entry(st.sel) : k;
+    if (posePic) { sel.value = cur?.img || ""; if (cur?.img && !used.has(cur.img)) { sel.add(new Option(cur.img, cur.img)); sel.value = cur.img; } }
+    sel.disabled = $("keyPick").disabled = !((on && st.sel && k) || posePic);
     for (const id of ["keyAdd", "keyDel", "keyPrev", "keyNext"]) $(id).disabled = !(on && st.sel);
   }
   $("keyMode").addEventListener("change", (e) => { st.keyMode = e.target.checked; if (st.keyMode) { st.paused = true; st.keyIdx = -1; if (st.pose !== "walk") { st.pose = "walk"; render(); return; } } refreshDials(); });
@@ -280,12 +282,12 @@ export function mountCharacter({ say }) {
   });
   const stepKey = (d) => { const list = st.sel && keyList(st.sel); if (!list?.length) return; st.keyIdx = (st.keyIdx + d + list.length) % list.length; st.paused = true; st.phase = list[st.keyIdx].t; $("phase").value = st.phase; refreshDials(); };
   $("keyPrev").addEventListener("click", () => stepKey(-1)); $("keyNext").addEventListener("click", () => stepKey(1));
-  $("keyImg").addEventListener("change", (e) => { if (st.sel && entry(st.sel)) setAdj(st.sel, { img: e.target.value || undefined }); });
+  $("keyImg").addEventListener("change", (e) => { if (st.sel) setAdj(st.sel, { img: e.target.value || undefined }); });
   $("keyPick").addEventListener("click", () => $("keyFile").click());
   $("keyFile").addEventListener("change", async (e) => {
     const f = e.target.files[0]; e.target.value = "";
     const like = pathOfPart(st.sel);
-    if (!f || !like || !entry(st.sel)) return;
+    if (!f || !like) return;
     const path = `assets/art/avatar/anim/${ownerFor(st.sel)}_${st.sel}_${viewOf()}_${Date.now().toString(36)}.webp`;
     try { say(await swapPicture(path, f, $("autoFit").checked, like)); setAdj(st.sel, { img: path }); } catch (err) { say(err.message); }
   });

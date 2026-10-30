@@ -90,6 +90,7 @@ function cleanAdjust(a) {
     if (v !== undefined) out[k] = k === "z" ? Math.round(v) : Math.round(v * 100) / 100;
   }
   if (a.hide === true) out.hide = true;
+  if (isImgPath(a.img)) out.img = a.img;
   return Object.keys(out).length ? out : null;
 }
 
@@ -157,7 +158,7 @@ export function ownersOf(equipped) {
 export function effectiveAdjust(tuning, owners, amounts, view, key, committed) {
   let dx = committed?.dx || 0, dy = committed?.dy || 0, rot = committed?.rot || 0;
   let s = Number.isFinite(committed?.s) ? committed.s : 1, z = committed?.z || 0, hide = Boolean(committed?.hide);
-  let touched = Boolean(committed);
+  let touched = Boolean(committed), layerImg;
   const layers = tuning?.layers;
   if (layers) for (const owner of owners) {
     const poses = layers[owner];
@@ -172,9 +173,10 @@ export function effectiveAdjust(tuning, owners, amounts, view, key, committed) {
       s *= 1 + w * ((Number.isFinite(a.s) ? a.s : 1) - 1);
       z += w * (a.z || 0);
       if (a.hide && w > 0.5) hide = true;
+      if (a.img && w > 0.5) layerImg = a.img;
     }
   }
-  let img;
+  let img = layerImg;
   const wk = amounts.walk || 0;
   if (wk > 0.001 && tuning?.anim) for (const owner of owners) {
     const d = animDelta(tuning.anim[owner]?.walk?.[view]?.[key], amounts.phase || 0);

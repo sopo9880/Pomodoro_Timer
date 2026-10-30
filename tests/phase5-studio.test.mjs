@@ -199,3 +199,11 @@ test("walk keyframes: cleaned, blended around the cycle, and only while walking"
   assert.equal(effectiveAdjust(t, ["base"], { walk: 1, phase: 0.5 }, "side", "armFar"), undefined);
   assert.deepEqual(animImages(t, ["base"], "side"), ["assets/art/avatar/anim/x.webp"]);
 });
+
+test("a pose layer can swap a part's picture (e.g. palm-forward arm while cheering)", async () => {
+  const { normalizeTuning, effectiveAdjust } = await import("../garden/rig-tuning.mjs");
+  const t = normalizeTuning({ layers: { base: { cheer: { front: { sleeveL: { img: "assets/art/avatar/anim/palm.webp" }, sleeveR: { img: "../x.webp" } } } } } });
+  assert.equal(effectiveAdjust(t, ["base"], { up: 1 }, "front", "sleeveL").img, "assets/art/avatar/anim/palm.webp");
+  assert.equal(effectiveAdjust(t, ["base"], { up: 0.2 }, "front", "sleeveL")?.img, undefined);
+  assert.equal(t.layers.base?.cheer?.front?.sleeveR, undefined);
+});
