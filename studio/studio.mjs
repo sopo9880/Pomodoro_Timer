@@ -2,11 +2,19 @@
 import { mountCharacter } from "./character.mjs";
 import { mountAssets, getNotes } from "./assets.mjs";
 import { mountTodo } from "./todo.mjs";
+import { hydrateMade } from "./made.mjs";
 import { mountExport } from "./export.mjs";
 import { overriddenPaths } from "../garden/asset-overrides.mjs";
 import { catalog } from "../garden/asset-catalog.mjs";
 
 const $ = (id) => document.getElementById(id);
+function problem(msg) {
+  let el = $("problem");
+  if (!el) { el = document.createElement("div"); el.id = "problem"; el.setAttribute("role", "alert"); document.body.prepend(el); }
+  el.hidden = false; el.textContent = "문제가 생겼어요: " + msg + " — 새로고침(Ctrl+Shift+R)해도 같으면 이 문구를 알려 주세요.";
+}
+window.addEventListener("error", (e) => problem(e.message));
+window.addEventListener("unhandledrejection", (e) => problem(String(e.reason?.message || e.reason)));
 let timer = 0;
 function say(text) {
   let el = $("toast");
@@ -20,6 +28,7 @@ const todo = mountTodo({ say, onChange: () => { counts(); exp?.summary(); } });
 const assets = mountAssets({ say, onChange: () => { counts(); todo.render(); exp?.summary(); } });
 exp = mountExport({ say, refreshAll: () => { char.refresh(); assets.render(); todo.render(); counts(); exp.summary(); } });
 counts(); exp.summary();
+hydrateMade().then(() => todo.render()).catch((e) => problem(e.message));
 
 for (const b of $("tabs").querySelectorAll("button")) b.addEventListener("click", () => {
   for (const x of $("tabs").querySelectorAll("button")) x.setAttribute("aria-selected", String(x === b));

@@ -4,7 +4,7 @@ import { readFileSync, existsSync } from "node:fs";
 import { createAvatarRig, RIG_BODY_HEIGHT } from "../garden/avatar-rig.mjs";
 import { normalizeTuning, mergeTunings, effectiveAdjust, ownersOf, paramsFor, PARAMS_DEFAULT } from "../garden/rig-tuning.mjs";
 import { resolveAssetUrl, setAssetUrlInMemory, stripQuery, isAssetPath } from "../garden/asset-overrides.mjs";
-import { catalog, describeAsset, fitModeFor, GROUPS, buildTodoMarkdown, TODO_DEFAULTS, promptFor } from "../garden/asset-catalog.mjs";
+import { catalog, describeAsset, fitModeFor, GROUPS, buildPicturesMarkdown } from "../garden/asset-catalog.mjs";
 import { ASSET_MANIFEST } from "../garden/asset-manifest-data.mjs";
 import { makeZip, crc32 } from "../studio/zip.mjs";
 
@@ -131,11 +131,23 @@ test("the picture list matches the files on disk, and almost every picture has a
   assert.equal(fitModeFor("assets/art/ui/emotes/heart.webp"), "contain");
 });
 
-test("the to-make list reads well and gives a prompt for each entry", () => {
-  const md = buildTodoMarkdown({ todos: [...TODO_DEFAULTS, { title: "끝난 것", count: 1, size: "", note: "", status: "done" }],
-    notes: { "assets/art/world/terrain/grass.webp": { flag: true, memo: "너무 어두워요" } }, replaced: ["assets/art/world/terrain/grass.webp"] });
-  assert.match(md, /# 만들 것 목록/); assert.match(md, /\[x\] \*\*끝난 것\*\*/); assert.match(md, /표시해 둔 그림/); assert.match(md, /너무 어두워요/); assert.match(md, /직접 바꾼 그림/);
-  for (const t of TODO_DEFAULTS) { assert.ok(t.title && t.size !== undefined && ["todo", "doing", "done"].includes(t.status)); assert.match(promptFor(t), /magenta/); }
+test("the flagged-pictures summary reads well", () => {
+  const md = buildPicturesMarkdown({ notes: { "assets/art/world/terrain/grass.webp": { flag: true, memo: "너무 어두워요" } }, replaced: ["assets/art/world/terrain/grass.webp"] });
+  assert.match(md, /표시/); assert.match(md, /너무 어두워요/); assert.match(md, /직접 바꾼 그림/);
+});
+
+test("the make list is code-defined, consistent, and every prompt asks for magenta", async () => {
+  const { MAKE_LIST, MAKE_GROUPS, progress, promptFor, buildMadeMarkdown } = await import("../garden/make-list.mjs");
+  const ids = new Set(), groups = new Set(MAKE_GROUPS.map((g) => g[0]));
+  for (const it of MAKE_LIST) {
+    assert.ok(!ids.has(it.id), it.id); ids.add(it.id); assert.ok(groups.has(it.group), it.id);
+    const sl = new Set(it.slots.map((s) => s.id)); assert.equal(sl.size, it.slots.length, it.id);
+    assert.match(promptFor(it), /magenta/i); for (const s of it.slots) assert.match(promptFor(it, s), /magenta/i);
+  }
+  const hair = MAKE_LIST.find((i) => i.id === "hair-a");
+  assert.equal(progress(hair, []).complete, false);
+  assert.equal(progress(hair, hair.slots.filter((s) => !s.optional).map((s) => s.id)).complete, true);
+  assert.match(buildMadeMarkdown({ state: { "hair-a": { status: "done", name: "테스트" } }, files: { "hair-a": { front_head: "front_head.png" } } }), /테스트/);
 });
 
 // ---------------------------------------------------------------- the export file

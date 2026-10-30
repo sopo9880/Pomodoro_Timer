@@ -7,9 +7,10 @@ What it does, in order:
      already converted by the studio, so a .webp stays a .webp);
   2. the numbers from the "캐릭터 맞추기" tab are merged into garden/rig-tuning-data.mjs, which the
      game ships to everyone (the person's own browser keeps working the same);
-  3. the to-make list becomes docs/studio-todo.md;
+  3. pictures made in the "만들 것" tab (made/<item>/<slot>.<ext>) go to inbox/<item>/ and MADE.md
+     becomes docs/studio-made.md (the flagged/swapped list becomes docs/studio-pictures.md);
   4. the picture list (garden/asset-manifest-data.mjs) is rebuilt.
-Nothing outside assets/art, garden/rig-tuning-data.mjs, docs/studio-todo.md and the manifest is touched.
+Nothing outside assets/art, garden/rig-tuning-data.mjs, inbox/, docs/studio-*.md and the manifest is touched.
 """
 import json, re, subprocess, sys, zipfile
 from pathlib import Path
@@ -43,8 +44,18 @@ def main():
     if manifest.get("format") != "bloomodoro-studio":
         sys.exit("not a studio export")
     copied = []
+    made = []
     for info in z.infolist():
         name = info.filename
+        if name.startswith("made/") and not name.endswith("/"):
+            rel = name[len("made/"):]
+            if re.match(r"^[\w-]+/[\w-]+\.(webp|png|jpe?g)$", rel, re.I):
+                if not dry:
+                    dest = ROOT / "inbox" / rel
+                    dest.parent.mkdir(parents=True, exist_ok=True)
+                    dest.write_bytes(z.read(name))
+                made.append(rel)
+            continue
         if not name.startswith("files/"):
             continue
         rel = name[len("files/"):]
@@ -66,10 +77,13 @@ def main():
             "// studio export. A person's own studio edits sit on top of this in their browser.\n"
             "export const RIG_TUNING_DATA = " + json.dumps(tuning, indent=2, ensure_ascii=False) + ";\n", encoding="utf-8")
         (ROOT / "docs").mkdir(exist_ok=True)
-        (ROOT / "docs/studio-todo.md").write_text(z.read("TODO.md").decode("utf-8"), encoding="utf-8")
+        for src, dst in (("MADE.md", "studio-made.md"), ("PICTURES.md", "studio-pictures.md")):
+            if src in z.namelist():
+                (ROOT / "docs" / dst).write_text(z.read(src).decode("utf-8"), encoding="utf-8")
         subprocess.run([sys.executable, str(ROOT / "tools/build-asset-manifest.py")], check=True)
     print(f"{'would copy' if dry else 'copied'} {len(copied)} pictures; tuning has "
           f"{sum(len(p) for o in tuning.get('layers', {}).values() for ps in o.values() for p in ps.values())} adjusted parts")
+    print(f"{len(made)} made pictures -> inbox/")
     for rel in copied:
         print("  ", rel)
 
