@@ -200,6 +200,11 @@ export function createPixelGardenRenderer(canvas) {
   const ctx = canvas.getContext("2d", { alpha: false });
   if (!ctx) throw new Error("Canvas 2D is not supported");
   const camera = { x: 80, y: 80, zoom: 1.2 };
+  // The ground is drawn from baked chunks. With a fractional tile size every chunk edge lands on a
+  // different sub-pixel and the seams crawl while the camera moves, so the zoom only takes values that
+  // make one tile a whole number of screen pixels. zoomExact keeps pinch gestures smooth in between.
+  const snapZoom = (z) => Math.max(1, Math.round(z * WORLD_SPEC.tileSize)) / WORLD_SPEC.tileSize;
+  let zoomExact = camera.zoom;
   const map = createWorldMap(WORLD_SPEC);
   const terrainAtlas = createWorldArtAtlas(document);
   const friendArt = createCompanionSpriteAtlas(document);
@@ -290,11 +295,12 @@ export function createPixelGardenRenderer(canvas) {
   }
   function worldToScreen(x, y) {
     const tile = WORLD_SPEC.tileSize * camera.zoom;
-    return { x: width / 2 + (x - camera.x) * tile, y: height / 2 + (y - camera.y) * tile };
+    // the camera is rounded to whole screen pixels so the ground and everything on it step together
+    return { x: width / 2 + x * tile - Math.round(camera.x * tile), y: height / 2 + y * tile - Math.round(camera.y * tile) };
   }
   function screenToWorld(x, y) {
     const tile = WORLD_SPEC.tileSize * camera.zoom;
-    return { x: camera.x + (x - width / 2) / tile, y: camera.y + (y - height / 2) / tile };
+    return { x: (x - width / 2 + Math.round(camera.x * tile)) / tile, y: (y - height / 2 + Math.round(camera.y * tile)) / tile };
   }
   function keepCameraInBounds() {
     const bounds = map.playableBounds;
@@ -312,10 +318,13 @@ export function createPixelGardenRenderer(canvas) {
   }
   function zoomBy(factor, px = width / 2, py = height / 2) {
     if (!Number.isFinite(factor) || factor <= 0) return;
-    const anchor = screenToWorld(px, py);
-    camera.zoom = Math.min(2.7, Math.max(0.6, camera.zoom * factor));
-    const after = screenToWorld(px, py);
-    setCamera(camera.x + anchor.x - after.x, camera.y + anchor.y - after.y);
+    const before = WORLD_SPEC.tileSize * camera.zoom;
+    const ax = camera.x + (px - width / 2) / before, ay = camera.y + (py - height / 2) / before; // world point under the finger
+    if (snapZoom(zoomExact) !== camera.zoom) zoomExact = camera.zoom; // changed from outside
+    zoomExact = Math.min(2.7, Math.max(0.6, zoomExact * factor));
+    camera.zoom = snapZoom(zoomExact);
+    const after = WORLD_SPEC.tileSize * camera.zoom;
+    setCamera(ax - (px - width / 2) / after, ay - (py - height / 2) / after);
   }
   function getViewportWorldRect() {
     const tile = WORLD_SPEC.tileSize * camera.zoom;
@@ -519,7 +528,9 @@ export function createPixelGardenRenderer(canvas) {
     if (!garden) return;
     timerState = timer || null;
     resize();
+    camera.zoom = snapZoom(camera.zoom);
     const tile = WORLD_SPEC.tileSize * camera.zoom;
+    const camX = Math.round(camera.x * tile), camY = Math.round(camera.y * tile);
     const environment = options.environment || { season: "spring", weather: "clear", time: "day" };
     ctx.fillStyle = environment.time === "night" ? "#192c39" : "#203b37";
     ctx.fillRect(0, 0, width, height);
@@ -557,15 +568,15 @@ export function createPixelGardenRenderer(canvas) {
       const baked = revealStart === null ? ground.peek(chunk, { season, unlocked, tilePx }) : ground.get(chunk, { season, unlocked, tilePx });
       if (!baked) groundWaiting = true;
       if (baked) {
-        const cx = Math.floor(width / 2 + (chunk.x - camera.x) * tile), cy = Math.floor(height / 2 + (chunk.y - camera.y) * tile);
-        const cw = Math.ceil(chunk.width * tile) + 1, ch = Math.ceil(chunk.height * tile) + 1;
+        const cx = Math.floor(width / 2 + chunk.x * tile - camX), cy = Math.floor(height / 2 + chunk.y * tile - camY);
+        const cw = Math.round(chunk.width * tile), ch = Math.round(chunk.height * tile);
         ctx.imageSmoothingEnabled = true;
         ctx.drawImage(baked.canvas, cx, cy, cw, ch);
         if (!reducedMotion && !quiet && baked.water.length) {
           // Ripples spread and fade on the open water; a few glints twinkle between them.
           const ripples = WORLD_ART.pond.ripple, glints = WORLD_ART.pond.glint;
           for (const [wx, wy, ph] of baked.water) {
-            const gx = width / 2 + (wx + .2 + ph * .6 - camera.x) * tile, gy = height / 2 + (wy + .3 + ph * .4 - camera.y) * tile;
+            const gx = width / 2 + (wx + .2 + ph * .6) * tile - camX, gy = height / 2 + (wy + .3 + ph * .4) * tile - camY;
             if (ph < .5) {
               const u = (time * .32 + ph * 3.1) % 1;
               const img = painted.art(ripples[Math.floor(ph * 8) % ripples.length].src);
@@ -589,8 +600,8 @@ export function createPixelGardenRenderer(canvas) {
       }
       for (const cell of chunk.tiles) {
         if (cell.x < visible.left || cell.x > visible.right || cell.y < visible.top || cell.y > visible.bottom) continue;
-        const sx = Math.floor(width / 2 + (cell.x - camera.x) * tile);
-        const sy = Math.floor(height / 2 + (cell.y - camera.y) * tile);
+        const sx = Math.floor(width / 2 + cell.x * tile - camX);
+        const sy = Math.floor(height / 2 + cell.y * tile - camY);
         const tex = painted.terrain(cell.kind, cell.zoneId);
         if (tex) {
           const span = tex.naturalWidth / TEXTURE_TILES;
