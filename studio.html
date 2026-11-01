@@ -19,6 +19,7 @@
   <button role="tab" data-page="Todo" aria-selected="false">만들 것 <small id="cntTodo"></small></button>
   <button role="tab" data-page="Export" aria-selected="false">내보내기</button>
 </nav>
+<div id="taskBar" hidden><span>리그 작업 · <b id="taskTitle"></b></span><span class="taskhint" id="taskHint"></span><span class="taskbtns"><button class="btn primary" id="taskDone">저장하고 완료</button><button class="btn" id="taskNext">저장하고 다음 칸</button><button class="btn" id="taskClose">나중에</button></span></div>
 <main class="bench" id="pageChar">
   <section class="stage" id="stageBox">
     <canvas id="stage" tabindex="0" aria-label="캐릭터 미리보기. 부위를 눌러 고르고 끌어서 옮겨요."></canvas>
@@ -111,9 +112,17 @@
   <input type="file" id="aFile" accept="image/png,image/webp,image/jpeg,image/svg+xml" hidden>
 </section>
 <section class="page" id="pageTodo" hidden>
-  <p class="note">만들 것 목록은 항상 여기 있어요(지워지지 않아요). 항목을 누르면 오른쪽에 칸이 열려요. 만든 그림을 칸마다 올리고 <b>저장</b>을 누르면 <b>완료</b>로 옮겨져요. 다 만들면 <b>내보내기</b> 탭에서 한꺼번에 받으세요. 진행 상황은 이 브라우저에 저장돼요.</p>
-  <div class="pagebar"><select id="mGroup" aria-label="분류"></select><label class="check"><input type="checkbox" id="mDone" checked> 완료도 보기</label><output id="makeSummary"></output></div>
-  <div class="makegrid"><div class="makelist" id="makeList"></div><div class="makedetail" id="makeDetail"></div></div>
+  <div class="seg" id="todoMode"><button data-mode="rig" aria-pressed="true">리그 손보기</button><button data-mode="make" aria-pressed="false">그림 만들기</button></div>
+  <div id="rigPane">
+    <p class="note">옷·머리·모자·신발을 포즈마다 한 칸씩 미리 만들어 뒀어요(지워지지 않아요). 칸을 누르면 <b>캐릭터 맞추기</b>가 그 착용·포즈로 열려요. 어색한 곳을 손본 뒤 위쪽의 <b>저장하고 완료</b>를 누르면 완료로 옮겨져요. 손본 값은 <b>내보내기</b> 파일에 들어가서 제가 게임에 넣어요.</p>
+    <div class="pagebar"><select id="rSlot" aria-label="종류"></select><select id="rPose" aria-label="포즈"></select><label class="check"><input type="checkbox" id="rDone" checked> 완료도 보기</label><output id="rigSummary"></output></div>
+    <div id="rigList" class="riglist"></div>
+  </div>
+  <div id="makePane" hidden>
+    <p class="note">새로 그려야 하는 그림 목록이에요(지워지지 않아요). 항목을 누르면 오른쪽에 칸이 열려요. 만든 그림을 칸마다 올리고 <b>저장</b>을 누르면 <b>완료</b>로 옮겨져요. 다 만들면 <b>내보내기</b> 탭에서 한꺼번에 받으세요.</p>
+    <div class="pagebar"><select id="mGroup" aria-label="분류"></select><label class="check"><input type="checkbox" id="mDone" checked> 완료도 보기</label><output id="makeSummary"></output></div>
+    <div class="makegrid"><div class="makelist" id="makeList"></div><div class="makedetail" id="makeDetail"></div></div>
+  </div>
 </section>
 <section class="page" id="pageExport" hidden>
   <p class="note">바꾼 그림, 캐릭터 맞춘 값, 만들 것 목록을 한 파일로 묶어요. 이 파일을 채팅에 올려 주시면 제가 풀어서 게임에 넣어요.</p>

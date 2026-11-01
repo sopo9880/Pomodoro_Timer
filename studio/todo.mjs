@@ -30,7 +30,6 @@ export function mountTodo({ say, onChange }) {
       }
     }
     const left = MAKE_LIST.filter((it) => statusOf(it.id) !== "done").length;
-    $("cntTodo").textContent = `${left}/${MAKE_LIST.length}`;
     $("makeSummary").textContent = `완료 ${MAKE_LIST.length - left} · 남음 ${left}`;
   }
 
@@ -123,6 +122,6 @@ export function mountTodo({ say, onChange }) {
   onMadeChange(() => { render(); onChange(); });
   keepStorage();
   render();
-  return { render };
+  return { render, counts: () => ({ left: MAKE_LIST.filter((it) => statusOf(it.id) !== "done").length }) };
 }
 void getMakeState;

@@ -207,3 +207,16 @@ test("a pose layer can swap a part's picture (e.g. palm-forward arm while cheeri
   assert.equal(effectiveAdjust(t, ["base"], { up: 0.2 }, "front", "sleeveL")?.img, undefined);
   assert.equal(t.layers.base?.cheer?.front?.sleeveR, undefined);
 });
+
+test("rig tasks: every wearable x pose, one entry each, with edit detection and a readable summary", async () => {
+  const { RIG_TASKS, hasEdits, buildRigMarkdown } = await import("../garden/rig-tasks.mjs");
+  const { WEARABLES } = await import("../garden/life-core.mjs");
+  assert.equal(RIG_TASKS.length, (WEARABLES.length - 1) * 4);
+  assert.equal(new Set(RIG_TASKS.map((t) => t.id)).size, RIG_TASKS.length);
+  const sit = RIG_TASKS.find((t) => t.id === "rig:outfit-forest:sit");
+  assert.equal(hasEdits({}, sit), false);
+  assert.equal(hasEdits({ layers: { "outfit-forest": { sit: { side: { skirt: { dy: 3 } } } } } }, sit), true);
+  assert.equal(hasEdits({ anim: { "outfit-forest": { walk: { side: { armNear: [{ t: 0 }] } } } } }, RIG_TASKS.find((t) => t.id === "rig:outfit-forest:walk")), true);
+  const md = buildRigMarkdown({ state: { "rig:outfit-forest:sit": { status: "done" } }, tuning: {} });
+  assert.match(md, /저장함 \(1\)/); assert.match(md, /숲지기 코트 · 앉기/);
+});
