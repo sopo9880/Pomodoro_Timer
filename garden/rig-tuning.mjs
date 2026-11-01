@@ -75,7 +75,10 @@ export function animDelta(keys, p) {
 /** Every picture the keyframes of these owners may show in a view (so they can be loaded ahead of time). */
 export function animImages(tuning, owners, view) {
   const out = new Set();
-  for (const owner of owners) for (const keys of Object.values(tuning?.anim?.[owner]?.walk?.[view] || {})) for (const k of keys) if (k.img) out.add(k.img);
+  for (const owner of owners) {
+    for (const keys of Object.values(tuning?.anim?.[owner]?.walk?.[view] || {})) for (const k of keys) if (k.img) out.add(k.img);
+    for (const pose of POSES) for (const a of Object.values(tuning?.layers?.[owner]?.[pose]?.[view] || {})) if (a.img) out.add(a.img);
+  }
   return [...out];
 }
 
