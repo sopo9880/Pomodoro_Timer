@@ -32,14 +32,6 @@ export const RIG_TUNING_DATA = {
           "forearmR": {
             "hide": true
           }
-        },
-        "side": {
-          "armNear": {
-            "img": "assets/art/avatar/palm/side_near.webp"
-          },
-          "armFar": {
-            "img": "assets/art/avatar/palm/side_far.webp"
-          }
         }
       }
     }
