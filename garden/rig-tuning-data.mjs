@@ -7,13 +7,15 @@ export const RIG_TUNING_DATA = {
       "cheer": {
         "front": {
           "sleeveL": {
-            "img": "assets/art/avatar/palm/front_L.webp"
+            "rot": 8,
+            "img": "assets/art/avatar/palm/front_R.webp"
           },
           "forearmL": {
             "hide": true
           },
           "sleeveR": {
-            "img": "assets/art/avatar/palm/front_R.webp"
+            "rot": -8,
+            "img": "assets/art/avatar/palm/front_L.webp"
           },
           "forearmR": {
             "hide": true
@@ -21,24 +23,18 @@ export const RIG_TUNING_DATA = {
         },
         "back": {
           "sleeveL": {
-            "img": "assets/art/avatar/palm/back_L.webp"
+            "rot": 8,
+            "img": "assets/art/avatar/palm/back_R.webp"
           },
           "forearmL": {
             "hide": true
           },
           "sleeveR": {
-            "img": "assets/art/avatar/palm/back_R.webp"
+            "rot": -8,
+            "img": "assets/art/avatar/palm/back_L.webp"
           },
           "forearmR": {
             "hide": true
-          }
-        },
-        "side": {
-          "armNear": {
-            "img": "assets/art/avatar/palm/side_near.webp"
-          },
-          "armFar": {
-            "img": "assets/art/avatar/palm/side_far.webp"
           }
         }
       }
