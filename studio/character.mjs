@@ -336,5 +336,14 @@ export function mountCharacter({ say }) {
   onTuningChange(() => { /* the rig reads it every frame */ });
   render(); zoomTo(1, .5);
   requestAnimationFrame(frame);
-  return { refresh: () => { tuning = normalizeTuning(getLocalTuning()); render(); } };
+  /** Open the editor on one look and pose (from a rig task). */
+  function openLook({ slot, id, pose }) {
+    st.equipped = { ...DEFAULT_LOOK, [slot]: id };
+    for (const [sid, sl] of [["selHair", "hair"], ["selOutfit", "outfit"], ["selHat", "hat"], ["selShoes", "shoes"]]) $(sid).value = st.equipped[sl];
+    st.pose = pose; st.sel = null; st.keyMode = false; st.paused = false; st.scope = "look";
+    document.querySelector('input[name="scope"][value="look"]').checked = true;
+    if (pose === "sit" && st.dir === "down") st.dir = "right";
+    render();
+  }
+  return { openLook, refresh: () => { tuning = normalizeTuning(getLocalTuning()); render(); } };
 }

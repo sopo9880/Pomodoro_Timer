@@ -114,3 +114,12 @@ h3{margin:14px 0 4px;font-size:14px}
 #keyMarks button{position:absolute;top:0;width:12px;height:12px;margin-left:-6px;padding:0;border-radius:3px;transform:rotate(45deg);border:1px solid var(--ink,#333);background:var(--paper,#fff);cursor:pointer}
 #keyMarks button[aria-pressed="true"]{background:#e8742a}
 #keyBox:not([data-on]) .timeline,#keyBox:not([data-on]) #keyInfo{opacity:.55}
+
+.riglist h3{margin:.9em 0 .3em;font-size:14px}
+.rigrow{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:6px}
+.rigrow .makerow.done{opacity:.6}
+.rigrow .makerow.doing{outline:2px solid #e8742a}
+#taskBar{display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center;margin:0 0 8px;padding:8px 12px;border-radius:12px;background:#fff3e2;border:1px solid #e8b878;font-size:13px}
+#taskBar[hidden]{display:none}
+#taskBar .taskhint{flex:1 1 260px;opacity:.8}
+#taskBar .taskbtns{display:flex;gap:6px;flex-wrap:wrap}

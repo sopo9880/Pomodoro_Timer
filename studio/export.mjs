@@ -6,7 +6,8 @@ import { normalizeTuning } from "../garden/rig-tuning.mjs";
 import { buildPicturesMarkdown } from "../garden/asset-catalog.mjs";
 import { getNotes, setNotes } from "./assets.mjs";
 import { getMakeState, setMakeState, exportEntries, madeFiles, extOf } from "./made.mjs";
-import { buildMadeMarkdown, MAKE_LIST, progress } from "../garden/make-list.mjs";
+import { buildMadeMarkdown, MAKE_LIST } from "../garden/make-list.mjs";
+import { buildRigMarkdown, RIG_TASKS } from "../garden/rig-tasks.mjs";
 
 const bytes = async (blob) => new Uint8Array(await blob.arrayBuffer());
 export function download(blob, name) {
@@ -32,7 +33,7 @@ export async function buildZip() {
   const enc = new TextEncoder();
   const files = [
     { name: "manifest.json", data: enc.encode(JSON.stringify(settings, null, 1)) },
-    { name: "MADE.md", data: enc.encode(buildMadeMarkdown({ state: settings.make, files: fileNames() })) },
+    { name: "MADE.md", data: enc.encode(buildMadeMarkdown({ state: settings.make, files: fileNames() }) + "\n" + buildRigMarkdown({ state: settings.make, tuning: settings.tuning })) },
     { name: "PICTURES.md", data: enc.encode(buildPicturesMarkdown({ notes: settings.notes, replaced: settings.replaced })) },
   ];
   for (const { name, blob } of exportEntries()) files.push({ name, data: await bytes(blob) });
@@ -55,7 +56,7 @@ export function mountExport({ say, refreshAll }) {
     const st = (id) => s.make[id]?.status || "todo", n = (k) => MAKE_LIST.filter((it) => st(it.id) === k).length, pics = exportEntries().length, flagged = Object.values(s.notes).filter((n) => n.flag).length;
     $("exportSummary").replaceChildren(...[
       `직접 바꾼 그림 ${s.replaced.length}장`, `캐릭터 맞춤 값 ${layers}군데`,
-      `만들 것: 완료 ${n("done")} · 작업 중 ${n("doing")} · 할 일 ${n("todo")} (만든 그림 ${pics}장) · 다시 만들기로 표시한 그림 ${flagged}장`,
+      `리그 손보기: 저장함 ${RIG_TASKS.filter((t) => st(t.id) === "done").length}/${RIG_TASKS.length}`, `그림 만들기: 완료 ${n("done")} · 작업 중 ${n("doing")} · 할 일 ${n("todo")} (만든 그림 ${pics}장) · 다시 만들기로 표시한 그림 ${flagged}장`,
     ].map((t) => Object.assign(document.createElement("li"), { textContent: t })));
   }
   $("zipBtn").addEventListener("click", async () => {

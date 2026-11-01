@@ -37,6 +37,7 @@ export function describeAsset(path) {
   const m = (re) => path.match(re);
   let r;
   if ((r = m(/^assets\/art\/avatar\/(front|side|back)\/([\w]+)\.webp$/))) return { group: "rig", label: `${VIEW_KR[r[1]]} · ${FILE_KR[r[2]] || r[2]}` };
+  if ((r = m(/^assets\/art\/avatar\/palm\/(front|back|side)_(\w+)\.webp$/))) return { group: "rig", label: `손바닥 앞 팔 · ${{ front: "정면", back: "뒷면", side: "옆모습" }[r[1]]} ${{ L: "왼", R: "오른", near: "가까운", far: "먼" }[r[2]] || r[2]}` };
   if ((r = m(/^assets\/art\/avatar\/boots\/([\w]+)\.webp$/))) return { group: "rig", label: `신발 · ${FILE_KR[r[1]] || r[1]}` };
   if ((r = m(/^assets\/art\/avatar\/expressions\/head_(\w+)\.webp$/))) return { group: "face", label: `기본 얼굴 · ${r[1]}` };
   if ((r = m(/^assets\/art\/avatar\/variants\/hats\/([\w-]+)\/(\w+)\.webp$/))) return { group: "hat", label: `${WEAR[r[1]] || r[1]} · ${VIEW_KR[r[2]] || (r[2] === "rear" ? "뒤 챙" : r[2])}` };
@@ -63,7 +64,7 @@ export function describeAsset(path) {
 
 /** Whether a replacement should be fitted to the visible shape of the original (rig parts) or just placed. */
 export function fitModeFor(path) {
-  if (/^assets\/art\/avatar\/(front|side|back|boots)\//.test(path)) return "bbox";
+  if (/^assets\/art\/avatar\/(front|side|back|boots|palm)\//.test(path)) return "bbox";
   if (/^assets\/art\/avatar\/variants\/(?!hats)/.test(path)) return "bbox";
   if (/^assets\/art\/world\/terrain\//.test(path)) return "stretch";
   return "contain";
