@@ -1,6 +1,6 @@
 // "캐릭터 맞추기" tab: the game's own rig, drawn live, with every part adjustable per outfit and pose.
-import { createAvatarRig, RIG_BODY_HEIGHT, RIG_VIEW } from "../garden/avatar-rig.mjs";
-import { AVATAR_RIG_PARTS } from "../garden/avatar-rig-data.mjs";
+import { createAvatarRig, RIG_BODY_HEIGHT, RIG_VIEW, sideStride, RIG_HEIGHT_TILES } from "../garden/avatar-rig.mjs";
+import { AVATAR_RIG_PARTS } from "../garden/avatar-rig-calibrated-data.mjs";
 import { WEARABLES } from "../garden/life-core.mjs";
 import { VARIANT_SLOTS, variantSrc, DEFAULT_LOOK } from "../garden/avatar-variants.mjs";
 import { AVATAR_HATS } from "../garden/avatar-hats.mjs";
@@ -32,6 +32,11 @@ export function mountCharacter({ say }) {
   const st = { keyMode: false, keyIdx: -1, paused: false, phase: 0, equipped: { ...DEFAULT_LOOK }, dir: "down", pose: "stand", face: "neutral", swing: false, zoom: 1, center: .5, sel: null, scope: "look", paramOwner: "outfit" };
   let lastSlide = 0, tuning = normalizeTuning(getLocalTuning()), undo = [], sitAmt = 0, upAmt = 0, lastT = performance.now();
   const rig = createAvatarRig({ base: "./", getTuning: getActiveTuning });
+  // Optional quick-inspection direction from the six-issue QA screen.
+  // Applied once only: switching tasks later preserves the user's direction.
+  const dirFromUrl = new URLSearchParams(location.search).get('dir');
+  const dirMap = {front:'down',right:'right',left:'left',back:'up'};
+  if (Object.prototype.hasOwnProperty.call(dirMap, dirFromUrl)) st.dir = dirMap[dirFromUrl];
   const viewOf = () => RIG_VIEW[st.dir];
   const poseLayer = () => (st.pose === "sit" ? "sit" : st.pose === "cheer" ? "cheer" : "stand");
 
@@ -110,7 +115,7 @@ export function mountCharacter({ say }) {
     }
     $("parts").replaceChildren(frag);
   }
-  function select(key) { st.sel = key; renderParts(); refreshDials(); refreshImage(); }
+  function select(key) { st.sel = key; st.keyIdx = -1; renderParts(); refreshDials(); refreshImage(); }
 
   // ---- dials
   const D = { dx: ["rDx", "nDx"], dy: ["rDy", "nDy"], rot: ["rRot", "nRot"], s: ["rS", "nS"] };
@@ -132,6 +137,7 @@ export function mountCharacter({ say }) {
     if (!Number.isFinite(v)) return;
     setAdj(st.sel, { [k]: v }, e.type === "input" && id === n);
   });
+  for (const [r] of Object.values(D)) $(r).addEventListener("pointerdown", snapshot);
   $("zBack").addEventListener("click", () => st.sel && setAdj(st.sel, { z: (entry(st.sel)?.z || 0) - 1 }));
   $("zFront").addEventListener("click", () => st.sel && setAdj(st.sel, { z: (entry(st.sel)?.z || 0) + 1 }));
   $("hidePart").addEventListener("click", () => st.sel && setAdj(st.sel, { hide: !entry(st.sel)?.hide }));
@@ -211,8 +217,8 @@ export function mountCharacter({ say }) {
   canvas.addEventListener("pointerdown", (e) => {
     const r = canvas.getBoundingClientRect(), x = (e.clientX - r.left) * canvas.width / r.width, y = (e.clientY - r.top) * canvas.height / r.height;
     const key = rig.pick(x, y);
-    if (key) { st.sel = key; renderParts(); refreshDials(); refreshImage(); }
-    if (!st.sel) return;
+    if (key) { if (st.sel !== key) st.keyIdx = -1; st.sel = key; renderParts(); refreshDials(); refreshImage(); }
+    if (!key) return;
     if (keying() && !st.paused) { st.paused = true; refreshKeys(); }
     snapshot();
     drag = { x: e.clientX, y: e.clientY, rotate: e.shiftKey, start: { ...(entry(st.sel) || {}) } };
@@ -307,6 +313,7 @@ export function mountCharacter({ say }) {
   function refreshStatus() { $("saveNote").textContent = "저장했어요 · " + new Date().toLocaleTimeString("ko-KR"); }
 
   // ---- drawing loop
+  const studioWalkHz = 3.5 / (2 * sideStride() * (RIG_HEIGHT_TILES / RIG_BODY_HEIGHT.side));
   function frame(now) {
     const dt = Math.min(.1, (now - lastT) / 1000); lastT = now;
     const r = canvas.getBoundingClientRect(), dpr = Math.min(2, devicePixelRatio || 1);
@@ -318,9 +325,9 @@ export function mountCharacter({ say }) {
     sitAmt += (wantSit - sitAmt) * ease; upAmt += (wantUp - upAmt) * ease;
     const t = now / 1000, height = H * .82 * st.zoom;
     const walking = st.pose === "walk";
-    if (walking && !st.paused) { st.phase = (t * 1.1) % 1; if (now - lastSlide > 120) { lastSlide = now; $("phase").value = st.phase; } }
+    if (walking && !st.paused) { st.phase = (t * studioWalkHz) % 1; if (now - lastSlide > 120) { lastSlide = now; $("phase").value = st.phase; } }
     rig.draw(ctx, {
-      x: W / 2, y: H / 2 + (1 - st.center) * height, height, direction: st.dir, phase: walking ? (st.paused ? st.phase : (t * 1.1) % 1) : .25, weight: walking ? 1 : 0, time: t,
+      x: W / 2, y: H / 2 + (1 - st.center) * height, height, direction: st.dir, phase: walking ? (st.paused ? st.phase : (t * studioWalkHz) % 1) : .25, weight: walking ? 1 : 0, time: t,
       expression: st.face, equipped: st.equipped, sit: sitAmt, armsUp: upAmt, kick: st.swing && st.pose === "sit" ? Math.sin(t * 2.4) : 0, highlight: st.sel, shadow: true,
     });
     requestAnimationFrame(frame);

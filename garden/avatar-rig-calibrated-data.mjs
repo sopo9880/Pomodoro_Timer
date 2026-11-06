@@ -1,0 +1,10 @@
+import { AVATAR_RIG_PARTS as ORIGINAL } from './avatar-rig-data.mjs';
+const P = structuredClone(ORIGINAL);
+Object.assign(P.front.torso, {shoulderL:[8,52], shoulderR:[132,52]});
+Object.assign(P.back.torso, {shoulderL:[18,49], shoulderR:[136,49]});
+Object.assign(P.side.torso, {shoulderL:[33,69], shoulderR:[44,61]});
+P.front.sleeveL.pivot=[52,20]; P.front.sleeveR.pivot=[42,20];
+P.back.sleeveL.pivot=[P.back.sleeveL.pivot[0],20];
+P.back.sleeveR.pivot=[P.back.sleeveR.pivot[0],20];
+for (const key of ['armNear','armFar','armFarL']) P.side[key].pivot=[P.side[key].pivot[0],49];
+export const AVATAR_RIG_PARTS = Object.freeze(P);
