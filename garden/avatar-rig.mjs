@@ -9,7 +9,7 @@
  *
  * Pure drawing: no saves, rewards or timers are touched here.
  */
-import { AVATAR_RIG_PARTS } from "./avatar-rig-data.mjs";
+import { AVATAR_RIG_PARTS } from "./avatar-rig-calibrated-data.mjs";
 import { AVATAR_VARIANTS, variantSrc, variantExpressions } from "./avatar-variants.mjs";
 import { hatFor, hatLocalMatrix } from "./avatar-hats.mjs";
 import { resolveAssetUrl, onAssetChange, stripQuery } from "./asset-overrides.mjs";
@@ -41,12 +41,41 @@ function place(part, x, y, a = 0, sx = 1, sy = 1) {
   return mul(T(x, y), mul(R(a), mul(S(sx * k, sy * k), T(-part.pivot[0], -part.pivot[1]))));
 }
 const local = (m, part, key) => apply(m, part[key]);
+
+/** Keep joint endpoints exact despite each sprite's baked pivot, skew and pixel scale.
+ *  Works for all outfits, shoes and poses without replacing any painted image. */
+function boneBetween(part, from, to) {
+  const vx = (part.end?.[0] ?? part.pivot[0]) - part.pivot[0];
+  const vy = (part.end?.[1] ?? part.pivot[1] + 1) - part.pivot[1];
+  const dx = to[0] - from[0], dy = to[1] - from[1];
+  const k = part.scale || 1;
+  const targetLength = Math.max(1e-5, Math.hypot(dx, dy) / k);
+  // Preserve the width of painted boots/legs; scale the long axis to the joint.
+  const sy = Math.max(0.08, Math.sqrt(Math.max(0, targetLength * targetLength - vx * vx)) / Math.max(1e-5, Math.abs(vy)));
+  const angle = Math.atan2(dy, dx) - Math.atan2(vy * sy, vx);
+  return place(part, from[0], from[1], angle, 1, sy);
+}
+
+/** Undo only the previously hand-painted base offset before retargeting the
+ *  joint, then let any new Studio tuning still move/rotate the painted piece.
+ *  This prevents the old big side-view offsets from detaching knees/ankles. */
+function lockedBone(view, key, part, from, to) {
+  const saved = ADJUST[view]?.[key] || {};
+  const a = (saved.rot || 0) * DEG, scale = Number.isFinite(saved.s) ? saved.s : 1;
+  const inv = 1 / Math.max(0.01, scale);
+  const dx = (to[0] - from[0]) * inv, dy = (to[1] - from[1]) * inv;
+  const ca = Math.cos(a), sa = Math.sin(a);
+  const f = [from[0] - (saved.dx || 0), from[1] - (saved.dy || 0)];
+  const g = [f[0] + ca * dx + sa * dy, f[1] - sa * dx + ca * dy];
+  return adj(view, key, part, boneBetween(part, f, g));
+}
+
 function len(part) { return (part.end[1] - part.pivot[1]) * (part.scale || 1); }
 
 /** Two-bone IK: returns [thighAngle, shinAngle] (radians from straight down). */
 export function solveLeg(hip, foot, l1, l2, bendForward = 1) {
   const dx = foot[0] - hip[0], dy = foot[1] - hip[1];
-  const d = Math.min(Math.hypot(dx, dy), (l1 + l2) * 0.9995);
+  const d = Math.max(0.0001, Math.abs(l1 - l2) + 0.0001, Math.min(Math.hypot(dx, dy), (l1 + l2) * 0.9995));
   const base = Math.atan2(dx, dy); // angle from +y (down)
   const cosA = (l1 * l1 + d * d - l2 * l2) / (2 * l1 * d);
   const A = Math.acos(Math.max(-1, Math.min(1, cosA)));
@@ -69,25 +98,96 @@ export const NECK = Object.freeze({
  * s scale — z, a shift in drawing order, and hide to leave a part out. Parts that hang off an adjusted
  * part (forearm on sleeve, hair on head, everything on torso) follow it.
  */
-let ADJUST = RIG_ADJUST;
+let ADJUST = {
+  ...RIG_ADJUST,
+  back: {
+    ...RIG_ADJUST.back,
+    forearmL: { ...RIG_ADJUST.back?.forearmL, z: 0 },
+    forearmR: { ...RIG_ADJUST.back?.forearmR, z: 0 },
+  },
+};
 export function setRigAdjust(next) { ADJUST = next || {}; }
 export function getRigAdjust() { return ADJUST; }
 // What the studio (and committed tuning) changes for the look being drawn right now.
 const CTX = { tuning: null, owners: ["base"], sit: 0, up: 0, phase: 0, walk: 0 };
 let PR = paramsFor(null, ["base"]);
-const EA = (view, key) => effectiveAdjust(CTX.tuning, CTX.owners, CTX, view, key, ADJUST[view]?.[key]);
+const EA = (view, key) => {
+  const a = effectiveAdjust(CTX.tuning, CTX.owners, CTX, view, key, ADJUST[view]?.[key]);
+  return key === 'neck' ? {...a, dx:0, dy:0, hide:false} : a;
+};
 function useLook(tuning, equipped, sit = 0, up = 0, phase = 0, walk = 0) {
+  CTX.hair = equipped?.hair || "hair-natural";
   CTX.tuning = tuning || null; CTX.owners = ownersOf(equipped); CTX.sit = sit; CTX.up = up; CTX.phase = phase; CTX.walk = walk;
   PR = paramsFor(CTX.tuning, CTX.owners);
+  const hasWalkDial = key => CTX.owners.some(owner =>
+    Object.prototype.hasOwnProperty.call(CTX.tuning?.params?.[owner]?.walk || {}, key));
+  if (!hasWalkDial('armFront')) PR.walk.armFront = 0.115;
+  if (!hasWalkDial('elbow')) PR.walk.elbow = 0.12;
+  // V14_DEFAULT_CHEER: keep explicit Studio angle edits available.
+  if (!CTX.owners.some(o => Number.isFinite(CTX.tuning?.params?.[o]?.cheer?.front))) PR.cheer.front = 2.25;
+  if (!hasWalkDial('nearBack')) PR.walk.nearBack = -7;
+  if (!hasWalkDial('farFore')) PR.walk.farFore = 7;
 }
 function adj(view, key, part, m) {
-  const a = EA(view, key);
-  if (!a) return m;
+  const raw = EA(view, key);
+  if (!raw) return m;
+  let a = raw;
+  // The idle sleeve nudge is for the wide puffy silhouette. Do not apply it
+  // to the FULL raised-arm painting: that detached the hand from the shoulder.
+  const raisedArm = (view === 'front' || view === 'back')
+    ? (key === 'sleeveL' || key === 'sleeveR')
+    : (view === 'side' && (key === 'armNear' || key === 'armFar'));
+  if (raisedArm && CTX.up > 0.001) {
+    const fit = ADJUST[view]?.[key] || {};
+    const u = Math.min(1, Math.max(0, CTX.up));
+    const ease = u * u * (3 - 2 * u);
+    a = {...raw,
+      dx: (raw.dx || 0) - (fit.dx || 0) * ease,
+      dy: (raw.dy || 0) - (fit.dy || 0) * ease,
+    };
+  }
   const pv = apply(m, part.pivot);
   const sc = Number.isFinite(a.s) ? a.s : 1;
   return mul(T(pv[0] + (a.dx || 0), pv[1] + (a.dy || 0)),
     mul(R((a.rot || 0) * DEG), mul(S(sc), mul(T(-pv[0], -pv[1]), m))));
 }
+/** Place the part's actual painted pivot on an anatomical joint.
+ *  This runs AFTER hand-written and saved Studio adjustments. Unlike subtracting
+ *  only the shipped idle offsets, it guarantees shoulder attachment even when
+ *  a clothing variant or an old user fitting contributes additional dx/dy.
+ *  The weight lets the renderer preserve an existing idle fit until a genuine
+ *  walking or raised-arm motion begins. Rotations, sizes and pictures survive.
+ */
+function pinJoint(view, key, part, matrix, joint, weight) {
+  const fitted = adj(view, key, part, matrix);
+  const w = Math.min(1, Math.max(0, weight));
+  if (w < 0.0001) return fitted;
+  const actual = apply(fitted, part.pivot);
+  return mul(T((joint[0] - actual[0]) * w, (joint[1] - actual[1]) * w), fitted);
+}
+const lerpPt = (a, b, w) => [a[0] + (b[0] - a[0]) * w, a[1] + (b[1] - a[1]) * w];
+/** The painted arm's pivot is NOT at the center of the shoulder socket.
+ * V7 snapped pivot to metadata shoulder and inadvertently discarded Studio's
+ * "세로" cheer slider. Test the user-observed +18 part-pixel vertical seating
+ * as a default across front / side / back. A Studio CHEER layer's dx/dy
+ * explicitly OVERRIDES the baseline, so setting dy=18 is meaningful and
+ * editable. Stand/walk positioning remains unchanged.
+ */
+export const CHEER_SHOULDER_DEFAULT_Y = 0;
+/** Every sprite's pivot is anchored on a real shoulder. Manual offsets in
+ * the cheer-layer are FINISHING offsets (maximum 10 px), not a new shoulder.
+ * Values from the legacy free-floating rig (40-57 px) must not detach arms.
+ */
+function cheerShoulder(view, key, joint) {
+  let dx = 0, dy = 0;
+  for (const owner of CTX.owners) {
+    const tweak = CTX.tuning?.layers?.[owner]?.cheer?.[view]?.[key];
+    if (Number.isFinite(tweak?.dx)) dx = Math.max(-10, Math.min(10, tweak.dx));
+    if (Number.isFinite(tweak?.dy)) dy = Math.max(-10, Math.min(10, tweak.dy));
+  }
+  return [joint[0] + dx, joint[1] + dy];
+}
+
 /** A lining is hidden with the garment it belongs to. */
 const LINING_OF = { capeletInner: "capelet", capeInner: "cape" };
 /** Apply z shifts: each item is [part, matrix, key]. Lining layers have their
@@ -104,7 +204,8 @@ function footPath(p, stride, lift) {
   p = ((p % 1) + 1) % 1;
   if (p < 0.5) return { x: stride / 2 - stride * (p / 0.5), lift: 0 };
   const u = (p - 0.5) / 0.5;
-  return { x: -stride / 2 + stride * u, lift: Math.sin(Math.PI * u) * lift };
+  const ease = u * u * (3 - 2 * u);
+  return { x: -stride / 2 + stride * ease, lift: Math.sin(Math.PI * u) * lift };
 }
 
 function frontBack(parts, back, s) {
@@ -131,13 +232,12 @@ function frontBack(parts, back, s) {
     const hip = [sway + sx * footX * 0.86, hipY];
     const shin = P["shin" + side], thigh = P["thigh" + side];
     const knee = [foot[0], foot[1] - shinL];
-    const ang = Math.atan2(knee[0] - hip[0], knee[1] - hip[1]);
-    const stretch = Math.min(1.18, Math.max(0.8, Math.hypot(knee[0] - hip[0], knee[1] - hip[1]) / thighL));
-    const near = 1 + 0.03 * (f.lift / lift) * w;
+    const thighM = lockedBone(V, "thigh" + side, thigh, hip, knee);
+    const kneeFixed = apply(thighM, thigh.end);
+    const shinM = lockedBone(V, "shin" + side, shin, kneeFixed, foot);
     legs.push({ depth: foot[1] * dir, items: [
-      ...(k > 0.5 ? [] : [[thigh, adj(V, "thigh" + side, thigh, place(thigh, hip[0], hip[1], -ang, 1, stretch)), "thigh" + side]]),
-      [shin, adj(V, "shin" + side, shin, mul(T(foot[0], foot[1]), mul(S(near), mul(T(-foot[0], -foot[1]),
-        place(shin, foot[0], foot[1] - shinL, 0))))), "shin" + side],
+      ...(k > 0.5 ? [] : [[thigh, thighM, "thigh" + side]]),
+      [shin, shinM, "shin" + side],
     ], shadow: [foot[0], foot[1], 1 - 0.45 * (f.lift / lift) * w] });
   }
   legs.sort((a, b) => a.depth - b.depth);
@@ -148,11 +248,32 @@ function frontBack(parts, back, s) {
   const swing = Math.cos(TAU * p) * w;
   const arm = (side, pt, sgn) => {
     const sl = P["sleeve" + side], fa = P["forearm" + side];
-    const a = (sgn * (0.07 + 0.02 * breath) + (back ? -1 : 1) * sgn * PR.walk.armFront * swing * (side === "L" ? 1 : -1)) * (1 - up) + sgn * PR.cheer.front * up;
-    const m = adj(V, "sleeve" + side, sl, place(sl, pt[0], pt[1], a));
+    // Front/back walk projects motion along depth, never a sideways fan.
+    const depth = swing * (side === 'L' ? 1 : -1) * (1-up);
+    const a = sgn * (0.07 + 0.02 * breath) * (1-w) * (1-up) + sgn * PR.cheer.front * up;
+    const upperProjection = 1 - .08 * Math.abs(depth);
+    const lowerProjection = 1 - .22 * Math.max(0,depth) - .08 * Math.max(0,-depth);
+    // Re-seat the visible painted sleeve onto the socket; blend out of
+    // the unchanged standing pose as the arm rises.
+    const raisedShoulder = cheerShoulder(V, "sleeve" + side, pt);
+    const aim = lerpPt(pt, raisedShoulder, up);
+    // The shoulder is the top of the *whole* chain in every pose.
+    // Refit after all legacy art offsets, then the elbow must follow it.
+    const m = pinJoint(V, "sleeve" + side, sl,
+      place(sl, pt[0], pt[1], a,1,upperProjection), aim, 1);
     const elbow = apply(m, [sl.end[0], sl.end[1] - (sl.end[1] - sl.pivot[1]) * 0.2]);
-    const bend = (side === "L" ? 1 : -1) * PR.walk.elbow * Math.max(0, swing * (side === "L" ? 1 : -1)) * (back ? -1 : 1);
-    return [[fa, adj(V, "forearm" + side, fa, place(fa, elbow[0], elbow[1], a + sgn * 0.03 + bend)), "forearm" + side], [sl, m, "sleeve" + side]];
+    const bend = 0; // Depth flexion is represented by foreshortening, not screen-space rotation.
+    const forearmM = pinJoint(V, "forearm" + side, fa,
+      place(fa, elbow[0], elbow[1], a + sgn * 0.03 * (1-w) + bend,1,lowerProjection), elbow, 1);
+    // A sleeve picture replaced with a *full arm* already includes the skin,
+    // wrist and fingers. Drawing the independent old forearm too makes a
+    // floating extra hand or a gap near the shoulder. This is independent of
+    // whether a costume has supplied its own `forearm.hide` Studio layer.
+    const fullArm = up > 0.5 && Boolean(EA(V, "sleeve" + side)?.img);
+    return [
+      ...(fullArm ? [] : [[fa, forearmM, "forearm" + side]]),
+      [sl, m, "sleeve" + side],
+    ];
   };
   const head = P.head;
   const neck = P.neck;
@@ -176,11 +297,22 @@ function frontBack(parts, back, s) {
   if (P.capeletInner) items.capeletInner = [P.capeletInner, items.capelet[1], "capeletInner"];
   // Long cape: hangs behind the body by default. Pieces can be erased or
   // marked "behind the body" in the rig editor, and z brings it forward.
-  const headM = adj(V, "head", head, mul(T(0, -bob * 0.25), place(head, chin[0], chin[1] + (back ? head.h * 0.42 : 0), headTilt)));
+  const backHeadScale = back ? 1.11 : 1;
+  let headM = adj(V, "head", head, mul(T(0, -bob * 0.25),
+    place(head, chin[0], chin[1] + (back ? head.h * 0.42 : 0), headTilt, backHeadScale, backHeadScale)));
+  if (back) {
+    // The variant canvases are equally sized, but their painted skulls are not.
+    // Fit the artwork around its crown so the neck and hat do not jump upwards.
+    const fit = {'hair-natural':1, 'hair-chestnut':1, 'hair-silver':1.28, 'hair-bloom':1.35}[CTX.hair] || 1;
+    headM = mul(headM, mul(T(head.crown[0],head.crown[1]),mul(S(fit),T(-head.crown[0],-head.crown[1]))));
+  }
   items.head = [head, headM, "head"];
+  const neckTop = back ? [neckPt[0],neckPt[1]-18] : apply(headM,[head.pivot[0],145]);
+  items.neck = [neck, place(neck,neckTop[0],neckTop[1],0,back?.48:.68,.48), 'neck'];
   if (!back) {
     const hairTop = apply(headM, [head.crown[0], head.crown[1] + head.h * 0.16]);
-    items.hair = K("hair", P.hair, place(P.hair, hairTop[0], hairTop[1], headTilt * 0.5 - 0.02 * Math.sin(TAU * (p - 0.15)) * w));
+    const hairWidth = {'hair-silver':1.22, 'hair-bloom':1.10, 'hair-chestnut':1.04}[CTX.hair] || 1;
+    items.hair = K("hair", P.hair, place(P.hair, hairTop[0], hairTop[1], -0.02 * Math.sin(TAU * (p - 0.15)) * w,hairWidth,1));
   }
   const hipRight = local(torso, P.torso, "hipR");
   const bagA = 0.06 * Math.sin(TAU * (p - 0.2)) * w + 0.01 * Math.sin(t * TAU / 3.9) * (1 - w);
@@ -188,12 +320,57 @@ function frontBack(parts, back, s) {
     ? place(P.bag, hipRight[0] - P.torso.w * 0.86, hipRight[1] - P.bag.h * 0.12, -bagA, 0.72, 0.72)
     : place(P.bag, hipRight[0] + P.torso.w * 0.32, hipRight[1] - P.bag.h * 0.42, bagA, 0.78, 0.78));
   const armsL = arm("L", shL, 1), armsR = arm("R", shR, -1);
+  // Capture actual transformed part anchors, not guessed coordinate settings.
+  const armTrace = (side, shoulder, pieces) => {
+    const sleeve = pieces.find(it => it[2] === "sleeve" + side);
+    const forearm = pieces.find(it => it[2] === "forearm" + side);
+    const sleevePivot = sleeve ? apply(sleeve[1], sleeve[0].pivot) : null;
+    const elbow = sleeve ? apply(sleeve[1], [sleeve[0].end[0],
+      sleeve[0].end[1] - (sleeve[0].end[1] - sleeve[0].pivot[1]) * 0.2]) : null;
+    const forearmPivot = forearm ? apply(forearm[1], forearm[0].pivot) : null;
+    const wrist = forearm ? apply(forearm[1],forearm[0].end) : null;
+    return {side, shoulder, sleevePivot, elbow, forearmPivot, wrist};
+  };
+  globalThis.__bloomodoroRigDebug = { view: V, pose: up > 0.55 ? "cheer" : (w > .1 ? "walk" : "stand"),
+    phase: p, arms: [armTrace("L", shL, armsL), armTrace("R", shR, armsR)] };
   const legItems = legs.flatMap(l => l.items);
   if (!back) out.push(items.cape, items.hair, ...legItems, items.skirt,
     ...(items.capeletInner ? [items.capeletInner] : []), items.neck, items.torso,
     items.bag, ...armsL, ...armsR, items.capelet, items.head);
   else out.push(...legItems, items.skirt, items.neck, items.torso, items.bag, ...armsL, ...armsR, items.cape, items.capelet, items.head);
-  return { items: order(V, out), shadows: legs.map(l => l.shadow), headM, crownY: apply(headM, head.crown)[1] };
+  // Keep the shoulder sleeves stationary in depth. The elbow-connected
+  // lower arm alone passes behind the skirt; this preserves the shoulder
+  // silhouette and the sense of alternating depth, without teleporting arms.
+  let backArmDepth = null;
+  if (back || w > .1) {
+    const shown = out.filter(it => !(
+      EA(V, it[2])?.hide || (LINING_OF[it[2]] && EA(V, LINING_OF[it[2]])?.hide)));
+    const rank = key => {
+      const i = shown.findIndex(it => it[2] === key);
+      return i < 0 ? null : i + (EA(V, key)?.z || 0);
+    };
+    const skirtRank = rank("skirt") ?? 4;
+    const torsoRank = rank("torso") ?? 6;
+    const headRank = rank("head") ?? torsoRank + 6;
+    const incoming = w > 0.10
+      ? (swing > 0 ? "L" : "R") : null;
+    backArmDepth = {};
+    for (const side of ["L", "R"]) {
+      // Puffy cuff stays at the shoulder even when the hand moves behind skirt.
+      const sleeve = "sleeve" + side, forearm = "forearm" + side;
+      if (rank(sleeve) != null) {
+        const visibleSocket = Math.min(headRank - 0.35, Math.max(torsoRank,rank("bag") ?? torsoRank) + 1.10);
+        backArmDepth[sleeve] = visibleSocket - rank(sleeve);
+      }
+      if (rank(forearm) != null) {
+        const forward = up > 0.55 || incoming === side;
+        const target = forward ? Math.min(headRank - .5, Math.max(torsoRank,rank("bag") ?? torsoRank) + .45) : skirtRank - .75;
+        backArmDepth[forearm] = target - rank(forearm);
+      }
+    }
+  }
+  // Debug attachment and occlusion after *actual* art fitting; QA reads it.
+  return { items: order(V, out, backArmDepth), shadows: legs.map(l => l.shadow), headM, crownY: apply(headM, head.crown)[1] };
 }
 
 function side(parts, s) {
@@ -216,23 +393,65 @@ function side(parts, s) {
     const foot = [f.x * w * (1 - k) + seatFoot[0] * k, -f.lift * w * (1 - k) + seatFoot[1] * k];
     const [ta, sa, knee] = solveLeg(hip, foot, l1, l2, 1);
     const thigh = P["thigh" + nm], shin = P["shin" + nm];
-    const tm = adj("side", "thigh" + nm, thigh, place(thigh, hip[0], hip[1], -ta));
-    const kn = apply(tm, thigh.end || [thigh.pivot[0], thigh.pivot[1] + len(thigh) / (thigh.scale || 1)]);
-    const moved = EA("side", "thigh" + nm) ? kn : knee;
+    const tm = lockedBone("side", "thigh" + nm, thigh, hip, knee);
+    const attachedKnee = apply(tm, thigh.end);
+    const sm = lockedBone("side", "shin" + nm, shin, attachedKnee, foot);
     legs.push([[thigh, tm, "thigh" + nm],
-      [shin, adj("side", "shin" + nm, shin, place(shin, moved[0], moved[1] - len(shin) * 0.035, -sa)), "shin" + nm]]);
+      [shin, sm, "shin" + nm]]);
     legs[legs.length - 1].shadow = [foot[0], foot[1], 1 - 0.5 * (f.lift / lift) * w];
   }
   const lean = 0.03 * w;
   const torso = adj("side", "torso", P.torso, place(P.torso, hip[0] + P.torso.w * 0.04, hipY + len(P.thighNear) * 0.08, lean - 0.015 * Math.sin(2 * TAU * p) * w, 1, 1 + 0.006 * breath));
   const neckPt = local(torso, P.torso, "neck");
-  const shoulder = [neckPt[0] - P.torso.w * 0.05, neckPt[1] + P.torso.h * 0.11];
+  // The side torso has TWO distinct shoulder joints. Its back-side
+  // socket is shoulderL (x≈20), while shoulderR (x≈60) is toward the face.
+  // The old side patch attached both arms near shoulderR. That left the
+  // exposed circular socket and made the raised sleeve cross the face.
+  const shoulderNear = local(torso, P.torso, "shoulderL");
+  const shoulderFar = local(torso, P.torso, "shoulderR");
+  const shoulderIdleNear = shoulderFar; // retain the previously fitted idle art
+  const shoulderIdleFar = [shoulderFar[0] - P.torso.w * 0.06, shoulderFar[1]];
+  // Lock to the same anatomical sockets at all gait phases.
+  const movingArm = 1;
+  const nearPivot = lerpPt(shoulderIdleNear, shoulderNear, movingArm);
+  const farPivot = lerpPt(shoulderIdleFar, shoulderFar, movingArm);
   const waist = local(torso, P.torso, "waist");
-  const swing = Math.sin(TAU * p) * w; // near arm forward when far leg forward
-  const armNear = adj("side", "armNear", P.armNear, place(P.armNear, shoulder[0], shoulder[1], (-PR.walk.armSide * swing + 0.03 * breath) * (1 - k) * (1 - up) - PR.sit.armNear * k * (1 - up) - PR.cheer.near * up));
-  // far arm: a painting per facing (the left-facing one is stored mirrored)
+  const swing = Math.sin(TAU * p) * w; // near arm counter-swings to far arm
+  // Base painted side art faces right. +rotation lifts toward the CHARACTER'S
+  // back, away from the face; root mirror does the same for left-facing art.
+  // V7 used ~identical arm angles (2.70 / 2.72 rad), making a
+  // double-arm silhouette. Separate the nearer arm from the farther one by
+  // about 0.23 radians (13 degrees) while keeping both hands above the head.
+  // Side-view anatomy: two arms, two sockets, two separated trajectories.
+  // A full-arm sprite has no elbow joint: rotate the complete painting around
+  // its shoulder pivot. 2.49 and 2.97 radians form a natural raised V-shape.
+  const nearCheer = -2.57;
+  const farCheer = -2.62;
+  const nearAngle = (-PR.walk.armSide * swing + 0.03 * breath) * (1-k) * (1-up)
+    - PR.sit.armNear * k * (1-up) + nearCheer * up;
+  const farAngle = ( PR.walk.armSide * swing - 0.03 * breath) * (1-k) * (1-up)
+    - PR.sit.armFar * k * (1-up) + farCheer * up;
+  const nearCheerJoint = lerpPt(shoulderNear,
+    cheerShoulder("side", "armNear", shoulderNear), up);
+  const farCheerJoint = lerpPt(shoulderFar,
+    cheerShoulder("side", "armFar", shoulderFar), up);
+  const armNear = pinJoint("side", "armNear", P.armNear,
+    place(P.armNear, nearPivot[0], nearPivot[1], nearAngle), nearCheerJoint, movingArm);
+  // Retain the facing-specific far-arm painting, but DO NOT exchange near/far
+  // anatomical roles on walk cycles. The root mirror handles direction.
   const farArm = s.flip && P.armFarL ? P.armFarL : P.armFar;
-  const armFar = adj("side", "armFar", farArm, place(farArm, shoulder[0] - P.torso.w * 0.06, shoulder[1], (PR.walk.armSide * swing - 0.03 * breath) * (1 - k) * (1 - up) - PR.sit.armFar * k * (1 - up) - PR.cheer.far * up));
+  const armFar = pinJoint("side", "armFar", farArm,
+    place(farArm, farPivot[0], farPivot[1], farAngle), farCheerJoint, movingArm);
+  globalThis.__bloomodoroRigDebug = {
+    view: "side", pose: up > 0.55 ? "cheer" : (w > .1 ? "walk" : "stand"),
+    phase: p,
+    arms: [
+      { side: "near", shoulder: nearCheerJoint,
+        sleevePivot: apply(armNear, P.armNear.pivot), elbow: null, forearmPivot: null },
+      { side: "far", shoulder: farCheerJoint,
+        sleevePivot: apply(armFar, farArm.pivot), elbow: null, forearmPivot: null },
+    ],
+  };
   const chin = [neckPt[0] + P.torso.w * 0.08, neckPt[1] - len(P.neck) * NECK.side.chin];
   const headTilt = lean * 0.5 + 0.012 * Math.sin(2 * TAU * (p - 0.06)) * w + 0.01 * Math.sin(t * TAU / 5.3) * (1 - w);
   const headPart = s.blink ? P.headBlink : P.head;
@@ -263,7 +482,7 @@ function side(parts, s) {
     [P.skirt, skirtM, "skirt"],
     // capelet lining (inside of the front opening) belongs behind the body
     ...(P.capeletInner ? [[P.capeletInner, sideCapelet, "capeletInner"]] : []),
-    K("neck", P.neck, place(P.neck, chin[0] - P.torso.w * 0.06, chin[1] - len(P.neck) * NECK.side.tuck, 0, NECK.side.width, 1)),
+    [P.neck, boneBetween({...P.neck,scale:.65}, apply(headM,[91,145]), [neckPt[0],neckPt[1]+18]), "neck"],
     [P.torso, torso, "torso"],
     K("hair", P.hair, place(P.hair, hairTop[0], hairTop[1], 0.03 * Math.sin(2 * TAU * (p - 0.15)) * w + 0.015 * w)),
     K("bag", P.bag, place(P.bag, waist[0] - P.torso.w * 0.05, neckPt[1] + P.torso.h * 0.05, bagA, 0.8, 0.8)),
@@ -271,10 +490,22 @@ function side(parts, s) {
     [headPart, headM, "head"],
     [P.armNear, armNear, "armNear"],
   ];
-  // layer while swinging: positive swing = near arm back / far arm forward (blended so it never pops)
-  const lean2 = Math.max(-1, Math.min(1, swing * 3)), pw = PR.walk;
-  const depth = { armNear: lean2 > 0 ? pw.nearBack * lean2 : -pw.nearFore * lean2, armFar: lean2 > 0 ? pw.farFore * lean2 : -pw.farBack * lean2 };
-  return { items: order("side", items, { armNear: Math.round(depth.armNear), armFar: Math.round(depth.armFar) }), shadows: legs.map(l => l.shadow), headM, crownY: apply(headM, headPart.crown)[1] };
+  // The previous time-dependent z shifts moved the far arm IN FRONT of
+  // the near arm halfway through a step. That looks like the two hands swap
+  // identities when walking left or right. Keep limb ownership and depth
+  // fixed. Only their joint rotations alternate; never their whole layer.
+  // During cheering, the near sleeve belongs over torso but under the face.
+  // With the far arm permanently behind the torso (V7 armFar:-12),
+  // the uncovered back-side shoulder socket showed through on CHEER.
+  // At full cheer both sleeves cover their OWN shoulder sockets but stay
+  // under the painted head; walking keeps near/far identities unchanged.
+  // No whole-arm depth flips. The far arm stays behind the torso and
+  // the near arm stays in front of it but *behind the face/head*.
+  const fixedDepth = {
+    armFar: -(EA("side", "armFar")?.z || 0),
+    armNear: (up > .55 ? 1 : -2) - (EA("side", "armNear")?.z || 0),
+  };
+  return { items: order("side", items, fixedDepth), shadows: legs.map(l => l.shadow), headM, crownY: apply(headM, headPart.crown)[1] };
 }
 
 export function sideStride(parts = AVATAR_RIG_PARTS.side) {
@@ -310,13 +541,10 @@ export function createWalkClock() {
         phase = (phase + step) % 1;
       } else if (weight > 0) {
         idleFor += dt;
-        if (!settling) {
-          // finish the step: glide to the next double-support moment (0.25 / 0.75)
-          const pin = phase % 0.5, rate = Math.max(dt * 1.6, 0.02);
-          if (Math.abs(pin - 0.25) <= rate) { phase = phase - pin + 0.25; settling = true; }
-          else phase = (phase + rate * 0.5) % 1;
-          if (idleFor > 0.35) settling = true;
-        } else weight = Math.max(0, weight - dt / 0.2);
+         // Do not advance the walk phase when the character is not travelling.
+         // Advance-after-stop made a visually planted boot skate along the floor.
+         settling = true;
+         weight = Math.max(0, weight - dt / 0.18);
       }
       return { phase, weight };
     },
@@ -377,6 +605,20 @@ export function createAvatarRig({ ImageClass = globalThis.Image, onReady = () =>
     // Expressions are optional: until one decodes the painted front head is used.
     if (view === "front") for (const src of Object.values(expressionFiles(equipped))) img(src);
     return ok;
+  }
+  const featheredFaces = new WeakMap();
+  function featherFace(im, hair) {
+    if (!['hair-silver','hair-bloom'].includes(hair) || typeof document==='undefined') return im;
+    if (featheredFaces.has(im)) return featheredFaces.get(im);
+    // Blend only the cut hair ends into the complete rear-hair artwork.
+    // Keep facial features and the central neck opaque.
+    const c=document.createElement('canvas'); c.width=im.naturalWidth;c.height=im.naturalHeight;
+    const g=c.getContext('2d');g.drawImage(im,0,0);g.globalCompositeOperation='destination-in';
+    const mask=document.createElement('canvas');mask.width=c.width;mask.height=c.height;
+    const m=mask.getContext('2d'),fade=m.createLinearGradient(0,c.height-52,0,c.height);
+    fade.addColorStop(0,'white');fade.addColorStop(1,'rgba(255,255,255,0)');m.fillStyle=fade;m.fillRect(0,0,c.width,c.height);
+    m.fillStyle='white';m.fillRect(c.width*.39,0,c.width*.22,c.height);
+    g.drawImage(mask,0,0);featheredFaces.set(im,c);return c;
   }
   function expressionFiles(equipped) {
     const own = variantExpressions(equipped, variants);
@@ -454,7 +696,7 @@ export function createAvatarRig({ ImageClass = globalThis.Image, onReady = () =>
         const files = expressionFiles(equipped);
         const ex = files[key] ? img(files[key]) : null;
         if (ex) {
-          im = ex;
+          im = featherFace(ex, equipped?.hair);
           const sc = EXPRESSIONS.scale, pv = EXPRESSIONS.pivot;
           mm = mul(m, mul(T(part.pivot[0], part.pivot[1]), mul(S(sc), T(-pv[0], -pv[1]))));
         }
@@ -469,7 +711,7 @@ export function createAvatarRig({ ImageClass = globalThis.Image, onReady = () =>
       const g = mul(baseM, mul(root, mm));
       ctx.setTransform(g[0], g[1], g[2], g[3], g[4], g[5]);
       ctx.drawImage(im, 0, 0);
-      drawn.push({ key: itemKey, g, w: im.naturalWidth, h: im.naturalHeight, im });
+      drawn.push({ key: itemKey, g, w: im.naturalWidth || im.width, h: im.naturalHeight || im.height, im });
       if (highlight && highlight === itemKey) glow(im, g);
       if (clipping) ctx.restore();
     }
