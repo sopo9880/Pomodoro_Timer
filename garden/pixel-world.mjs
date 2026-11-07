@@ -196,6 +196,8 @@ function noise(x, y, seed = 0) {
   h = Math.imul(h ^ (h >>> 13), 1274126177);
   return ((h ^ (h >>> 16)) >>> 0) / 4294967295;
 }
+const SIGN_ART = { plain: "assets/art/ui/signs/plain.webp", flower: "assets/art/ui/signs/flower.webp", locked: "assets/art/ui/signs/locked.webp" };
+
 export function createPixelGardenRenderer(canvas) {
   const ctx = canvas.getContext("2d", { alpha: false });
   if (!ctx) throw new Error("Canvas 2D is not supported");
@@ -665,20 +667,36 @@ export function createPixelGardenRenderer(canvas) {
       const pos = worldToScreen(x, y);
       if (pos.x < -110 || pos.y < -40 || pos.x > width + 110 || pos.y > height + 40) continue;
       const open = unlocked.has(zone.id), scene = REGION_SCENES[zone.id];
-      const label = open ? scene.name : "🔒 " + scene.name;
+      const label = scene.name;
       ctx.save();
       ctx.font = "700 13px 'Gowun Batang', Georgia, serif";
       ctx.textAlign = "center"; ctx.textBaseline = "middle";
       const w = ctx.measureText(label).width + 26;
-      ctx.fillStyle = open ? "rgba(251,245,233,.92)" : "rgba(40,46,44,.78)";
-      ctx.strokeStyle = open ? "rgba(122,92,52,.55)" : "rgba(200,210,200,.25)";
-      ctx.lineWidth = 1.2;
-      ctx.beginPath();
-      if (typeof ctx.roundRect === "function") ctx.roundRect(Math.round(pos.x - w / 2), Math.round(pos.y - 14), w, 28, 14);
-      else ctx.fillRect(Math.round(pos.x - w / 2), Math.round(pos.y - 14), w, 28);
-      ctx.fill(); ctx.stroke();
-      ctx.fillStyle = open ? "#4a3b28" : "#c9d3cd";
-      ctx.fillText(label, Math.round(pos.x), Math.round(pos.y + 1));
+      // Painted wooden sign (plain / flowered / locked); the old plaque is the fallback until it loads.
+      const signSrc = !open ? SIGN_ART.locked : zone.id === "central" || zone.id === "greenhouse" ? SIGN_ART.flower : SIGN_ART.plain;
+      const signImg = painted.art(signSrc);
+      if (signImg && signImg.naturalWidth) {
+        // locked.webp only fills the left 306px of its 520px canvas
+        const sx = 0, sw0 = open ? signImg.naturalWidth : Math.min(signImg.naturalWidth, 306), sh0 = signImg.naturalHeight;
+        const dw = Math.max(w + 56, 150), dh = dw * sh0 / sw0;
+        const cy = Math.round(pos.y);
+        ctx.imageSmoothingEnabled = true;
+        ctx.drawImage(signImg, sx, 0, sw0, sh0, Math.round(pos.x - dw / 2), Math.round(cy - dh * (open ? .5 : .42)), Math.round(dw), Math.round(dh));
+        ctx.lineJoin = "round"; ctx.lineWidth = 3.2;
+        ctx.strokeStyle = "rgba(58,36,18,.85)"; ctx.fillStyle = open ? "#fbf1d9" : "#e5dccd";
+        const ty = Math.round(cy + (open ? dh * .06 : -dh * .06));
+        ctx.strokeText(label, Math.round(pos.x), ty); ctx.fillText(label, Math.round(pos.x), ty);
+      } else {
+        ctx.fillStyle = open ? "rgba(251,245,233,.92)" : "rgba(40,46,44,.78)";
+        ctx.strokeStyle = open ? "rgba(122,92,52,.55)" : "rgba(200,210,200,.25)";
+        ctx.lineWidth = 1.2;
+        ctx.beginPath();
+        if (typeof ctx.roundRect === "function") ctx.roundRect(Math.round(pos.x - w / 2), Math.round(pos.y - 14), w, 28, 14);
+        else ctx.fillRect(Math.round(pos.x - w / 2), Math.round(pos.y - 14), w, 28);
+        ctx.fill(); ctx.stroke();
+        ctx.fillStyle = open ? "#4a3b28" : "#c9d3cd";
+        ctx.fillText(open ? label : "🔒 " + label, Math.round(pos.x), Math.round(pos.y + 1));
+      }
       ctx.restore();
     }
     // One z-index order for user decorations, focus-grown plants, walking
