@@ -250,7 +250,7 @@ function frontBack(parts, back, s) {
     const sl = P["sleeve" + side], fa = P["forearm" + side];
     // Front/back walk projects motion along depth, never a sideways fan.
     const depth = swing * (side === 'L' ? 1 : -1) * (1-up);
-    const a = sgn * (0.07 + 0.02 * breath) * (1-w) * (1-up) + sgn * PR.cheer.front * up;
+    const a = sgn * (0.07 + 0.02 * breath) * (1-w) * (1-up) + sgn * PR.cheer.front * up - sgn * 0.3 * (s.reach || 0) * (1 - up);
     const upperProjection = 1 - .08 * Math.abs(depth);
     const lowerProjection = 1 - .22 * Math.max(0,depth) - .08 * Math.max(0,-depth);
     // Re-seat the visible painted sleeve onto the socket; blend out of
@@ -427,10 +427,12 @@ function side(parts, s) {
   // its shoulder pivot. 2.49 and 2.97 radians form a natural raised V-shape.
   const nearCheer = -2.57;
   const farCheer = -2.62;
+  // using something (warming hands, opening a mailbox, sipping tea): both arms come forward, with a small tremor
+  const reachAmt = (s.reach || 0) * (1 - up) * (1 - 0.45 * k) * (1 + 0.05 * Math.sin(t * 9));
   const nearAngle = (-PR.walk.armSide * swing + 0.03 * breath) * (1-k) * (1-up)
-    - PR.sit.armNear * k * (1-up) + nearCheer * up;
+    - PR.sit.armNear * k * (1-up) + nearCheer * up - reachAmt * 1.3;
   const farAngle = ( PR.walk.armSide * swing - 0.03 * breath) * (1-k) * (1-up)
-    - PR.sit.armFar * k * (1-up) + farCheer * up;
+    - PR.sit.armFar * k * (1-up) + farCheer * up - reachAmt * 1.15;
   const nearCheerJoint = lerpPt(shoulderNear,
     cheerShoulder("side", "armNear", shoulderNear), up);
   const farCheerJoint = lerpPt(shoulderFar,
@@ -631,7 +633,7 @@ export function createAvatarRig({ ImageClass = globalThis.Image, onReady = () =>
    * expression: neutral | happy | surprised | focused ; blink is automatic.
    */
   function draw(ctx, { x, y, height, direction = "down", phase = 0.25, weight = 0, time = 0,
-    expression = "neutral", reducedMotion = false, shadow = true, equipped = null, sit = 0, armsUp = 0, kick = 0, tuning = undefined, highlight = null } = {}) {
+    expression = "neutral", reducedMotion = false, shadow = true, equipped = null, sit = 0, armsUp = 0, kick = 0, reach = 0, tuning = undefined, highlight = null } = {}) {
     const view = RIG_VIEW[direction] || "front";
     useLook(tuning === undefined ? getTuning() : tuning, equipped, sit, armsUp, phase, reducedMotion ? 0 : weight);
     if (!readyNow(direction, equipped)) return false;
@@ -639,7 +641,7 @@ export function createAvatarRig({ ImageClass = globalThis.Image, onReady = () =>
     const t = reducedMotion ? 0 : time;
     const blinkT = (t % 4.2);
     const blink = !reducedMotion && blinkT > 4.04 ? (blinkT > 4.08 && blinkT < 4.16 ? 2 : 1) : 0;
-    const st = { phase, weight: reducedMotion ? 0 : weight, time: t, blink: blink === 2, flip: direction === "left", sit, up: armsUp, kick };
+    const st = { phase, weight: reducedMotion ? 0 : weight, time: t, blink: blink === 2, flip: direction === "left", sit, up: armsUp, kick, reach };
     const pose = view === "side" ? side(AVATAR_RIG_PARTS.side, st) : frontBack(AVATAR_RIG_PARTS[view], view === "back", st);
     const k = height / RIG_BODY_HEIGHT[view];
     const flip = direction === "left" ? -1 : 1;
