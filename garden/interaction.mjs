@@ -126,6 +126,60 @@ export function createSeatController({ motion, findItem, getGarden }) {
   };
 }
 
+/**
+ * Things that are used standing up: walk to the front of the item, face it, bring the hands forward
+ * (the rig's `reach`), react, then let go. `hold` actions stay as long as the person does not move away.
+ */
+export const USE_SPEC = Object.freeze({
+  mail: { seconds: 2.6, reach: 1 }, warm: { seconds: 7, reach: 1 }, well: { seconds: 3.4, reach: .85 },
+  listen: { seconds: 3.2, reach: .35 }, watch: { seconds: 3.4, reach: .5 },
+});
+export const USE_ACTIONS = Object.freeze(Object.keys(USE_SPEC));
+
+/** reach amount over a use: ease in, hold, ease out. */
+export function reachEnvelope(t, seconds, peak = 1) {
+  const rise = .55, fall = .7;
+  if (t <= 0 || t >= seconds) return 0;
+  const a = Math.min(1, t / rise), b = Math.min(1, (seconds - t) / fall), e = Math.min(a, b);
+  return peak * e * e * (3 - 2 * e);
+}
+
+/**
+ * Walk -> use -> react -> return as one motion. `onUse(action, spot)` fires when the avatar arrives
+ * (the caller shows the line and plays the sound); nothing is saved.
+ */
+export function createUseController({ motion, findItem, getGarden, onUse = () => {} }) {
+  let phase = "idle", spot = null, t = 0;
+  return {
+    get phase() { return phase; },
+    start(placementId, from) {
+      this.cancel();
+      const garden = getGarden();
+      const placement = garden?.placements?.find((p) => p.id === placementId);
+      const sprite = placement && findItem(placement.itemId)?.sprite;
+      const spots = spotsFor(placement, sprite).filter((c) => USE_ACTIONS.includes(c.action));
+      spots.sort((a, b) => Math.hypot(a.approach.x - from.x, a.approach.y - from.y) - Math.hypot(b.approach.x - from.x, b.approach.y - from.y));
+      for (const candidate of spots) {
+        if (motion.goTo(garden, candidate.approach.x, candidate.approach.y)) { spot = candidate; phase = "walking"; t = 0; return true; }
+      }
+      return false;
+    },
+    /** every frame, with the seconds since the last one */
+    update(dt) {
+      if (phase === "walking" && !motion.isMoving()) { phase = "using"; t = 0; onUse(spot.action, spot); }
+      else if (phase === "using") { if (motion.isMoving()) { this.cancel(); return phase; } t += dt; if (t >= USE_SPEC[spot.action].seconds) this.cancel(); }
+      return phase;
+    },
+    cancel() { phase = "idle"; spot = null; t = 0; },
+    /** the avatar facing the item with hands out while using; null otherwise */
+    visual(base) {
+      if (phase !== "using" || !spot || !base) return null;
+      const spec = USE_SPEC[spot.action];
+      return { ...base, direction: spot.approach.y >= spot.y ? "up" : "down", moving: false, pose: "idle", reach: reachEnvelope(t, spec.seconds, spec.reach) };
+    },
+  };
+}
+
 /** One-line reactions shown when a decoration is tapped. Calm, never urgent. */
 const LINES = Object.freeze({
   mail: [

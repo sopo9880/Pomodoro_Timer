@@ -113,3 +113,24 @@ test("every back view exists and seats follow the turned furniture", () => {
   const back = spotsFor(bench({ rotation: 180 }), "wooden-bench");
   assert.ok(back.every((s) => s.facing === "right" && s.approach.y < 10), "seen from behind, people approach from the other side");
 });
+
+test("use controller: walk to the item, face it, reach, react once, then let go", async () => {
+  const { createUseController, reachEnvelope, USE_SPEC } = await import("../garden/interaction.mjs");
+  const garden = { placements: [{ id: "fire", itemId: "campfire", x: 10, y: 10, rotation: 0 }] };
+  let moving = false, goal = null; const used = [];
+  const motion = { goTo: (g, x, y) => { goal = [x, y]; moving = true; return true; }, isMoving: () => moving };
+  const use = createUseController({ motion, findItem: () => ({ sprite: "campfire" }), getGarden: () => garden, onUse: (a) => used.push(a) });
+  assert.equal(use.start("fire", { x: 5, y: 5 }), true);
+  assert.equal(use.phase, "walking"); assert.ok(goal);
+  assert.equal(use.visual({ x: 1 }), null);
+  use.update(.1); assert.equal(use.phase, "walking"); assert.deepEqual(used, []);
+  moving = false; use.update(.1);
+  assert.equal(use.phase, "using"); assert.deepEqual(used, ["warm"]);
+  use.update(1);
+  const v = use.visual({ x: 1 }); assert.ok(v.reach > .5 && v.moving === false);
+  moving = true; use.update(.1); assert.equal(use.phase, "idle");   // walking away lets go
+  assert.equal(use.start("nope", { x: 0, y: 0 }), false);
+  assert.equal(reachEnvelope(0, 3), 0); assert.equal(reachEnvelope(3, 3), 0);
+  assert.ok(reachEnvelope(1.5, 3) > .99);
+  assert.ok(USE_SPEC.warm.seconds > USE_SPEC.mail.seconds);
+});

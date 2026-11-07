@@ -10,7 +10,7 @@ import { REGION_SCENES, WORLD_LANDMARKS } from "./world-map.mjs";
 import { ALL_WILDLIFE as WILDLIFE_SPECIES } from "./ecology.mjs";
 import { createAvatarMotion } from "./avatar-motion.mjs";
 import { isDirectional } from "./decor-views.mjs";
-import { actionOf, createSeatController, interactionLine, readAutoSitPref, writeAutoSitPref, SIT_READY, SEATED_ACTIONS } from "./interaction.mjs";
+import { actionOf, createSeatController, createUseController, USE_ACTIONS, interactionLine, readAutoSitPref, writeAutoSitPref, SIT_READY, SEATED_ACTIONS } from "./interaction.mjs";
 import { CELEBRATION_SECONDS, FX_IMAGES, readCelebrationPref, writeCelebrationPref } from "./fx.mjs";
 import { createGardenSound } from "./garden-sound.mjs";
 import { canUseRig } from "./avatar-variants.mjs";
@@ -52,6 +52,11 @@ export function mountGarden({ getGarden, setGarden, getTimerState, getEnvironmen
     autoSitToggle.addEventListener("change", () => writeAutoSitPref(autoSitToggle.checked));
   }
   const seat = createSeatController({ motion: avatarMotion, findItem: findGardenItem, getGarden });
+  // The line and sound come when the avatar actually reaches the item, so the reaction matches the motion.
+  const use = createUseController({ motion: avatarMotion, findItem: findGardenItem, getGarden, onUse: (action) => {
+    const line = interactionLine(action, tapCounts[action] = (tapCounts[action] ?? -1) + 1);
+    if (line) { announce(line); sound.play(SOUND_OF[action] || "pop"); }
+  } });
   let wasResting = false;
   const tapCounts = {};
   // Focus-complete celebration (<5 s, switchable) and small garden sounds.
@@ -95,6 +100,7 @@ export function mountGarden({ getGarden, setGarden, getTimerState, getEnvironmen
     if (t >= CELEBRATION_SECONDS) { celebration = null; return null; }
     return { t, seed: celebration.seed };
   }
+  let lastUseTick = performance.now();
   function updateSeat() {
     if (!SIT_READY) return;
     const timer = getTimerState();
@@ -106,6 +112,8 @@ export function mountGarden({ getGarden, setGarden, getTimerState, getEnvironmen
     else if (avatarMotion.isControlled() || (seat.phase === "seated" && avatarMotion.isMoving())) seat.release();
     wasResting = resting;
     seat.update();
+    use.update(Math.min(.25, (performance.now() - lastUseTick) / 1000)); lastUseTick = performance.now();
+    if (avatarMotion.isControlled() && use.phase !== "idle") use.cancel();
   }
   avatarMotion.sync(getGarden().avatar);
   const minimapCanvas = byId("gardenMiniMap");
@@ -807,7 +815,9 @@ export function mountGarden({ getGarden, setGarden, getTimerState, getEnvironmen
     // Tapping a usable decoration answers with a quiet line; not during focus.
     if(picked?.kind==="decor"&&!editingLocked()){
       const action=actionOf(findGardenItem(picked.itemId)?.sprite);
-      const line=action&&interactionLine(action,tapCounts[action]=(tapCounts[action]??-1)+1);
+      // Things used standing up: walk there first, then the line and sound come with the gesture.
+      const walksToUse=USE_ACTIONS.includes(action)&&currentTool==="inspect"&&avatarMotion.visual()&&seat.phase==="idle"&&use.start(picked.id,avatarMotion.visual());
+      const line=!walksToUse&&action&&interactionLine(action,tapCounts[action]=(tapCounts[action]??-1)+1);
       if(line){announce(line);sound.play(SOUND_OF[action]||"pop");}
       // Tapping something to sit on walks over and sits (never during focus, never while editing).
       if(SEATED_ACTIONS.includes(action)&&currentTool==="inspect"&&avatarMotion.visual()&&seat.seekItem(picked.id,avatarMotion.visual())){
@@ -1104,7 +1114,7 @@ export function mountGarden({ getGarden, setGarden, getTimerState, getEnvironmen
       }
       updateSeat();
       noticeNearby(timestamp,avatarMotion.visual());
-      const player=seat.seatedVisual(avatarMotion.visual())||avatarMotion.visual();
+      const player=seat.seatedVisual(avatarMotion.visual())||use.visual(avatarMotion.visual())||avatarMotion.visual();
       cameraSettling=followCamera(player,elapsed,timestamp);
       const celebrating=celebrationState(timestamp);
       renderer.draw(getGarden(),getTimerState(),{
