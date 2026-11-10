@@ -66,3 +66,37 @@ test("all six recruited companions can be rendered without changing their origin
   assert.equal(new Set(sim.snapshot().map(p=>p.speciesId)).size,6);
   assert.ok(sim.getAt(80,80));
 });
+
+test("companions settle on their favourite decorations, one per spot, and join a seated player", async () => {
+  const { createWorldMap } = await import("../garden/world-map.mjs");
+  const { WORLD_SPEC, findGardenItem } = await import("../garden/garden-core.mjs");
+  const { createCompanionSimulation, COMPANION_HABITS } = await import("../garden/companion-ai.mjs");
+  const map = createWorldMap(WORLD_SPEC);
+  const garden = {
+    placements: [{ id: "b1", itemId: "wooden-bench", x: 80, y: 84, rotation: 0 }, { id: "f1", itemId: "wooden-fence", x: 84, y: 84, rotation: 0 }, { id: "t1", itemId: "tea-table", x: 76, y: 84, rotation: 0 }],
+    plants: [], unlockedZones: ["central", "forest"], companions: [
+      { id: "c-cat", speciesId: "cat", x: 80, y: 80 }, { id: "c-cat2", speciesId: "cat", x: 81, y: 80 },
+      { id: "c-bird", speciesId: "sparrow", x: 82, y: 80 }, { id: "c-moss", speciesId: "mushroom", x: 78, y: 80 }],
+  };
+  const sim = createCompanionSimulation(map), seen = {}, together = new Set();
+  const spriteOf = (id) => findGardenItem(id)?.sprite;
+  for (let i = 0; i < 4000; i++) {
+    const out = sim.advance(garden, .25, { environment: { time: "day" }, spriteOf });
+    const on = out.filter((a) => a.lift > 0 || (a.activity === "read" && a.lift === 0));
+    for (const a of out) { if (["nap", "perch", "read"].includes(a.activity) && (a.lift > 0 || a.speciesId === "mushroom")) seen[a.speciesId] = a.activity; if (a.activity === "nap") together.add(a.id); }
+    const nappers = out.filter((a) => a.activity === "nap" && a.lift > 0);
+    assert.ok(nappers.length <= 1, "one companion per bench");
+    void on;
+  }
+  assert.equal(seen.cat, "nap"); assert.equal(seen.sparrow, "perch"); assert.equal(seen.mushroom, "read");
+  assert.ok(COMPANION_HABITS.cat[0].sprites.includes("wooden-bench"));
+  // a seated player draws idle companions to their side
+  const sim2 = createCompanionSimulation(map);
+  const solo = { placements: [], plants: [], unlockedZones: ["central"], companions: [{ id: "c1", speciesId: "cat", x: 80, y: 84 }] };
+  let joined = false;
+  for (let i = 0; i < 1600 && !joined; i++) {
+    const [a] = sim2.advance(solo, .25, { environment: { time: "day" }, spriteOf, avatar: { x: 82, y: 84, seated: true, reach: 0 } });
+    if (a.activity === "rest" && Math.hypot(a.x - 82, a.y - 84) < 2) joined = true;
+  }
+  assert.ok(joined);
+});

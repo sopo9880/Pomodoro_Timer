@@ -14,6 +14,20 @@ export const COMPANION_PERSONALITIES = Object.freeze({
   turtle:   { home: "pond",      pace: 0.43, activities: ["rest","observe","stroll"],    greeting: "토토가 고개를 천천히 내밀어요." },
   fox:      { home: "starlight", pace: 1.12, activities: ["stargaze","watch","stretch"], greeting: "하니가 별빛 같은 눈을 반짝여요." },
 });
+/**
+ * Habits: what a companion likes to do on a placed decoration. `lift` is how many tiles the body is
+ * raised on top of the thing (a bench, a fence rail); `hold` is how long it stays, in seconds.
+ * Purely visual and transient: nothing here is saved.
+ */
+export const COMPANION_HABITS = Object.freeze({
+  cat:      [{ sprites: ["wooden-bench", "star-bench", "picnic-cloth"], activity: "nap", lift: .28, hold: [14, 30] }],
+  mushroom: [{ sprites: ["tea-table", "mushroom-stool"], activity: "read", lift: 0, hold: [12, 26] }],
+  sparrow:  [{ sprites: ["wooden-fence"], activity: "perch", lift: .5, hold: [10, 22] }, { sprites: ["wind-chime", "birdbath"], activity: "sing", lift: .05, hold: [8, 16] }],
+  turtle:   [{ sprites: ["tiny-pond", "birdbath"], activity: "observe", lift: 0, hold: [12, 24] }],
+  sprout:   [{ sprites: ["flower-archway", "mailbox"], activity: "tend", lift: 0, hold: [8, 16] }],
+  fox:      [{ sprites: ["star-bench", "campfire"], activity: "stargaze", lift: .1, hold: [12, 26] }],
+});
+const HABIT_RANGE = 14, JOIN_RANGE = 10;
 const DIRECTIONS = Object.freeze([[0,1,"down"],[1,0,"right"],[0,-1,"up"],[-1,0,"left"]]);
 const cellKey = (x,y) => x + ":" + y;
 const valid = n => Number.isFinite(n);
@@ -100,7 +114,7 @@ function newState(companion, clock) {
     savedX:valid(companion.x)?companion.x:80,
     savedY:valid(companion.y)?companion.y:80,
     direction:"down", activity:"idle",
-    route:[], decision:0, held:false,grabOrigin:null,reaction:null,reactionUntil:0,
+    route:[], decision:0, held:false, habit:null, settled:null,grabOrigin:null,reaction:null,reactionUntil:0,
     nextActionAt:clock+1.5, pace:profile.pace,
   };
 }
@@ -119,14 +133,37 @@ export function createCompanionSimulation(map) {
         if(!agent.held&&(agent.savedX!==companion.x||agent.savedY!==companion.y)){
           agent.x=companion.x;agent.y=companion.y;
           agent.savedX=companion.x;agent.savedY=companion.y;
-          agent.route=[];agent.activity="idle";
+          release(agent);agent.route=[];agent.activity="idle";
           agent.nextActionAt=clock+1.5;
         }
       }
     }
     for(const id of agents.keys())if(!desired.has(id))agents.delete(id);
   }
-  function selectAction(agent,garden,environment={}) {
+  const claimed=new Map(); // placement id -> agent id (one companion per spot)
+  const release=agent=>{ if(agent.settled){claimed.delete(agent.settled.placementId);agent.settled=null;} agent.habit=null; };
+  function pickHabit(agent,garden,spriteOf){
+    const rules=COMPANION_HABITS[agent.speciesId];
+    if(!rules||!spriteOf)return null;
+    const salt=hashString(agent.id);
+    const options=[];
+    for(const placement of garden.placements||[]){
+      const sprite=spriteOf(placement.itemId);
+      const rule=rules.find(r=>r.sprites.includes(sprite));
+      if(!rule)continue;
+      const owner=claimed.get(placement.id);
+      if(owner&&owner!==agent.id)continue;
+      const distance=Math.hypot(placement.x-agent.x,placement.y-agent.y);
+      if(distance<=HABIT_RANGE)options.push({placement,rule,distance});
+    }
+    if(!options.length)return null;
+    options.sort((a,b)=>a.distance-b.distance);
+    // the nearest few, so companions spread over the garden instead of all taking the closest one
+    const pick=options[Math.floor(worldHash(agent.decision,salt,63)*Math.min(3,options.length))];
+    return pick;
+  }
+  function selectAction(agent,garden,environment={},context={}) {
+    release(agent);
     const profile=COMPANION_PERSONALITIES[agent.speciesId];
     agent.decision += 1;
     const salt=hashString(agent.id);
@@ -136,6 +173,24 @@ export function createCompanionSimulation(map) {
     agent.activity=environment.time==="night" ? nightActivity[agent.speciesId]||chosen : chosen;
     agent.nextActionAt=clock+2.5+worldHash(agent.decision,salt,21)*4;
     agent.route=[];
+    // Join the player: someone sitting or using something draws nearby companions to their side.
+    const player=context.avatar;
+    if(player&&(player.seated||player.reach>.3)&&Math.hypot(player.x-agent.x,player.y-agent.y)<=JOIN_RANGE&&worldHash(agent.decision,salt,71)<.6){
+      const side=worldHash(agent.decision,salt,72)<.5?-1:1;
+      const target={x:player.x+side*(.9+worldHash(agent.decision,salt,73)*.4),y:player.y+.35};
+      const path=findCompanionPath(map,garden,agent,{x:Math.floor(target.x)+.5,y:Math.floor(target.y)+.5},1400);
+      if(path.length){agent.route=path;agent.activity="walk";agent.habit={join:true,activity:player.seated?"rest":"watch",hold:[6,12]};return;}
+    }
+    // Habits: go and settle on a favourite decoration (a nap on the bench, a book by the table, a perch on the fence).
+    if(worldHash(agent.decision,salt,67)<(environment.time==="night"?.7:.4)){
+      const choice=pickHabit(agent,garden,context.spriteOf);
+      if(choice){
+        const {placement,rule}=choice;
+        const target={x:placement.x+(worldHash(agent.decision,salt,64)-.5)*.6,y:placement.y+1.5};
+        const path=findCompanionPath(map,garden,agent,{x:Math.floor(target.x)+.5,y:Math.floor(target.y)+.5},1400);
+        if(path.length){agent.route=path;agent.activity="walk";agent.habit={placement,rule,hold:rule.hold};claimed.set(placement.id,agent.id);return;}
+      }
+    }
     if(seed<(environment.time==="night"?.65:.36))return;
     // Walks usually remain near their last saved starting zone. This prevents
     // unseen teleports between newly unlocked zones while still using A* routes.
@@ -149,7 +204,24 @@ export function createCompanionSimulation(map) {
       agent.activity="walk";
     }
   }
-  function advance(garden,deltaSeconds=0,{reducedMotion=false,environment={}}={}){
+  /** Arrived at the favourite spot (or beside the player): hop onto it and stay a while. */
+  function settle(agent){
+    const habit=agent.habit;
+    const salt=hashString(agent.id);
+    const hold=habit.hold[0]+worldHash(agent.decision,salt,81)*(habit.hold[1]-habit.hold[0]);
+    if(habit.join){
+      agent.activity=habit.activity;agent.direction="down";
+      agent.reaction="happy";agent.reactionUntil=clock+2;
+    }else{
+      agent.x=habit.placement.x+(worldHash(agent.decision,salt,64)-.5)*.5;
+      agent.y=habit.placement.y+.12;
+      agent.direction="down";agent.activity=habit.rule.activity;
+      agent.settled={placementId:habit.placement.id,lift:habit.rule.lift};
+    }
+    agent.nextActionAt=clock+hold;
+    agent.habit=null;
+  }
+  function advance(garden,deltaSeconds=0,{reducedMotion=false,environment={},spriteOf=null,avatar=null}={}){
     sync(garden);
     const dt=valid(deltaSeconds)?Math.min(.25,Math.max(0,deltaSeconds)):0;
     if(reducedMotion) {
@@ -162,7 +234,7 @@ export function createCompanionSimulation(map) {
       if(agent.held)continue;
       if(agent.reaction&&clock<agent.reactionUntil)continue;
       if(agent.reaction&&clock>=agent.reactionUntil){agent.reaction=null;agent.nextActionAt=clock+1;}
-      if(!agent.route.length && clock>=agent.nextActionAt)selectAction(agent,garden,environment);
+      if(!agent.route.length && clock>=agent.nextActionAt)selectAction(agent,garden,environment,{spriteOf,avatar});
       if(agent.route.length && dt>0){
         const destination=agent.route[0],distance=Math.hypot(destination.x-agent.x,destination.y-agent.y);
         const travel=Math.min(distance,agent.pace*dt);
@@ -172,6 +244,7 @@ export function createCompanionSimulation(map) {
           if(!agent.route.length){
             agent.activity="idle";
             agent.nextActionAt=clock+1.4;
+            if(agent.habit)settle(agent);
           }
         }else{
           const dx=(destination.x-agent.x)/distance,dy=(destination.y-agent.y)/distance;
@@ -187,6 +260,7 @@ export function createCompanionSimulation(map) {
       id:agent.id,speciesId:agent.speciesId,
       x:agent.x,y:agent.y,
       activity:agent.held?"picked":agent.reaction?"react":agent.activity,
+      lift:agent.settled&&!agent.held?agent.settled.lift:0,
       reaction:agent.held?(Math.floor(clock*7)%3===0?"surprised":"wiggle"):agent.reaction,
       held:agent.held,
       direction:agent.direction,
@@ -203,7 +277,7 @@ export function createCompanionSimulation(map) {
     if(!agent)return false;
     if(agent.held)return true;
     agent.grabOrigin={x:agent.x,y:agent.y};
-    agent.held=true;agent.route=[];agent.reaction="surprised";
+    release(agent);agent.held=true;agent.route=[];agent.reaction="surprised";
     agent.nextActionAt=clock+4;
     return true;
   }

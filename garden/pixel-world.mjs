@@ -449,7 +449,8 @@ export function createPixelGardenRenderer(canvas) {
       if(Math.abs(upAmt-wantUp)<.01)upAmt=wantUp;
       const kick=avatar.seatAction==="swing"&&sitAmt>.9&&!reducedMotion?Math.sin(clock*2.4):0;
       avatarRig.draw(ctx,{x:position.x,y:position.y+tile*.12,height:h,direction:avatar.direction,
-        phase:gait.phase,weight:gait.weight,time:clock,expression,reducedMotion,equipped:worn,sit:sitAmt,armsUp:upAmt,kick,reach:reducedMotion?(avatar.reach||0)*.6:(avatar.reach||0)});
+        phase:gait.phase,weight:gait.weight,time:clock,expression,reducedMotion,equipped:worn,sit:sitAmt,armsUp:upAmt,kick,reach:reducedMotion?(avatar.reach||0)*.6:(avatar.reach||0)+(avatar.seatAction==="tea"&&sitAmt>.9?.45:0),
+        sip:avatar.seatAction==="tea"&&sitAmt>.9&&!reducedMotion?Math.pow(Math.max(0,Math.sin(clock*.8)),3):0});
       if(selected){
         ctx.save();
         ctx.strokeStyle="#ffeba2";ctx.lineWidth=2.5;
@@ -549,7 +550,9 @@ export function createPixelGardenRenderer(canvas) {
     const deltaSeconds = lastSimulationTime === null ? 0 :
       Math.min(.25,Math.max(0,(currentTime-lastSimulationTime)/1000));
     lastSimulationTime = currentTime;
-    visibleFriends = companions.advance(garden,deltaSeconds,{reducedMotion,environment});
+    const player=options.avatar;
+    visibleFriends = companions.advance(garden,deltaSeconds,{reducedMotion,environment,spriteOf:id=>findGardenItem(id)?.sprite,
+      avatar:player?{x:player.x,y:player.y,seated:Boolean(player.seated),reach:player.reach||0}:null});
     const time = reducedMotion ? 0 : currentTime / 1000;
     const wallClock = typeof performance !== "undefined" ? performance.now() : currentTime;
     if (firstDrawAt === null) firstDrawAt = wallClock;
@@ -749,12 +752,12 @@ export function createPixelGardenRenderer(canvas) {
         const pc = remember("c:" + actor.id, painted.companion(actor.speciesId,actor.direction,actor.activity,
           reducedMotion?0:actor.frame,actor.reaction));
         if (!pc) missingActors++;
-        drawPainted(pc, actor.x, actor.y, (COMPANION_HEIGHT_TILES[actor.speciesId] || 1.3) * (actor.held ? 1.12 : 1));
+        drawPainted(pc, actor.x, actor.y - (actor.lift || 0), (COMPANION_HEIGHT_TILES[actor.speciesId] || 1.3) * (actor.held ? 1.12 : 1));
         const speak = companionEmote({ id: actor.id, activity: actor.activity, reaction: actor.reaction || (options.celebration ? "happy" : null), held: actor.held }, time, quiet);
         const bubble = speak && painted.art(EMOTE_DIR + speak.name + ".webp");
         if (bubble) {
           // A small speech bubble above the head, image-based.
-          const pos = worldToScreen(actor.x, actor.y), size = tile * .78;
+          const pos = worldToScreen(actor.x, actor.y - (actor.lift || 0)), size = tile * .78;
           const rise = reducedMotion ? 0 : Math.sin(time * 3 + actor.x) * tile * .03;
           ctx.save(); ctx.globalAlpha = speak.alpha; ctx.imageSmoothingEnabled = true;
           ctx.drawImage(bubble, Math.round(pos.x - size * .3), Math.round(pos.y - tile * (COMPANION_HEIGHT_TILES[actor.speciesId] || 1.3) - size * .95 + rise), Math.round(size), Math.round(size));

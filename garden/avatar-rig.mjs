@@ -429,8 +429,10 @@ function side(parts, s) {
   const farCheer = -2.62;
   // using something (warming hands, opening a mailbox, sipping tea): both arms come forward, with a small tremor
   const reachAmt = (s.reach || 0) * (1 - up) * (1 - 0.45 * k) * (1 + 0.05 * Math.sin(t * 9));
+  // sipping a cup: the near hand rises toward the face now and then
+  const sipAmt = (s.sip || 0) * (1 - up);
   const nearAngle = (-PR.walk.armSide * swing + 0.03 * breath) * (1-k) * (1-up)
-    - PR.sit.armNear * k * (1-up) + nearCheer * up - reachAmt * 1.3;
+    - PR.sit.armNear * k * (1-up) + nearCheer * up - reachAmt * 1.3 - sipAmt * 0.18;
   const farAngle = ( PR.walk.armSide * swing - 0.03 * breath) * (1-k) * (1-up)
     - PR.sit.armFar * k * (1-up) + farCheer * up - reachAmt * 1.15;
   const nearCheerJoint = lerpPt(shoulderNear,
@@ -633,7 +635,7 @@ export function createAvatarRig({ ImageClass = globalThis.Image, onReady = () =>
    * expression: neutral | happy | surprised | focused ; blink is automatic.
    */
   function draw(ctx, { x, y, height, direction = "down", phase = 0.25, weight = 0, time = 0,
-    expression = "neutral", reducedMotion = false, shadow = true, equipped = null, sit = 0, armsUp = 0, kick = 0, reach = 0, tuning = undefined, highlight = null } = {}) {
+    expression = "neutral", reducedMotion = false, shadow = true, equipped = null, sit = 0, armsUp = 0, kick = 0, reach = 0, sip = 0, tuning = undefined, highlight = null } = {}) {
     const view = RIG_VIEW[direction] || "front";
     useLook(tuning === undefined ? getTuning() : tuning, equipped, sit, armsUp, phase, reducedMotion ? 0 : weight);
     if (!readyNow(direction, equipped)) return false;
@@ -641,7 +643,7 @@ export function createAvatarRig({ ImageClass = globalThis.Image, onReady = () =>
     const t = reducedMotion ? 0 : time;
     const blinkT = (t % 4.2);
     const blink = !reducedMotion && blinkT > 4.04 ? (blinkT > 4.08 && blinkT < 4.16 ? 2 : 1) : 0;
-    const st = { phase, weight: reducedMotion ? 0 : weight, time: t, blink: blink === 2, flip: direction === "left", sit, up: armsUp, kick, reach };
+    const st = { phase, weight: reducedMotion ? 0 : weight, time: t, blink: blink === 2, flip: direction === "left", sit, up: armsUp, kick, reach, sip };
     const pose = view === "side" ? side(AVATAR_RIG_PARTS.side, st) : frontBack(AVATAR_RIG_PARTS[view], view === "back", st);
     const k = height / RIG_BODY_HEIGHT[view];
     const flip = direction === "left" ? -1 : 1;
