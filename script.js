@@ -7,6 +7,11 @@ import { growthProgress } from "./garden/longterm.mjs";
 import { watchDom } from "./garden/asset-overrides.mjs";
 import { mountGarden } from "./garden/garden-ui.mjs";
 import { mountGameShell } from "./ui/game-shell.mjs";
+import { createGardenSound } from "./garden/garden-sound.mjs";
+
+// Interface sounds (button taps, switches, start/pause/reset, the session-end chime). One switch and one
+// volume for all of them: the "소리" settings.
+const uiSound = createGardenSound({ getSettings: () => ({ enabled: state.soundEnabled, volume: state.soundVolume }) });
 
 const STORAGE_KEY = "bloomodoro-state-v3";
 const LEGACY_STORAGE_KEY = "bloomodoro-state-v2";
@@ -314,12 +319,15 @@ function bindEvents() {
   elements.soundTone.addEventListener("change", () => {
     state.soundTone = elements.soundTone.value;
     saveState();
+    playCompletionSound(); // preview the chime that was just picked
   });
   elements.soundVolume.addEventListener("input", () => {
     state.soundVolume = sanitizeNumber(elements.soundVolume.value, 10, 100);
     renderControls();
     saveState();
   });
+  // let go of the slider: hear how loud the chime is now
+  elements.soundVolume.addEventListener("change", () => playCompletionSound());
   elements.vibrationPattern.addEventListener("change", () => {
     state.vibrationPattern = elements.vibrationPattern.value;
     saveState();
@@ -327,6 +335,18 @@ function bindEvents() {
 
   elements.resetCycleButton.addEventListener("click", resetCycleProgress);
 
+  // A soft wooden tap for buttons and tabs, and a two-note pluck when a switch is flipped.
+  // Elements that play their own sound (timer buttons, shop and garden actions) are left out.
+  const OWN_SOUND = "#startPauseButton, #resetButton, [data-garden-action], [data-avatar-action], [data-no-sound]";
+  document.addEventListener("click", (event) => {
+    const el = event.target instanceof Element ? event.target.closest("button, [role=tab], a.screen-link, summary") : null;
+    if (!el || el.disabled || el.getAttribute("aria-disabled") === "true" || el.matches(OWN_SOUND) || el.closest(OWN_SOUND)) return;
+    uiSound.play("tap");
+  });
+  document.addEventListener("change", (event) => {
+    const el = event.target;
+    if (el instanceof HTMLInputElement && el.type === "checkbox" && !el.matches("[data-no-sound]") && el.id !== "soundEnabled") uiSound.play(el.checked ? "toggleOn" : "toggleOff");
+  });
   document.addEventListener("keydown", (event) => {
     const isTyping =
       document.activeElement instanceof HTMLInputElement ||
@@ -538,6 +558,7 @@ function toggleTimer() {
 
 function startTimer() {
   unlockAudio();
+  if (!state.isRunning) uiSound.play("start");
 
   if (state.remainingSeconds <= 0) {
     resetCurrentSession(state.mode, getDurationSeconds(state.mode));
@@ -559,6 +580,7 @@ function startTimer() {
 }
 
 function pauseTimer() {
+  if (state.isRunning) uiSound.play("pause");
   if (state.mode === "focus") commitCurrentFocusProgress();
   if (state.isRunning && endTime) {
     state.remainingSeconds = getRemainingSeconds(endTime);
@@ -580,6 +602,7 @@ function pauseTimer() {
 }
 
 function resetTimer() {
+  uiSound.play("reset");
   if (state.mode === "focus") {
     commitCurrentFocusProgress();
   }
@@ -1160,7 +1183,7 @@ function ensureBackgroundAudioElement() {
   }
 
   backgroundAudio = new Audio();
-  backgroundAudio.src = "keepalive.mp3";
+  backgroundAudio.src = "assets/audio/garden-ambience.mp3"; // soft wind, a far bird and a wind chime, very quiet
   backgroundAudio.loop = true;
   backgroundAudio.preload = "auto";
   backgroundAudio.autoplay = false;
@@ -1316,45 +1339,8 @@ function bindMediaSessionHandlers() {
 }
 
 function playCompletionSound() {
-  if (!audioContext) {
-    return;
-  }
-
-  if (audioContext.state === "suspended") {
-    audioContext.resume();
-  }
-
-  const now = audioContext.currentTime;
-  const volume = state.soundVolume / 100;
-  const tones = {
-    bright: [
-      { offset: 0, frequency: 880, type: "sine", duration: 0.24 },
-      { offset: 0.16, frequency: 1174, type: "sine", duration: 0.24 },
-    ],
-    soft: [
-      { offset: 0, frequency: 660, type: "sine", duration: 0.28 },
-      { offset: 0.18, frequency: 880, type: "triangle", duration: 0.28 },
-    ],
-    bell: [
-      { offset: 0, frequency: 784, type: "triangle", duration: 0.34 },
-      { offset: 0.12, frequency: 1174, type: "triangle", duration: 0.38 },
-      { offset: 0.28, frequency: 1568, type: "sine", duration: 0.3 },
-    ],
-  };
-
-  (tones[state.soundTone] || tones.bright).forEach((note) => {
-    const oscillator = audioContext.createOscillator();
-    const gain = audioContext.createGain();
-    oscillator.type = note.type;
-    oscillator.frequency.value = note.frequency;
-    gain.gain.setValueAtTime(0.0001, now + note.offset);
-    gain.gain.exponentialRampToValueAtTime(0.12 * volume, now + note.offset + 0.02);
-    gain.gain.exponentialRampToValueAtTime(0.0001, now + note.offset + note.duration);
-    oscillator.connect(gain);
-    gain.connect(audioContext.destination);
-    oscillator.start(now + note.offset);
-    oscillator.stop(now + note.offset + note.duration + 0.02);
-  });
+  // the chime the person picked (밝은 / 부드러운 / 종소리), played even if a focus screen is quiet
+  uiSound.play("complete-" + (["bright", "soft", "bell"].includes(state.soundTone) ? state.soundTone : "bright"), { ignoreQuiet: true, gain: 1.15 });
 }
 
 async function showNotification(completedMode, nextMode) {

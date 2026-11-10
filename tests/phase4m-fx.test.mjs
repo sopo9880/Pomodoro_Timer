@@ -60,8 +60,9 @@ function fakeAudio() {
   const made = { osc: 0 };
   class Ctx {
     constructor() { this.currentTime = 0; this.state = "running"; this.destination = {}; }
-    createOscillator() { made.osc++; return { frequency: { setValueAtTime() {} }, connect() {}, start() {}, stop() {}, type: "" }; }
-    createGain() { return { gain: { setValueAtTime() {}, exponentialRampToValueAtTime() {} }, connect() {} }; }
+    createBuffer(ch, length, rate) { return { length, rate, getChannelData: () => new Float32Array(length), copyToChannel() {} }; }
+    createBufferSource() { made.osc++; return { buffer: null, playbackRate: { value: 1 }, connect() {}, start() {} }; }
+    createGain() { return { gain: { value: 1 }, connect() {} }; }
   }
   return { Ctx, made };
 }
@@ -73,7 +74,7 @@ test("garden sounds follow the sound switch, the volume and the quiet focus scre
   for (const name of SOUND_NAMES) assert.equal(sound.play(name), true, name);
   assert.ok(made.osc >= SOUND_NAMES.length);
   const before = made.osc;
-  assert.equal(sound.play("nope"), false);
+  assert.equal(sound.play("no-such-sound"), false);
   settings = { enabled: false, volume: 60 }; assert.equal(sound.play("pop"), false);
   settings = { enabled: true, volume: 0 }; assert.equal(sound.play("pop"), false);
   settings = { enabled: true, volume: 60 }; quiet = true; assert.equal(sound.play("pop"), false);
@@ -107,4 +108,19 @@ test("the celebration switch is on by default and survives blocked storage", () 
   const blocked = { getItem() { throw new Error("x"); }, setItem() { throw new Error("x"); } };
   assert.equal(readCelebrationPref(blocked), true);
   assert.doesNotThrow(() => writeCelebrationPref(true, blocked));
+});
+
+test("every synthesised sound is finite, quiet enough not to clip, short, deterministic and not silent", async () => {
+  const { SFX_NAMES, sfxSamples, SFX_RATE } = await import("../garden/sfx.mjs");
+  assert.ok(SFX_NAMES.length >= 25);
+  for (const name of SFX_NAMES) {
+    const x = sfxSamples(name);
+    let peak = 0, energy = 0;
+    for (const v of x) { assert.ok(Number.isFinite(v), name); peak = Math.max(peak, Math.abs(v)); energy += v * v; }
+    assert.ok(peak > .2 && peak <= .85, name + " peak " + peak);
+    assert.ok(Math.sqrt(energy / x.length) > .01, name + " is not silent");
+    assert.ok(x.length / SFX_RATE < 4.2, name + " is short");
+    assert.equal(sfxSamples(name), x, "cached");
+  }
+  assert.equal(sfxSamples("nothing"), null);
 });
