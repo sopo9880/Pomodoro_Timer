@@ -58,6 +58,7 @@ export function mountGarden({ getGarden, setGarden, getTimerState, getEnvironmen
   } });
   let wasResting = false;
   const tapCounts = {};
+  let lastZoneCount = null;
   // Focus-complete celebration (<5 s, switchable) and small garden sounds.
   let celebration = null;
   const celebrationToggle = document.getElementById("gardenCelebration");
@@ -86,8 +87,9 @@ export function mountGarden({ getGarden, setGarden, getTimerState, getEnvironmen
     lastNotice = now;
     const creature = renderer.getWildlifeAt(player.x, player.y, 3.4);
     if (!creature || (getGarden().discovery?.wildlife || []).includes(creature.speciesId)) return;
-    mutate((garden) => discover(garden, "wildlife", creature.speciesId), creature.name + "을(를) 만났어요! 도감에 기록했어요.", false);
+    mutate((garden) => discover(garden, "wildlife", creature.speciesId), creature.name + "을(를) 만났어요! 도감에 기록했어요.", false, "discover");
   }
+  const PET_PITCH = { cat: 1.25, sparrow: 1.5, turtle: .8, mushroom: .95, sprout: 1.1, fox: 1.15 };
   const SOUND_OF = { mail: "ding", listen: "chime", well: "splash", watch: "splash", warm: "warm", sit: "sit", swing: "pop", tea: "pop" };
   const sound = createGardenSound({
     getSettings: getSoundSettings,
@@ -99,7 +101,7 @@ export function mountGarden({ getGarden, setGarden, getTimerState, getEnvironmen
     if (t >= CELEBRATION_SECONDS) { celebration = null; return null; }
     return { t, seed: celebration.seed };
   }
-  let lastUseTick = performance.now();
+  let lastUseTick = performance.now(), lastSeatPhase = "idle";
   function updateSeat() {
     if (!SIT_READY) return;
     const timer = getTimerState();
@@ -111,6 +113,7 @@ export function mountGarden({ getGarden, setGarden, getTimerState, getEnvironmen
     else if (avatarMotion.isControlled() || (seat.phase === "seated" && avatarMotion.isMoving())) seat.release();
     wasResting = resting;
     seat.update();
+    if (seat.phase !== lastSeatPhase) { if (seat.phase === "seated") sound.play("sit"); else if (lastSeatPhase === "seated") sound.play("stand"); lastSeatPhase = seat.phase; }
     use.update(Math.min(.25, (performance.now() - lastUseTick) / 1000)); lastUseTick = performance.now();
     if (avatarMotion.isControlled() && use.phase !== "idle") use.cancel();
   }
@@ -229,7 +232,7 @@ export function mountGarden({ getGarden, setGarden, getTimerState, getEnvironmen
     saveAvatarPosition(true);
     avatarMotion.cancel();
   }
-  function mutate(operation, successMessage, shouldTrack = true) {
+  function mutate(operation, successMessage, shouldTrack = true, cue = null) {
     if (editingLocked()) {
       announce("집중 중에는 정원을 감상할 수 있어요. 편집은 일시정지 또는 휴식 시간에 가능합니다.");
       return false;
@@ -251,6 +254,7 @@ export function mountGarden({ getGarden, setGarden, getTimerState, getEnvironmen
       }
       setGarden(after);
       if (successMessage) announce(successMessage);
+      if (cue) sound.play(cue);
       refresh(true);
       return true;
     } catch (error) {
@@ -299,7 +303,7 @@ export function mountGarden({ getGarden, setGarden, getTimerState, getEnvironmen
     const id = (globalThis.crypto?.randomUUID?.() || String(Date.now()) + "-" + Math.round(Math.random() * 1e7));
     const placed = mutate((garden) => item.kind === "plant"
       ? placePlant(garden, { id, itemId: item.id, x, y })
-      : placeDecoration(garden, { id, itemId: item.id, x, y }), item.name + " 배치 완료!");
+      : placeDecoration(garden, { id, itemId: item.id, x, y }), item.name + " 배치 완료!", true, item.kind === "plant" ? "plant" : "place");
     if (placed && getAvailableGardenQuantity(getGarden(), item.id) === 0) setAction("inspect");
   }
   function pickObject(x, y) {
@@ -564,6 +568,8 @@ export function mountGarden({ getGarden, setGarden, getTimerState, getEnvironmen
       discovery:garden.discovery,guest:garden.guest,
       wardrobe:{owned:garden.avatar?.ownedWearables,equipped:garden.avatar?.equipped},
     });
+    if (lastZoneCount !== null && garden.unlockedZones.length > lastZoneCount) setTimeout(() => sound.play("unlock", { ignoreQuiet: true }), 1500);
+    lastZoneCount = garden.unlockedZones.length;
     if (force || fingerprint !== lastFingerprint) {
       paintCatalogCards();
       paintCompanionCards();
@@ -663,7 +669,7 @@ export function mountGarden({ getGarden, setGarden, getTimerState, getEnvironmen
     const id=button.dataset.avatarItem;
     const item=WEARABLES.find(x=>x.id===id);
     mutate(garden=>button.dataset.avatarAction==="buy"?purchaseWearable(garden,id):equipWearable(garden,id),
-      item?.name+(button.dataset.avatarAction==="buy"?"을(를) 구매했어요.":"을(를) 착용했어요."),false);
+      item?.name+(button.dataset.avatarAction==="buy"?"을(를) 구매했어요.":"을(를) 착용했어요."),false,button.dataset.avatarAction==="buy"?"buy":"wear");
   });
   function handleCatalogClick(event) {
     const button = event.target.closest("button[data-garden-action]");
@@ -671,10 +677,10 @@ export function mountGarden({ getGarden, setGarden, getTimerState, getEnvironmen
     if (button.dataset.gardenAction === "place") chooseItem(button.dataset.itemId);
     if (button.dataset.gardenAction === "buy") {
       const item = findGardenItem(button.dataset.itemId);
-      mutate((garden) => purchaseGardenItem(garden, item.id), item.name + "을(를) 인벤토리에 추가했어요.");
+      mutate((garden) => purchaseGardenItem(garden, item.id), item.name + "을(를) 인벤토리에 추가했어요.", true, "buy");
     }
     if (button.dataset.gardenAction === "recruit") {
-      mutate((garden) => recruitGardenCompanion(garden, button.dataset.speciesId), "새로운 동료가 정원에 찾아왔어요!");
+      mutate((garden) => recruitGardenCompanion(garden, button.dataset.speciesId), "새로운 동료가 정원에 찾아왔어요!", true, "recruit");
     }
   }
   view.inventory.addEventListener("click", handleCatalogClick);
@@ -746,13 +752,13 @@ export function mountGarden({ getGarden, setGarden, getTimerState, getEnvironmen
   view.rotate.addEventListener("click", () => {
     const item = selectedObject();
     if (!item) return;
-    mutate((garden) => moveGardenObject(garden, "decor", item.id, item.x, item.y, (item.rotation + 90) % 360), "장식의 방향을 바꿨어요.");
+    mutate((garden) => moveGardenObject(garden, "decor", item.id, item.x, item.y, (item.rotation + 90) % 360), "장식의 방향을 바꿨어요.", true, "tap");
   });
   view.remove.addEventListener("click", () => {
     const item = selectedObject();
     if (!item) return;
     const kind = selected.kind;
-    if (mutate((garden) => removeGardenObject(garden, kind, item.id), "인벤토리로 회수했어요.")) {
+    if (mutate((garden) => removeGardenObject(garden, kind, item.id), "인벤토리로 회수했어요.", true, "remove")) {
       selected = null;
       setAction("inspect");
     }
@@ -774,7 +780,7 @@ export function mountGarden({ getGarden, setGarden, getTimerState, getEnvironmen
       return;
     }
     if (currentTool === "move" && selected) {
-      if (mutate((garden) => moveGardenObject(garden, selected.kind, selected.id, x, y), "새 위치로 이동했어요.")) setAction("inspect");
+      if (mutate((garden) => moveGardenObject(garden, selected.kind, selected.id, x, y), "새 위치로 이동했어요.", true, "place")) setAction("inspect");
       return;
     }
     const picked=pickObject(x,y);
@@ -783,7 +789,7 @@ export function mountGarden({ getGarden, setGarden, getTimerState, getEnvironmen
       if(friend){
         const species=GARDEN_COMPANIONS.find(c=>c.speciesId===friend.speciesId);
         announce(friend.greeting || (species?.name||"친구")+"가 반갑게 인사해요.");
-        sound.play("pop");
+        sound.play("pet", { rate: PET_PITCH[friend.speciesId] || 1 });
         return;
       }
       if(avatarSelected){
@@ -798,7 +804,7 @@ export function mountGarden({ getGarden, setGarden, getTimerState, getEnvironmen
       const creature=renderer.getWildlifeAt(x,y);
       if(creature){
         mutate(garden=>discover(garden,"wildlife",creature.speciesId),
-          creature.name+"을(를) 자연 도감에 기록했어요!",false);
+          creature.name+"을(를) 자연 도감에 기록했어요!",false,"discover");
         return;
       }
       const landmark=renderer.getLandmarkAt(x,y);
@@ -812,7 +818,7 @@ export function mountGarden({ getGarden, setGarden, getTimerState, getEnvironmen
           starlight:"밤하늘을 올려다보면 작은 별들이 인사를 건네요.",
         };
         mutate(garden=>discover(garden,"landmarks",landmark.id),
-          landmark.name+" · "+stories[landmark.zoneId],false);
+          landmark.name+" · "+stories[landmark.zoneId],false,"discover");
         return;
       }
     }
@@ -954,7 +960,7 @@ export function mountGarden({ getGarden, setGarden, getTimerState, getEnvironmen
       let accepted=false;
       if(!editingLocked()){
         accepted=mutate(garden=>moveCompanionDrop(garden,renderer.map,gesture.friendId,point.x,point.y),
-          "친구가 무사히 착지했어요! ♥");
+          "친구가 무사히 착지했어요! ♥",true,"pet");
       }
       renderer.endCompanionDrag(gesture.friendId,accepted,accepted?point:null);
       dropPreview=null;
@@ -968,7 +974,7 @@ export function mountGarden({ getGarden, setGarden, getTimerState, getEnvironmen
       announce("내 캐릭터 선택! WASD/방향키를 누르고 있거나 바닥을 터치해 이동해 보세요.");
     }else if (gesture?.moved && gesture.dragging && !editingLocked()) {
       const target = gesture.dragging;
-      mutate((garden) => moveGardenObject(garden, target.kind, target.id, point.x, point.y), "오브젝트를 이동했어요.");
+      mutate((garden) => moveGardenObject(garden, target.kind, target.id, point.x, point.y), "오브젝트를 이동했어요.", true, "place");
       selected = target;
     } else if (gesture && !gesture.moved) {
       applyPosition(point.x, point.y);
