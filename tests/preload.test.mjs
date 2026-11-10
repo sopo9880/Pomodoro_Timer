@@ -31,3 +31,13 @@ test("every module is also available offline (service worker precache)", () => {
   const html = read("index.html");
   for (const m of html.matchAll(/rel="modulepreload"\s+href="([^"]+)"/g)) assert.ok(sw.includes(`./${m[1]}`), m[1] + " is not precached");
 });
+
+test("every file the service worker precaches exists, and the cache name was bumped past v32", async () => {
+  const { readFileSync, existsSync } = await import("node:fs");
+  const sw = readFileSync(new URL("../sw.js", import.meta.url), "utf8");
+  const paths = [...sw.matchAll(/"\.\/([^"]+)"/g)].map((m) => m[1].split("?")[0]).filter(Boolean);
+  assert.ok(paths.length > 100);
+  const missing = paths.filter((p) => !existsSync(new URL("../" + p, import.meta.url)));
+  assert.deepEqual(missing, []);
+  assert.ok(Number(/bloomodoro-cache-v(\d+)/.exec(sw)[1]) >= 33);
+});

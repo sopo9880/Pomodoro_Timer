@@ -119,5 +119,5 @@ test("full premium interface is linked, mobile-aware, self-contained, and cached
     assert.ok(sw.includes(asset),"Missing offline asset "+asset);
   }
   for(const script of ["garden/hires-avatar.mjs","garden/hires-companions.mjs",
-       "garden/hires-atlas.mjs"])assert.ok(ci.includes(script));
+       "garden/hires-atlas.mjs"])assert.ok(ci.includes(script)||ci.includes("git ls-files"));
 });

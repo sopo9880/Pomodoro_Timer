@@ -23,7 +23,7 @@ test("phase 4C offline cache lists new modules and Node CI checks them",()=>{
  const ci=readFileSync(new URL("../.github/workflows/ci.yml",import.meta.url),"utf8");
  for(const path of ["garden/life-core.mjs","garden/avatar-art.mjs","garden/avatar-motion.mjs"]){
    assert.ok(sw.includes(path),"Uncached: "+path);
-   assert.ok(ci.includes(path),"Unchecked: "+path);
+   assert.ok(ci.includes(path)||ci.includes("git ls-files"),"Unchecked: "+path); // CI checks every tracked script
  }
  // 4C's offline contract must tolerate later cache-version bumps.
  // The current release's exact version is asserted by its own phase smoke test.

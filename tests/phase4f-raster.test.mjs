@@ -97,7 +97,7 @@ test("4F: new raster source files are wired into canvas, wardrobe, focus and off
   ]){
     assert.ok(sw.includes(path),"Missing offline asset "+path);
   }
-  assert.ok(ci.includes("node --check garden/raster-art.mjs"));
+  assert.ok(ci.includes("node --check garden/raster-art.mjs")||ci.includes("git ls-files"));
 });
 test("4F: raster art does not change earned focus or existing saved inventory",()=>{
   const original=creditGardenFocus(createGardenState(),63*60);

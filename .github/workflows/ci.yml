@@ -17,35 +17,12 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - name: Check JavaScript syntax
+      - name: Check JavaScript syntax (every script and module)
         run: |
-          node --check script.js
-          node --check server.js
-          node --check timer-worker.js
-          node --check sw.js
-          node --check core/focus-core.mjs
-          node --check garden/garden-core.mjs
-          node --check garden/garden-ui.mjs
-          node --check ui/game-shell.mjs
-          node --check garden/pixel-world.mjs
-          node --check garden/world-map.mjs
-          node --check garden/tile-atlas.mjs
-          node --check garden/minimap.mjs
-          node --check garden/companion-ai.mjs
-          node --check garden/companion-art.mjs
-          node --check garden/plant-art.mjs
-          node --check garden/ecology.mjs
-          node --check garden/wildlife-art.mjs
-          node --check garden/life-core.mjs
-          node --check garden/avatar-art.mjs
-          node --check garden/avatar-motion.mjs
-          node --check garden/hires-avatar.mjs
-          node --check garden/hires-companions.mjs
-          node --check garden/hires-atlas.mjs
-          node --check garden/raster-art.mjs
-          node --check garden/avatar-rig.mjs
-          node --check garden/avatar-rig-data.mjs
-          node --check garden/painted-art.mjs
-          node --check garden/painted-art-data.mjs
+          status=0
+          for f in $(git ls-files '*.js' '*.mjs'); do
+            node --check "$f" || status=1
+          done
+          exit $status
       - name: Run focus and garden unit tests
         run: node --test tests/*.test.mjs
