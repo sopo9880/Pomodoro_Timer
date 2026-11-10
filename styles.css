@@ -189,7 +189,7 @@ body[data-mode="shortBreak"] .timer-ring, body[data-mode="longBreak"] .timer-rin
 .event-log-empty { color: var(--ink-soft); padding: 14px; border: 1px dashed var(--line-strong); border-radius: var(--r-m); }
 .shortcut-row { display: flex; flex-wrap: wrap; gap: 14px; color: var(--ink-soft); font-size: var(--step--1); }
 .journal-banner { display: flex; gap: 18px; align-items: center; }
-.journal-art { width: 96px; height: auto; flex: none; }
+.journal-art { width: 104px; height: auto; flex: none; object-fit: contain; filter: drop-shadow(0 6px 10px rgba(40,44,30,.18)); }
 .journal-banner p { color: var(--ink-soft); }
 
 /* ---------- settings ---------- */
@@ -236,7 +236,9 @@ body[data-mode="shortBreak"] .timer-ring, body[data-mode="longBreak"] .timer-rin
 /* Phase 4N: calm weekly rhythm, monument ledger and share */
 .journal-rhythm { margin: 10px 2px 0; font-size: var(--step--1); color: var(--ink-soft); line-height: 1.5; }
 .journal-monument { color: var(--moss); }
-.journal-share { margin-top: 12px; }
+.journal-share { margin-top: 12px; min-height: 38px; padding: 0 18px; border: 1px solid var(--line, rgba(90,80,50,.28)); border-radius: 999px; background: rgba(251,245,233,.92); color: var(--ink, #3a3426); font: inherit; font-weight: 700; cursor: pointer; }
+.journal-share:hover { background: #fff; }
+.journal-share:focus-visible { outline: 2px solid var(--moss, #4b6b4a); outline-offset: 2px; }
 
 /* Phase 4N: weekday badges light up on days with focus */
 .week-badge { width: 26px; height: 26px; object-fit: contain; justify-self: center; opacity: .28; filter: grayscale(1); transition: opacity .3s, filter .3s; }

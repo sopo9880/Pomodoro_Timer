@@ -23,7 +23,6 @@ import { PAINTED_ART, WILDLIFE_ART } from "./painted-art.mjs";
 
 /** Painted pictures for the collection cards (the world uses the same files). */
 const WARDROBE_ART = id => "assets/art/avatar/wardrobe/" + id + ".webp";
-const FOCUS_ART = "assets/art/avatar/portraits/focus_reading.webp";
 function paintedThumb(kind, id) {
   if (kind === "companion") return PAINTED_ART.companions[id]?.portrait || null;
   if (kind === "wildlife") return WILDLIFE_ART[id]?.codex || null;
@@ -141,6 +140,7 @@ export function mountGarden({ getGarden, setGarden, getTimerState, getEnvironmen
     codexPanel: byId("gardenCodex"),
     avatarPreview: byId("avatarPreview"),
     focusAvatar: byId("bFocusAvatar"),
+    journalAvatar: byId("bJournalAvatar"),
     avatarWallet: byId("avatarWallet"),
     avatarWearables: byId("avatarWearables"),
     codexEntries: byId("gardenCodexEntries"),
@@ -433,7 +433,12 @@ export function mountGarden({ getGarden, setGarden, getTimerState, getEnvironmen
       if (portrait) view.avatarPreview.src = portrait;
       else { if (!view.avatarPreview.src) view.avatarPreview.src = WARDROBE_ART("outfit-linen"); setTimeout(() => paintAvatarWardrobe(getGarden()), 700); }
     } else view.avatarPreview.src = rasterAvatarPreviewUrl(garden.avatar.equipped) || avatarIllustrationUri(garden.avatar.equipped);
-    if(view.focusAvatar && !view.focusAvatar.src.endsWith(FOCUS_ART))view.focusAvatar.src = FOCUS_ART;
+    // The big pictures on the focus and journal screens show the look the person is wearing now.
+    if (canUseRig(garden.avatar.equipped)) {
+      const hero = (img, opts) => { if (!img) return; const url = renderRigPortrait(renderer.avatarRig, { equipped: garden.avatar.equipped, width: 420, height: 580, ...opts }); if (url) img.src = url; };
+      hero(view.focusAvatar, { expression: "happy" });
+      hero(view.journalAvatar, { expression: "happy", armsUp: 1 });
+    }
     const fragment=document.createDocumentFragment();
     for(const item of WEARABLES){
       const owned=garden.avatar.ownedWearables.includes(item.id);
@@ -549,7 +554,7 @@ export function mountGarden({ getGarden, setGarden, getTimerState, getEnvironmen
     view.redo.disabled = locked || !redoHistory.length;
     view.avatarSelect.disabled = locked;
     view.avatarSelect.setAttribute("aria-pressed",String(avatarSelected));
-    view.avatarSelect.textContent = avatarSelected?"♙ 직접 조작 종료":"♙ 내 캐릭터 조작";
+    view.avatarSelect.textContent = avatarSelected?"직접 조작 종료":"내 캐릭터 조작";
     renderSelection();
     const fingerprint = JSON.stringify({
       inv: garden.inventory, friends: garden.companions,
