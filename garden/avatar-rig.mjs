@@ -220,7 +220,7 @@ function frontBack(parts, back, s) {
   // and disappear under the skirt, which spreads over the lap. Works with any outfit.
   const k = s.sit || 0, up = s.up || 0;
   const standHip = -(thighL + shinL) + bob + breath * 0.8;
-  const hipY = standHip + (-(shinL * PR.sit.hip) + breath * 0.4 - standHip) * k;
+  const hipY = standHip + (-(shinL * PR.sit.hip * (s.seatHeight ?? 1)) + breath * 0.4 - standHip) * k;
   const footX = P.torso.w * (0.17 + 0.03 * k);
   const out = [];
   const fR = footPath(p, stride, lift), fL = footPath(p + 0.5, stride, lift);
@@ -383,13 +383,14 @@ function side(parts, s) {
   const bob = (1 - Math.abs(Math.cos(TAU * p))) * L * 0.035 * w;
   const k = s.sit || 0, up = s.up || 0, kick = s.kick || 0;
   const standHip = -L * (0.985 - 0.02 * w) + bob + breath * 0.8;
-  const hipY = standHip + (-(l2 * PR.sit.hip) + breath * 0.4 - standHip) * k;
+  const seatH = s.seatHeight ?? 1; // 1 = a chair; lower = a cushion or cloth on the ground (legs stretch forward)
+  const hipY = standHip + (-(l2 * PR.sit.hip * seatH) + breath * 0.4 - standHip) * k;
   const hip = [0, hipY];
   const legs = [];
   for (const [nm, ph] of [["Far", p + 0.5], ["Near", p]]) {
     const f = footPath(ph, stride, lift);
     // seated: thigh level, shin hanging; a swing kicks the lower legs back and forth
-    const seatFoot = [l1 * (nm === "Near" ? PR.sit.nearFoot : PR.sit.farFoot) + kick * l1 * (nm === "Near" ? PR.swing.near : PR.swing.far), -Math.abs(kick) * l1 * PR.swing.lift];
+    const seatFoot = [l1 * (nm === "Near" ? PR.sit.nearFoot : PR.sit.farFoot) * (1 + (1 - seatH) * .75) + kick * l1 * (nm === "Near" ? PR.swing.near : PR.swing.far), -Math.abs(kick) * l1 * PR.swing.lift];
     const foot = [f.x * w * (1 - k) + seatFoot[0] * k, -f.lift * w * (1 - k) + seatFoot[1] * k];
     const [ta, sa, knee] = solveLeg(hip, foot, l1, l2, 1);
     const thigh = P["thigh" + nm], shin = P["shin" + nm];
@@ -635,7 +636,7 @@ export function createAvatarRig({ ImageClass = globalThis.Image, onReady = () =>
    * expression: neutral | happy | surprised | focused ; blink is automatic.
    */
   function draw(ctx, { x, y, height, direction = "down", phase = 0.25, weight = 0, time = 0,
-    expression = "neutral", reducedMotion = false, shadow = true, equipped = null, sit = 0, armsUp = 0, kick = 0, reach = 0, sip = 0, tuning = undefined, highlight = null } = {}) {
+    expression = "neutral", reducedMotion = false, shadow = true, equipped = null, sit = 0, armsUp = 0, kick = 0, reach = 0, sip = 0, seatHeight = 1, tuning = undefined, highlight = null } = {}) {
     const view = RIG_VIEW[direction] || "front";
     useLook(tuning === undefined ? getTuning() : tuning, equipped, sit, armsUp, phase, reducedMotion ? 0 : weight);
     if (!readyNow(direction, equipped)) return false;
@@ -643,7 +644,7 @@ export function createAvatarRig({ ImageClass = globalThis.Image, onReady = () =>
     const t = reducedMotion ? 0 : time;
     const blinkT = (t % 4.2);
     const blink = !reducedMotion && blinkT > 4.04 ? (blinkT > 4.08 && blinkT < 4.16 ? 2 : 1) : 0;
-    const st = { phase, weight: reducedMotion ? 0 : weight, time: t, blink: blink === 2, flip: direction === "left", sit, up: armsUp, kick, reach, sip };
+    const st = { phase, weight: reducedMotion ? 0 : weight, time: t, blink: blink === 2, flip: direction === "left", sit, up: armsUp, kick, reach, sip, seatHeight };
     const pose = view === "side" ? side(AVATAR_RIG_PARTS.side, st) : frontBack(AVATAR_RIG_PARTS[view], view === "back", st);
     const k = height / RIG_BODY_HEIGHT[view];
     const flip = direction === "left" ? -1 : 1;

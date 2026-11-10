@@ -14,8 +14,8 @@ export const SIT_READY = true;
 const SPOTS = Object.freeze({
   "wooden-bench": { side: true, action: "sit", slots: [{ seat: [-.38, -.12], approach: [-.38, .95] }, { seat: [.38, -.12], approach: [.38, .95] }] },
   "star-bench": { side: true, action: "sit", slots: [{ seat: [-.38, -.12], approach: [-.38, .95] }, { seat: [.38, -.12], approach: [.38, .95] }] },
-  "mushroom-stool": { side: true, action: "sit", slots: [{ seat: [0, -.05], approach: [0, .95] }] },
-  "picnic-cloth": { side: true, action: "sit", slots: [{ seat: [-.4, -.1], approach: [-.4, .95] }, { seat: [.4, -.1], approach: [.4, .95] }] },
+  "mushroom-stool": { side: true, action: "sit", height: .8, slots: [{ seat: [0, -.05], approach: [0, .95] }] },
+  "picnic-cloth": { side: true, action: "sit", height: .62, slots: [{ seat: [-.4, -.1], approach: [-.4, .95] }, { seat: [.4, -.1], approach: [.4, .95] }] },
   "tea-table": { side: true, action: "tea", slots: [{ seat: [-.7, .3], approach: [-1.15, .45] }, { seat: [.7, .3], approach: [1.15, .45] }] },
   "campfire": { action: "warm", slots: [{ seat: [-.9, .1], approach: [-.9, .95] }, { seat: [.9, .1], approach: [.9, .95] }] },
   "garden-swing": { side: true, action: "swing", slots: [{ seat: [0, -.1], approach: [0, .95] }] },
@@ -52,7 +52,10 @@ export function spotsFor(placement, sprite) {
       x: placement.x + sx, y: placement.y + sy,
       approach: { x: placement.x + ax, y: placement.y + ay },
       // Benches, stools and tables are drawn in 3/4 view, so people sit sideways on them (readable on any outfit).
-      facing: def.side ? (view.flipX !== view.back ? "right" : "left") : ay >= 0 ? "down" : "up",
+      // The painted furniture opens toward the lower right (mirrored: lower left; back views: away from us),
+      // and whoever sits on it looks the way it opens.
+      facing: def.side ? (view.flipX !== view.back ? "left" : "right") : ay >= 0 ? "down" : "up",
+      back: view.back, baseY: placement.y, height: def.height ?? 1,
     };
   });
 }
@@ -87,7 +90,7 @@ export function seatStillThere(garden, spot, findItem) {
 }
 
 /** The painted person sits with the torso over the seat and the legs forward, so the body centre sits back from the seat point. */
-export const SEAT_SHIFT = Object.freeze({ right: .35, left: .5, down: 0, up: 0 });
+
 
 export function createSeatController({ motion, findItem, getGarden }) {
   let phase = "idle", spot = null;
@@ -133,7 +136,9 @@ export function createSeatController({ motion, findItem, getGarden }) {
     /** Visual override while seated, or null. The avatar sits just in front of the furniture. */
     seatedVisual(base) {
       if (!SIT_READY || phase !== "seated" || !spot || !base) return null;
-      return { ...base, x: spot.x + (SEAT_SHIFT[spot.facing] || 0), y: spot.y + .25, direction: spot.facing, moving: false, pose: "idle", seated: true, seatAction: spot.action };
+      return { ...base, x: spot.x + (spot.facing === "right" ? -.1 : spot.facing === "left" ? .1 : 0), y: spot.y + (spot.back ? -.35 : .22),
+        // seen from behind, the furniture's back hides the sitter's lap; from the front the sitter is on top
+        sortY: spot.baseY + (spot.back ? -.05 : .3), seatHeight: spot.height, direction: spot.facing, moving: false, pose: "idle", seated: true, seatAction: spot.action };
     },
     occupiedKeys: () => new Set(occupied),
   };

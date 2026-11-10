@@ -26,7 +26,7 @@ test("directional items turn between four steps; symmetric ones never change", (
 test("spots follow the drawn view and are derived, not stored", () => {
   const front = spotsFor(bench(), "wooden-bench");
   assert.equal(front.length, 2);
-  assert.ok(front.every((s) => s.facing === "left" && s.approach.y > 10), "people sit sideways, facing the way the bench is drawn");
+  assert.ok(front.every((s) => s.facing === "right" && s.approach.y > 10), "people sit sideways, facing the way the bench is drawn");
   const mirrored = spotsFor(bench({ rotation: 90 }), "wooden-bench");
   assert.equal(mirrored[0].x, 10 + .38);          // x flips with the mirrored art
   assert.deepEqual(spotsFor(bench(), "lantern"), []);
@@ -111,7 +111,7 @@ test("every back view exists and seats follow the turned furniture", () => {
     assert.ok(isDirectional(sprite), sprite);
   }
   const back = spotsFor(bench({ rotation: 180 }), "wooden-bench");
-  assert.ok(back.every((s) => s.facing === "right" && s.approach.y < 10), "seen from behind, people approach from the other side");
+  assert.ok(back.every((s) => s.facing === "left" && s.approach.y < 10), "seen from behind, people approach from the other side");
 });
 
 test("use controller: walk to the item, face it, reach, react once, then let go", async () => {

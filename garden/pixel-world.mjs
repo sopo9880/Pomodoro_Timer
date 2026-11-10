@@ -449,7 +449,7 @@ export function createPixelGardenRenderer(canvas) {
       if(Math.abs(upAmt-wantUp)<.01)upAmt=wantUp;
       const kick=avatar.seatAction==="swing"&&sitAmt>.9&&!reducedMotion?Math.sin(clock*2.4):0;
       avatarRig.draw(ctx,{x:position.x,y:position.y+tile*.12,height:h,direction:avatar.direction,
-        phase:gait.phase,weight:gait.weight,time:clock,expression,reducedMotion,equipped:worn,sit:sitAmt,armsUp:upAmt,kick,reach:reducedMotion?(avatar.reach||0)*.6:(avatar.reach||0),
+        phase:gait.phase,weight:gait.weight,time:clock,expression,reducedMotion,equipped:worn,sit:sitAmt,armsUp:upAmt,kick,seatHeight:avatar.seatHeight??1,reach:reducedMotion?(avatar.reach||0)*.6:(avatar.reach||0),
         sip:avatar.sip&&!reducedMotion?Math.pow(Math.max(0,Math.sin(avatar.sip*1.1)),3):0});
       if(selected){
         ctx.save();
@@ -728,7 +728,7 @@ export function createPixelGardenRenderer(canvas) {
       ...(avatarVisual?[{...avatarVisual,id:"player-avatar",kind:"avatar"}]:[]),
     ].filter(actor=>actor.x>visible.left-3&&actor.x<visible.right+3&&
       actor.y>visible.top-3&&actor.y<visible.bottom+3)
-     .sort((a,b)=>a.y-b.y);
+     .sort((a,b)=>(a.sortY??a.y)-(b.sortY??b.y));
     for (const actor of actors) {
       if (actor.kind === "monument") {
         const img = painted.art(actor.def.src);
