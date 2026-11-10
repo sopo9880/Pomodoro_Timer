@@ -134,3 +134,17 @@ test("use controller: walk to the item, face it, reach, react once, then let go"
   assert.ok(reachEnvelope(1.5, 3) > .99);
   assert.ok(USE_SPEC.warm.seconds > USE_SPEC.mail.seconds);
 });
+
+test("nobody sits on bare ground: tea is drunk standing, and a seat that disappears lets the sitter stand up", async () => {
+  const { SEATED_ACTIONS, USE_ACTIONS, createSeatController } = await import("../garden/interaction.mjs");
+  assert.ok(!SEATED_ACTIONS.includes("tea") && USE_ACTIONS.includes("tea"));
+  const garden = { placements: [{ id: "b", itemId: "wooden-bench", x: 80, y: 86, rotation: 0 }] };
+  let moving = true;
+  const ctrl = createSeatController({ motion: { goTo: () => true, isMoving: () => moving }, findItem: () => ({ sprite: "wooden-bench" }), getGarden: () => garden });
+  assert.equal(ctrl.seekItem("b", { x: 80, y: 80 }), true);
+  moving = false; ctrl.update();
+  assert.equal(ctrl.phase, "seated"); assert.ok(ctrl.seatedVisual({ x: 0, y: 0 }));
+  garden.placements = [];                      // the bench was picked up
+  ctrl.update();
+  assert.equal(ctrl.phase, "idle"); assert.equal(ctrl.seatedVisual({ x: 0, y: 0 }), null);
+});
