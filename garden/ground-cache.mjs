@@ -99,7 +99,7 @@ function buildMasks(doc, t) {
   return { masks, corners };
 }
 
-export function createGroundCache({ document: doc, painted, map, textureTiles = 6, overlayTiles = 6, maxChunks = 40, maxBytes = 40 * 1048576, bakesPerFrame = 1 }) {
+export function createGroundCache({ document: doc, painted, map, textureTiles = 6, overlayTiles = 6, maxChunks = 40, maxBytes = 32 * 1048576, bakesPerFrame = 1 }) {
   const lru = new Map();
   const maskSets = new Map();
   let tmp = null, bakes = 0;
