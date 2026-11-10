@@ -449,8 +449,8 @@ export function createPixelGardenRenderer(canvas) {
       if(Math.abs(upAmt-wantUp)<.01)upAmt=wantUp;
       const kick=avatar.seatAction==="swing"&&sitAmt>.9&&!reducedMotion?Math.sin(clock*2.4):0;
       avatarRig.draw(ctx,{x:position.x,y:position.y+tile*.12,height:h,direction:avatar.direction,
-        phase:gait.phase,weight:gait.weight,time:clock,expression,reducedMotion,equipped:worn,sit:sitAmt,armsUp:upAmt,kick,reach:reducedMotion?(avatar.reach||0)*.6:(avatar.reach||0)+(avatar.seatAction==="tea"&&sitAmt>.9?.45:0),
-        sip:avatar.seatAction==="tea"&&sitAmt>.9&&!reducedMotion?Math.pow(Math.max(0,Math.sin(clock*.8)),3):0});
+        phase:gait.phase,weight:gait.weight,time:clock,expression,reducedMotion,equipped:worn,sit:sitAmt,armsUp:upAmt,kick,reach:reducedMotion?(avatar.reach||0)*.6:(avatar.reach||0),
+        sip:avatar.sip&&!reducedMotion?Math.pow(Math.max(0,Math.sin(avatar.sip*1.1)),3):0});
       if(selected){
         ctx.save();
         ctx.strokeStyle="#ffeba2";ctx.lineWidth=2.5;

@@ -16,7 +16,7 @@ const SPOTS = Object.freeze({
   "star-bench": { side: true, action: "sit", slots: [{ seat: [-.38, -.12], approach: [-.38, .95] }, { seat: [.38, -.12], approach: [.38, .95] }] },
   "mushroom-stool": { side: true, action: "sit", slots: [{ seat: [0, -.05], approach: [0, .95] }] },
   "picnic-cloth": { side: true, action: "sit", slots: [{ seat: [-.4, -.1], approach: [-.4, .95] }, { seat: [.4, -.1], approach: [.4, .95] }] },
-  "tea-table": { side: true, action: "tea", slots: [{ seat: [-.7, .3], approach: [-.7, 1.1] }, { seat: [.7, .3], approach: [.7, 1.1] }] },
+  "tea-table": { side: true, action: "tea", slots: [{ seat: [-.7, .3], approach: [-1.15, .45] }, { seat: [.7, .3], approach: [1.15, .45] }] },
   "campfire": { action: "warm", slots: [{ seat: [-.9, .1], approach: [-.9, .95] }, { seat: [.9, .1], approach: [.9, .95] }] },
   "garden-swing": { side: true, action: "swing", slots: [{ seat: [0, -.1], approach: [0, .95] }] },
   "mailbox": { action: "mail", slots: [{ seat: [0, 0], approach: [0, .95] }] },
@@ -28,7 +28,7 @@ const SPOTS = Object.freeze({
 /** Actions that put the avatar in a seated pose (rest-time auto seating uses these). */
 export const REST_ACTIONS = Object.freeze(["sit"]);
 /** Everything the avatar can sit down at (tapping one walks there and sits). */
-export const SEATED_ACTIONS = Object.freeze(["sit", "swing", "tea"]);
+export const SEATED_ACTIONS = Object.freeze(["sit", "swing"]);
 
 /** Offsets follow the drawn view: mirrored views flip x, back views flip y. */
 function orient([dx, dy], view) {
@@ -78,6 +78,17 @@ export function nearestSpots(garden, from, findItem, { actions = REST_ACTIONS, o
  * Walks the avatar to a spot and holds it there. `motion` is the avatar
  * motion (goTo/isMoving); the controller never writes the garden save.
  */
+/** Is the furniture of this spot still where it was? */
+export function seatStillThere(garden, spot, findItem) {
+  const placement = garden?.placements?.find((p) => p.id === spot.placementId);
+  if (!placement) return false;
+  const now = spotsFor(placement, findItem(placement.itemId)?.sprite).find((c) => c.key === spot.key);
+  return Boolean(now) && Math.abs(now.x - spot.x) < .01 && Math.abs(now.y - spot.y) < .01;
+}
+
+/** The painted person sits with the torso over the seat and the legs forward, so the body centre sits back from the seat point. */
+export const SEAT_SHIFT = Object.freeze({ right: .35, left: .5, down: 0, up: 0 });
+
 export function createSeatController({ motion, findItem, getGarden }) {
   let phase = "idle", spot = null;
   const occupied = new Set();
@@ -111,6 +122,8 @@ export function createSeatController({ motion, findItem, getGarden }) {
     /** Call every frame; moves walking -> seated once the walk ends. */
     update() {
       if (phase === "walking" && !motion.isMoving()) phase = "seated";
+      // The seat is gone (picked up or moved while someone sat there): stand up instead of sitting on the ground.
+      if (spot && !seatStillThere(getGarden(), spot, findItem)) this.release();
       return phase;
     },
     release() {
@@ -120,7 +133,7 @@ export function createSeatController({ motion, findItem, getGarden }) {
     /** Visual override while seated, or null. The avatar sits just in front of the furniture. */
     seatedVisual(base) {
       if (!SIT_READY || phase !== "seated" || !spot || !base) return null;
-      return { ...base, x: spot.x, y: spot.y + .25, direction: spot.facing, moving: false, pose: "idle", seated: true, seatAction: spot.action };
+      return { ...base, x: spot.x + (SEAT_SHIFT[spot.facing] || 0), y: spot.y + .25, direction: spot.facing, moving: false, pose: "idle", seated: true, seatAction: spot.action };
     },
     occupiedKeys: () => new Set(occupied),
   };
@@ -132,7 +145,7 @@ export function createSeatController({ motion, findItem, getGarden }) {
  */
 export const USE_SPEC = Object.freeze({
   mail: { seconds: 2.6, reach: 1 }, warm: { seconds: 7, reach: 1 }, well: { seconds: 3.4, reach: .85 },
-  listen: { seconds: 3.2, reach: .35 }, watch: { seconds: 3.4, reach: .5 },
+  listen: { seconds: 3.2, reach: .35 }, watch: { seconds: 3.4, reach: .5 }, tea: { seconds: 9, reach: .55, sip: true },
 });
 export const USE_ACTIONS = Object.freeze(Object.keys(USE_SPEC));
 
@@ -175,7 +188,7 @@ export function createUseController({ motion, findItem, getGarden, onUse = () =>
     visual(base) {
       if (phase !== "using" || !spot || !base) return null;
       const spec = USE_SPEC[spot.action];
-      return { ...base, direction: spot.approach.y >= spot.y ? "up" : "down", moving: false, pose: "idle", reach: reachEnvelope(t, spec.seconds, spec.reach) };
+      return { ...base, direction: spot.action === "tea" ? (spot.x < spot.approach.x ? "left" : "right") : spot.approach.y >= spot.y ? "up" : "down", moving: false, pose: "idle", reach: reachEnvelope(t, spec.seconds, spec.reach), sip: spec.sip ? t : 0 };
     },
   };
 }
