@@ -748,12 +748,12 @@ export function createAvatarRig({ ImageClass = globalThis.Image, onReady = () =>
  * Still portrait of the rig (front, idle) as a data URL for the wardrobe card.
  * Returns null until every part has decoded; callers retry on the next paint.
  */
-export function renderRigPortrait(rig, { width = 320, height = 440, expression = "neutral", equipped = null } = {}) {
-  if (typeof document === "undefined" || !rig?.ready("down", equipped)) return null;
+export function renderRigPortrait(rig, { width = 320, height = 440, expression = "neutral", equipped = null, armsUp = 0, direction = "down" } = {}) {
+  if (typeof document === "undefined" || !rig?.ready(direction, equipped)) return null;
   const canvas = document.createElement("canvas");
   canvas.width = width; canvas.height = height;
   const ctx = canvas.getContext("2d");
-  rig.draw(ctx, { x: width / 2, y: height - 16, height: height - 30, direction: "down",
-    phase: .25, weight: 0, time: 0, expression, reducedMotion: true, shadow: true, equipped });
+  rig.draw(ctx, { x: width / 2, y: height - 16, height: height - 30, direction,
+    phase: .25, weight: 0, time: 0, expression, reducedMotion: true, shadow: true, equipped, armsUp });
   try { return canvas.toDataURL("image/webp", .92); } catch { return null; }
 }

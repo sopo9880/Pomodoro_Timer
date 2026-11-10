@@ -126,7 +126,6 @@ const PRECACHE_URLS = [
   "./assets/art/ui/icons/records.webp",
   "./assets/art/ui/icons/settings.webp",
   "./assets/art/ui/icons/time_points.webp",
-  "./assets/art/avatar/portraits/focus_reading.webp",
   "./ui/flower-ornament.svg",
   "./garden/garden.css",
   "./keepalive.mp3",
